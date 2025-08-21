@@ -1,0 +1,635 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    color: #fff;
+    font-size: 18px;
+}
+
+.main-container {
+    display: flex;
+    width: 100%;
+    max-width: 800px; /* Default narrow width */
+    transition: all 0.5s ease;
+    margin: 0 auto; /* Centered */
+    gap: 20px; /* Added gap for spacing between sections */
+}
+
+.main-container:has(.todo-container.pomodoro-active) {
+    max-width: 1400px; /* Wider width when pomodoro is active */
+}
+
+.todo-container {
+    background-color: rgba(255, 255, 255, 0.05);
+    padding: 60px;
+    padding-bottom: 80px; /* extra space so bottom-centered logout doesn't overlap content */
+    border-radius: 15px;
+    box-shadow: 0 8px 32px 0 rgba(255, 235, 59, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 235, 59, 0.18);
+    width: 100%;
+    transition: width 0.5s ease;
+    min-height: 500px;
+    position: relative; /* allow absolute positioning of logout button */
+}
+
+.todo-container.pomodoro-active {
+    width: 50%;
+}
+
+.pomodoro-container {
+    width: 50%;
+    padding: 60px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    position: relative; /* Added for positioning close button */
+    min-height: 500px;
+    /* Removed margin-left: 20px; */
+    /* Removed text-align: center; */
+}
+
+.pomodoro-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.pomodoro-controls > div {
+    display: flex;
+    justify-content: center;
+}
+
+h1, h2 {
+    text-align: center;
+    font-weight: 600;
+    margin-bottom: 30px;
+    font-size: 3em;
+    color: #ffeb3b;
+}
+
+.input-container {
+    display: flex;
+    gap: 10px; /* Added gap for spacing */
+    align-items: center; /* Vertically align items */
+    margin-bottom: 30px;
+    background: rgba(255, 235, 59, 0.03);
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,235,59,0.06);
+}
+
+#todo-input {
+    flex: 1;
+    min-width: 100px; /* Ensure it doesn't become too small */
+    padding: 15px;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    outline: none;
+}
+
+#duration-hours, #duration-minutes {
+    width: 60px; /* Adjusted width */
+    padding: 15px;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    outline: none;
+    /* Removed margin-left: 10px; */
+    flex-shrink: 0; /* Prevent shrinking */
+}
+
+#todo-input::placeholder, #duration-hours::placeholder, #duration-minutes::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+#add-button {
+    background-color: #ffeb3b;
+    color: #000;
+    border: none;
+    padding: 15px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 18px;
+    /* Removed margin-left: 10px; */
+    transition: background-color 0.3s ease;
+    font-weight: 600;
+    flex-shrink: 0; /* Prevent shrinking */
+}
+
+#add-button:hover {
+    background-color: #fdd835;
+}
+
+#todo-list, #completed-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+li {
+    background-color: rgba(255, 255, 255, 0.05);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    display: flex;
+    flex-wrap: wrap; /* Allow items to wrap */
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.3s ease;
+    word-break: break-word;
+}
+
+li:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 16px rgba(255, 235, 59, 0.1);
+}
+
+li span:first-child {
+    flex-grow: 1;
+}
+
+li.completed span {
+    color: rgba(255, 255, 255, 0.5);
+    font-style: normal; /* show completed tasks in normal font */
+}
+
+/* Overdue task style: make the whole card red and more prominent */
+li.overdue {
+    background-color: rgba(231, 76, 60, 0.15);
+    border: 1px solid rgba(231, 76, 60, 0.6);
+}
+
+li.overdue span {
+    color: #ffebee;
+}
+
+.overdue-badge {
+    display: inline-block;
+    color: #fff;
+    background: rgba(231,76,60,0.9);
+    padding: 2px 6px;
+    margin-left: 10px;
+    border-radius: 4px;
+    font-size: 0.8em;
+}
+
+/* Hide progress bar for completed tasks */
+li.completed .progress-bar-container {
+    display: none;
+}
+
+/* Overdue badge for completed tasks: use a red circle emoji */
+.overdue-badge {
+    background: transparent;
+    padding: 0;
+    margin-left: 8px;
+    font-size: 1.2em;
+}
+
+/* Highlight currently running task in Pomodoro with a yellow border */
+li.active-task {
+    /* Keep a subtle glow for the whole card, but do not add a border to the card itself. */
+    box-shadow: 0 6px 24px rgba(255, 235, 59, 0.12);
+}
+
+/* Only the title span inside the active task should receive the yellow border */
+li.active-task span:first-child {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 2px solid rgba(255, 235, 59, 0.95);
+    background: rgba(255, 235, 59, 0.04);
+    margin-right: 8px;
+}
+
+.overdue-extra {
+    font-size: 0.9em;
+    color: rgba(255, 82, 82, 0.95);
+    margin-top: 6px;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+}
+
+.duration {
+    font-size: 0.9em;
+    color: rgba(255, 255, 255, 0.7);
+    margin-right: 15px;
+}
+
+.play-button, .done-button, .delete-button {
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    font-size: 1.2em;
+    margin-left: 10px;
+    transition: color 0.3s ease;
+}
+
+li.completed .play-button {
+    display: none;
+}
+
+.play-button:hover {
+    color: #ffeb3b;
+}
+
+.done-button:hover {
+    color: #2ecc71;
+}
+
+.delete-button:hover {
+    color: #e74c3c;
+}
+
+.login-container, .user-info {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.login-button, .logout-button {
+    display: inline-block;
+    background-color: #ffeb3b;
+    color: #000;
+    padding: 12px 25px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+    font-weight: 600;
+}
+
+.login-button:hover, .logout-button:hover {
+    background-color: #fdd835;
+}
+
+/* Keep logout button pinned to the bottom center of the todo card */
+.todo-container .logout-button {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 18px;
+    z-index: 2000;
+}
+
+.user-info p {
+    margin-bottom: 15px;
+    font-size: 1.1em;
+}
+
+.separator {
+    border: none;
+    height: 3px;
+    background-color: #ffeb3b;
+    margin: 30px 0;
+    border-radius: 2px;
+}
+
+.completed-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+#completed-toggle {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.1em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#clear-completed-button {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+#clear-completed-button:hover {
+    background: rgba(255,235,59,0.06);
+    border-color: rgba(255,235,59,0.16);
+}
+
+.toggle-arrow {
+    display: inline-block;
+    transition: transform 0.2s ease;
+}
+
+#completed-toggle[aria-expanded="true"] .toggle-arrow {
+    transform: rotate(90deg);
+}
+
+/* Modal for overdue prompt */
+.global-modal {
+    position: fixed;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.global-modal .modal-card {
+    background: #111;
+    padding: 20px 24px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,235,59,0.12);
+    max-width: 420px;
+    width: 90%;
+    color: #fff;
+    text-align: center;
+}
+
+.global-modal .modal-card .modal-actions {
+    margin-top: 12px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.global-modal .modal-card button {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.global-modal .modal-card .btn-primary { background: #ffeb3b; color: #000; }
+.global-modal .modal-card .btn-secondary { background: rgba(255,255,255,0.08); color: #fff; }
+
+/* Pomodoro Styles */
+#pomodoro-task {
+    font-size: 1.2em;
+    font-weight: 600;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+/* Pomodoro task name in timer window - highlighted with yellow border */
+#pomodoro-task .pomodoro-task-name {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 2px solid rgba(255,235,59,0.95);
+    background: rgba(255,235,59,0.03);
+}
+
+#pomodoro-task .pomodoro-overdue-emoji {
+    margin-left: 8px;
+    font-size: 1.05rem;
+    vertical-align: middle;
+}
+
+    /* Pomodoro overdue hint: simplified — only show red text with emoji, no box */
+    .pomodoro-overdue-hint {
+    margin-top: 12px;
+    padding: 6px 0;
+    background: transparent;
+    color: rgba(231,76,60,0.95);
+    font-size: 1.05rem;
+    text-align: center;
+    }
+
+#pomodoro-session-display {
+    font-size: 1.4em;
+    text-align: center;
+    margin-bottom: 10px;
+    color: rgba(255, 255, 255, 0.92);
+    font-weight: 600;
+    letter-spacing: 0.6px;
+}
+
+.pomodoro-inputs {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    align-items: center;
+}
+
+.pomodoro-inputs input {
+    width: 110px;
+    padding: 12px;
+    border: 1px solid rgba(255,235,59,0.08);
+    border-radius: 10px;
+    font-size: 15px;
+    background-color: rgba(255, 255, 255, 0.04);
+    color: #fff;
+    outline: none;
+    margin: 0 4px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35) inset;
+}
+
+.pomodoro-inputs input:focus {
+    border-color: rgba(255,235,59,0.22);
+    background-color: rgba(255,255,255,0.06);
+}
+
+.pomodoro-timer-wrapper {
+    border: 3px solid transparent;
+    border-radius: 15px;
+    padding: 10px 10px; /* Added 10px horizontal padding */
+    margin-bottom: 20px;
+    transition: border-color 0.3s ease;
+    display: flex; /* Changed from inline-block */
+    justify-content: center; /* Center content horizontally */
+    align-items: center; /* Center content vertically */
+    max-width: fit-content; /* Shrink-wrap content */
+    margin: 0 auto 20px auto; /* Center the wrapper itself */
+}
+
+.pomodoro-timer-wrapper.focus-mode {
+    border-color: #e74c3c;
+}
+
+.pomodoro-timer-wrapper.break-mode {
+    border-color: #2ecc71;
+}
+
+.pomodoro-timer {
+    font-size: 5.2em;
+    font-weight: 700;
+    text-align: center;
+    line-height: 0.95;
+}
+
+.pomodoro-controls button {
+    background-color: #ffeb3b;
+    color: #000;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    margin: 0 5px;
+    transition: background-color 0.3s ease;
+    font-weight: 600;
+}
+
+.pomodoro-controls button:hover {
+    background-color: #fdd835;
+}
+
+.close-button {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 2em;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.close-button:hover {
+    color: #ffeb3b;
+}
+
+#pomodoro-notification {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 1.1em;
+}
+
+/* Border Flash Animation */
+.border-flash {
+    position: fixed;
+    background-color: transparent;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0;
+}
+
+.border-flash.top, .border-flash.bottom {
+    left: 0;
+    width: 100%;
+    height: 5vh; /* Thicker */
+}
+
+.border-flash.left, .border-flash.right {
+    top: 0;
+    height: 100%;
+    width: 5vw; /* Thicker */
+}
+
+.border-flash.top { top: 0; }
+.border-flash.bottom { bottom: 0; }
+.border-flash.left { left: 0; }
+.border-flash.right { right: 0; }
+
+@keyframes flash-green-border {
+    0% { opacity: 0; background-color: transparent; }
+    50% { opacity: 0.7; background-color: rgba(46, 204, 113, 0.7); } /* More visible */
+    100% { opacity: 0; background-color: transparent; }
+}
+
+@keyframes flash-red-border {
+    0% { opacity: 0; background-color: transparent; }
+    50% { opacity: 0.7; background-color: rgba(231, 76, 60, 0.7); } /* More visible */
+    100% { opacity: 0; background-color: transparent; }
+}
+
+.border-flash.green-flash-active {
+    animation: flash-green-border 1s ease-out forwards; /* 1 second duration */
+}
+
+.border-flash.red-flash-active {
+    animation: flash-red-border 1s ease-out forwards; /* 1 second duration */
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 16px; /* thicker */
+    background-color: rgba(255, 255, 255, 0.06);
+    border-radius: 999px; /* pill */
+    margin-top: 12px;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.45);
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #ffeb3b 0%, #ffd54f 100%);
+    border-radius: 999px;
+    width: 0%;
+    transition: width 0.35s ease;
+    box-shadow: 0 4px 10px rgba(255, 235, 59, 0.12);
+}
+
+/* Left column inside a todo li to hold title and small metadata lines */
+.task-left {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* left align text */
+    flex-grow: 1;
+}
+
+/* Keep actions aligned right */
+li .actions {
+    margin-left: auto;
+}
+
+/* Completed overdue small text (placed under title) */
+.completed-overdue-text {
+    font-size: 0.9em;
+    color: rgba(255,82,82,0.95);
+    margin-top: 6px;
+    text-align: left;
+}
+
+/* Completed before planned duration */
+.completed-underdue-text {
+    font-size: 0.9em;
+    color: rgba(255, 193, 7, 0.95); /* yellow */
+    margin-top: 6px;
+    text-align: left;
+}
+
+/* Completed and reached planned duration (no overdue) */
+.completed-complete-text {
+    font-size: 0.9em;
+    color: rgba(46, 204, 113, 0.95); /* green */
+    margin-top: 6px;
+    text-align: left;
+}
+
+/* Modal task name highlight */
+.modal-message-main { text-align: center; }
+.modal-task-name {
+    font-weight: 700;
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 2px solid rgba(255, 235, 59, 0.95); /* yellow border */
+    background: rgba(255,235,59,0.04);
+}
