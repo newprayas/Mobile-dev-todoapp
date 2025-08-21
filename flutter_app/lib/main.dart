@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'models/todo.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
 import 'services/local_timer_store.dart';
 import 'screens/login_screen.dart';
 import 'screens/todo_list_screen.dart';
+import 'theme/app_colors.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +27,13 @@ class MyApp extends StatelessWidget {
     final AuthService authService = auth ?? AuthService(apiClient);
     return MaterialApp(
       title: 'Todo Flutter',
-      theme: ThemeData.dark().copyWith(primaryColor: Colors.yellow[600]),
+      theme: ThemeData.dark().copyWith(
+        primaryColor: AppColors.brightYellow,
+        scaffoldBackgroundColor: AppColors.scaffoldBg,
+        textTheme: GoogleFonts.interTextTheme(
+          ThemeData.dark().textTheme,
+        ).apply(bodyColor: AppColors.lightGray),
+      ),
       initialRoute: '/todos',
       routes: {
         '/': (c) => HomeScreen(api: apiClient, auth: authService),

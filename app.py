@@ -185,6 +185,35 @@ def toggle_todo():
 
     return jsonify({'result': 'success'})
 
+
+@app.route('/update', methods=['POST'])
+def update_todo():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json()
+    todo_id = data.get('id')
+    text = data.get('text')
+    duration_hours = data.get('duration_hours')
+    duration_minutes = data.get('duration_minutes')
+
+    if todo_id is None:
+        return jsonify({'error': 'Missing id'}), 400
+
+    db = get_db()
+    cursor = db.cursor()
+    # Only update provided fields
+    if text is not None:
+        cursor.execute('UPDATE todos SET text = ? WHERE id = ? AND user_id = ?', (text, todo_id, user['sub']))
+    if duration_hours is not None:
+        cursor.execute('UPDATE todos SET duration_hours = ? WHERE id = ? AND user_id = ?', (duration_hours, todo_id, user['sub']))
+    if duration_minutes is not None:
+        cursor.execute('UPDATE todos SET duration_minutes = ? WHERE id = ? AND user_id = ?', (duration_minutes, todo_id, user['sub']))
+    db.commit()
+    db.close()
+    return jsonify({'result': 'success'})
+
 @app.route('/update_focus_time', methods=['POST'])
 def update_focus_time():
     user = session.get('user')

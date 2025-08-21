@@ -46,6 +46,20 @@ class ApiService {
     return resp.data;
   }
 
+  Future<dynamic> updateTodo(
+    int id, {
+    String? text,
+    int? hours,
+    int? minutes,
+  }) async {
+    final Map<String, dynamic> data = {'id': id};
+    if (text != null) data['text'] = text;
+    if (hours != null) data['duration_hours'] = hours;
+    if (minutes != null) data['duration_minutes'] = minutes;
+    final resp = await _dio.post('/update', data: data);
+    return resp.data;
+  }
+
   Future<dynamic> toggleTodo(int id) async {
     final resp = await _dio.post('/toggle', data: {'id': id});
     return resp.data;

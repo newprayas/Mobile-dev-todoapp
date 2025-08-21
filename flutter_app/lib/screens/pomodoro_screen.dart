@@ -75,6 +75,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
             timeRemaining: _state!.breakDuration ?? defaultBreakMinutes * 60,
             focusDuration: _state!.focusDuration,
             breakDuration: _state!.breakDuration,
+            currentCycle: _state!.currentCycle + 1,
           );
         });
       } else {
@@ -87,6 +88,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
             timeRemaining: _state!.focusDuration ?? defaultFocusMinutes * 60,
             focusDuration: _state!.focusDuration,
             breakDuration: _state!.breakDuration,
+            currentCycle: _state!.currentCycle,
           );
         });
       }
@@ -140,10 +142,33 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    _format(s.timeRemaining ?? 0),
-                    style: const TextStyle(fontSize: 48),
+                  // Circular progress + time
+                  SizedBox(
+                    width: 160,
+                    height: 160,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          value: (() {
+                            final total = s.currentMode == 'focus'
+                                ? (s.focusDuration ?? defaultFocusMinutes * 60)
+                                : (s.breakDuration ?? defaultBreakMinutes * 60);
+                            final rem = s.timeRemaining ?? total;
+                            if (total <= 0) return 0.0;
+                            return (rem / total).clamp(0.0, 1.0);
+                          })(),
+                          strokeWidth: 10,
+                        ),
+                        Text(
+                          _format(s.timeRemaining ?? 0),
+                          style: const TextStyle(fontSize: 28),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(height: 12),
+                  Text('Cycles: ${s.currentCycle}'),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -160,6 +185,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                                 timeRemaining: s.timeRemaining,
                                 focusDuration: s.focusDuration,
                                 breakDuration: s.breakDuration,
+                                currentCycle: s.currentCycle,
                               );
                             });
                             _stopTicker();
@@ -176,6 +202,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                                 timeRemaining: s.timeRemaining,
                                 focusDuration: s.focusDuration,
                                 breakDuration: s.breakDuration,
+                                currentCycle: s.currentCycle,
                               );
                             });
                             _startTicker();
@@ -198,6 +225,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                                   s.focusDuration ?? defaultFocusMinutes * 60,
                               focusDuration: s.focusDuration,
                               breakDuration: s.breakDuration,
+                              currentCycle: 0,
                             );
                           });
                           _stopTicker();
