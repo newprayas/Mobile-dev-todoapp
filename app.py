@@ -20,6 +20,20 @@ def get_db():
     return db
 
 
+def current_user():
+    """Return the logged-in user dict from session. When running in debug mode
+    and no session exists, return a default dev user so local clients can work
+    without OAuth during development.
+    """
+    user = session.get('user')
+    if user:
+        return user
+    if app.debug:
+        # Development fallback user id
+        return {'sub': 'dev'}
+    return None
+
+
 def ensure_was_overdue_column():
     db = get_db()
     cursor = db.cursor()
@@ -109,6 +123,31 @@ def index():
         return render_template('index.html', user=user, todos=todos)
     return render_template('index.html', user=user)
 
+
+@app.route('/api/todos')
+def api_todos():
+    user = current_user()
+    if not user:
+        return jsonify([])
+    ensure_was_overdue_column()
+    db = get_db()
+    rows = db.execute('SELECT * FROM todos WHERE user_id = ?', (user['sub'],)).fetchall()
+    result = []
+    for r in rows:
+        result.append({
+            'id': r['id'],
+            'user_id': r['user_id'],
+            'text': r['text'],
+            'completed': r['completed'],
+            'duration_hours': r['duration_hours'],
+            'duration_minutes': r['duration_minutes'],
+            'focused_time': r['focused_time'],
+            'was_overdue': r.get('was_overdue', 0) if isinstance(r, dict) else r['was_overdue'],
+            'overdue_time': r.get('overdue_time', 0) if isinstance(r, dict) else r['overdue_time'],
+        })
+    db.close()
+    return jsonify(result)
+
 @app.route('/login')
 def login():
     redirect_uri = url_for('authorize', _external=True)
@@ -128,35 +167,52 @@ def logout():
 
 @app.route('/add', methods=['POST'])
 def add_todo():
-    user = session.get('user')
+    user = current_user()
     if not user:
         return jsonify({'error': 'Unauthorized'}), 401
 
-    data = request.get_json()
-    todo_text = data.get('text')
-    duration_hours = data.get('duration_hours')
-    duration_minutes = data.get('duration_minutes')
+    data = request.get_json() or {}
+    todo_text = data.get('text', '').strip()
+    try:
+        duration_hours = int(data.get('duration_hours') or 0)
+    except Exception:
+        duration_hours = 0
+    try:
+        duration_minutes = int(data.get('duration_minutes') or 0)
+    except Exception:
+        duration_minutes = 0
 
-    if not todo_text or not duration_hours or not duration_minutes:
-        return jsonify({'error': 'All fields are required'}), 400
+    if not todo_text:
+        return jsonify({'error': 'Text is required'}), 400
 
     db = get_db()
     cursor = db.cursor()
-    cursor.execute('INSERT INTO todos (user_id, text, duration_hours, duration_minutes, focused_time, was_overdue, overdue_time) VALUES (?, ?, ?, ?, 0, 0, 0)', 
-                   (user['sub'], todo_text, duration_hours, duration_minutes))
+    cursor.execute(
+        'INSERT INTO todos (user_id, text, duration_hours, duration_minutes, focused_time, was_overdue, overdue_time) VALUES (?, ?, ?, ?, 0, 0, 0)',
+        (user['sub'], todo_text, duration_hours, duration_minutes),
+    )
     new_todo_id = cursor.lastrowid
     db.commit()
     db.close()
 
-    return jsonify({'id': new_todo_id, 'text': todo_text, 'completed': 0, 'duration_hours': duration_hours, 'duration_minutes': duration_minutes, 'focused_time': 0, 'was_overdue': 0, 'overdue_time': 0})
+    return jsonify({
+        'id': new_todo_id,
+        'text': todo_text,
+        'completed': 0,
+        'duration_hours': duration_hours,
+        'duration_minutes': duration_minutes,
+        'focused_time': 0,
+        'was_overdue': 0,
+        'overdue_time': 0,
+    })
 
 @app.route('/delete', methods=['POST'])
 def delete_todo():
-    user = session.get('user')
+    user = current_user()
     if not user:
         return jsonify({'error': 'Unauthorized'}), 401
 
-    data = request.get_json()
+    data = request.get_json() or {}
     todo_id = data.get('id')
 
     db = get_db()
@@ -168,18 +224,18 @@ def delete_todo():
 
 @app.route('/toggle', methods=['POST'])
 def toggle_todo():
-    user = session.get('user')
+    user = current_user()
     if not user:
         return jsonify({'error': 'Unauthorized'}), 401
 
-    data = request.get_json()
+    data = request.get_json() or {}
     todo_id = data.get('id')
 
     db = get_db()
     todo = db.execute('SELECT completed FROM todos WHERE id = ? AND user_id = ?', (todo_id, user['sub'])).fetchone()
     if todo:
-        new_completed_status = not todo['completed']
-        db.execute('UPDATE todos SET completed = ? WHERE id = ?', (new_completed_status, todo_id))
+        new_completed_status = 0 if todo['completed'] else 1
+        db.execute('UPDATE todos SET completed = ? WHERE id = ? AND user_id = ?', (new_completed_status, todo_id, user['sub']))
         db.commit()
     db.close()
 
@@ -259,4 +315,5 @@ def update_focus_time():
     return jsonify({'result': 'success', 'was_overdue': was_overdue, 'overdue_time': overdue_time, 'focused_time': ft})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Bind to 0.0.0.0 for development so mobile emulators and devices can reach the host
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

@@ -38,6 +38,11 @@ class ApiService {
         'duration_minutes': minutes,
       },
     );
+    // log server response for debugging duplicate issues
+    try {
+      // ignore: avoid_print
+      print('ApiService.addTodo response: ${resp.data}');
+    } catch (_) {}
     return resp.data;
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io' show Platform;
 import 'package:google_fonts/google_fonts.dart';
 import 'models/todo.dart';
 import 'services/api_service.dart';
@@ -10,7 +11,21 @@ import 'theme/app_colors.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final api = ApiService('http://127.0.0.1:5000');
+  // Allow overriding the API host at build/run time with --dart-define=API_BASE_URL
+  const envBase = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+  String chooseBaseUrl() {
+    if (envBase.isNotEmpty) return envBase;
+    // Android emulator -> host machine is reachable at 10.0.2.2
+    if (Platform.isAndroid) return 'http://10.0.2.2:5000';
+    // iOS simulator and other platforms can use localhost
+    return 'http://127.0.0.1:5000';
+  }
+
+  final baseUrl = chooseBaseUrl();
+  // show chosen base for easier debugging during development
+  // ignore: avoid_print
+  print('Using API baseUrl: $baseUrl');
+  final api = ApiService(baseUrl);
   final auth = AuthService(api);
   await auth.loadSavedToken();
   runApp(MyApp(api: api, auth: auth));
