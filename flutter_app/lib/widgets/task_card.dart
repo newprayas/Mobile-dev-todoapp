@@ -62,9 +62,7 @@ class TaskCard extends StatelessWidget {
                   (isOverdue
                       ? (todo.focusedTime / math.max(1, totalMins))
                       : progress));
-              final fillColor = isActive
-                  ? AppColors.brightYellow.withOpacity(0.1)
-                  : Colors.transparent;
+              const fillColor = Colors.transparent; // Remove yellow hue
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
@@ -105,39 +103,46 @@ class TaskCard extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Focus(
-                          child: Builder(
-                            builder: (ctx) {
-                              final hasFocus = Focus.of(ctx).hasFocus;
-                              return TextField(
-                                controller: editController,
-                                style: TextStyle(
-                                  color: AppColors.lightGray,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  decoration: todo.completed
-                                      ? TextDecoration.lineThrough
-                                      : TextDecoration.none,
-                                ),
-                                decoration: InputDecoration(
-                                  isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
+                        Container(
+                          decoration: isActive
+                              ? BoxDecoration(
+                                  border: Border.all(
+                                    color: AppColors.brightYellow,
+                                    width: 1.5,
                                   ),
-                                  filled: true,
-                                  fillColor: hasFocus
-                                      ? AppColors.inputFill
-                                      : Colors.transparent,
-                                  border: InputBorder.none,
-                                ),
-                                onSubmitted: (v) async {
-                                  final newText = v.trim();
-                                  if (newText.isEmpty) return;
-                                  await onUpdateText(newText);
-                                },
-                              );
-                            },
+                                  borderRadius: BorderRadius.circular(8.0),
+                                )
+                              : null,
+                          child: Focus(
+                            child: Builder(
+                              builder: (ctx) {
+                                return TextField(
+                                  controller: editController,
+                                  style: TextStyle(
+                                    color: AppColors.lightGray,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    decoration: todo.completed
+                                        ? TextDecoration.lineThrough
+                                        : TextDecoration.none,
+                                  ),
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    filled: false,
+                                    border: InputBorder.none,
+                                  ),
+                                  onSubmitted: (v) async {
+                                    final newText = v.trim();
+                                    if (newText.isEmpty) return;
+                                    await onUpdateText(newText);
+                                  },
+                                );
+                              },
+                            ),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -301,7 +306,6 @@ class TaskCard extends StatelessWidget {
               child: ProgressBar(
                 focusedSeconds: cachedFocused,
                 plannedSeconds: plannedSeconds,
-                isFocusMode: false,
               ),
             ),
           ),

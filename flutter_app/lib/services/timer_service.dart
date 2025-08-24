@@ -10,6 +10,7 @@ class TimerService extends ChangeNotifier {
   bool isRunning = false;
   bool isTimerActive = false; // whether mini-bar should show
   String currentMode = 'focus';
+  int? plannedDurationSeconds;
   Timer? _ticker;
   // cache of latest focused time per task (seconds) for UI sync
   final Map<String, int> _focusedTimeCache = {};
@@ -19,11 +20,12 @@ class TimerService extends ChangeNotifier {
     int? remaining,
     bool? running,
     bool? active,
+    int? plannedDuration,
     String? mode,
   }) {
     if (kDebugMode) {
       debugPrint(
-        'TIMER SERVICE: update() called with -> taskName:$taskName remaining:$remaining running:$running active:$active mode:$mode',
+        'TIMER SERVICE: update() called with -> taskName:$taskName remaining:$remaining running:$running active:$active mode:$mode planned:$plannedDuration',
       );
       debugPrint(
         'TIMER SERVICE: before -> activeTaskName:$activeTaskName timeRemaining:$timeRemaining isRunning:$isRunning isTimerActive:$isTimerActive currentMode:$currentMode',
@@ -52,19 +54,29 @@ class TimerService extends ChangeNotifier {
       currentMode = mode;
       changed = true;
     }
-    if (changed) notifyListeners();
-    if (changed && kDebugMode)
+    if (plannedDuration != null && plannedDuration != plannedDurationSeconds) {
+      plannedDurationSeconds = plannedDuration;
+      changed = true;
+    }
+    if (changed) {
+      notifyListeners();
+    }
+    if (changed && kDebugMode) {
       debugPrint(
         'TIMER SERVICE: state changed -> activeTaskName:$activeTaskName timeRemaining:$timeRemaining isRunning:$isRunning isTimerActive:$isTimerActive currentMode:$currentMode',
       );
+    }
     // Only manage ticker when running state explicitly changes
-    if (running != null) _manageTicker();
+    if (running != null) {
+      _manageTicker();
+    }
   }
 
   void toggleRunning() {
     isRunning = !isRunning;
-    if (kDebugMode)
+    if (kDebugMode) {
       debugPrint('TIMER SERVICE: toggleRunning -> isRunning=$isRunning');
+    }
     notifyListeners();
     _manageTicker();
   }
@@ -72,45 +84,74 @@ class TimerService extends ChangeNotifier {
   void _manageTicker() {
     // If the mini-bar should be active and running, start a local ticker.
     if (isTimerActive && isRunning) {
-      if (_ticker == null) {
-        if (kDebugMode)
+      _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) {
+        if (_ticker != null && kDebugMode) {
+          // This debug print confirms the ticker is running
           debugPrint('TIMER SERVICE: starting internal ticker (mini-bar mode)');
-        _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-          if (timeRemaining > 0) {
-            timeRemaining -= 1;
-            if (kDebugMode)
+        }
+        if (timeRemaining > 0) {
+          timeRemaining -= 1;
+          // Also increment focused time if in focus mode
+          if (currentMode == 'focus' && activeTaskName != null) {
+            final taskName = activeTaskName!;
+            final currentFocus = _focusedTimeCache[taskName] ?? 0;
+            _focusedTimeCache[taskName] = currentFocus + 1;
+            final totalFocusedTime = _focusedTimeCache[taskName] ?? 0;
+
+            // Check for overdue condition while running in mini-bar
+            if (plannedDurationSeconds != null &&
+                plannedDurationSeconds! > 0 &&
+                totalFocusedTime >= plannedDurationSeconds!) {
+              if (kDebugMode) {
+                debugPrint(
+                  'TIMER SERVICE: Task is now overdue. Pausing timer.',
+                );
+              }
+              toggleRunning(); // This will pause the timer and stop the ticker
+              return;
+            }
+            if (kDebugMode) {
               debugPrint(
-                'TIMER SERVICE: internal tick -> timeRemaining=$timeRemaining',
+                'TIMER SERVICE: internal tick -> timeRemaining=$timeRemaining, focused=${_focusedTimeCache[taskName]}',
               );
-            notifyListeners();
-          } else {
-            // stop when finished
-            if (kDebugMode)
-              debugPrint('TIMER SERVICE: internal ticker reached 0, clearing');
-            clear();
+            }
+          } else if (kDebugMode) {
+            debugPrint(
+              'TIMER SERVICE: internal tick -> timeRemaining=$timeRemaining',
+            );
           }
-        });
-      }
+          notifyListeners();
+        } else {
+          // stop when finished
+          if (kDebugMode) {
+            debugPrint('TIMER SERVICE: internal ticker reached 0, clearing');
+          }
+          clear();
+        }
+      });
     } else {
-      if (_ticker != null && kDebugMode)
+      if (_ticker != null && kDebugMode) {
         debugPrint(
           'TIMER SERVICE: stopping internal ticker (mini-bar inactive or paused)',
         );
+      }
       _ticker?.cancel();
       _ticker = null;
     }
   }
 
   void clear() {
-    if (kDebugMode)
+    if (kDebugMode) {
       debugPrint(
         'TIMER SERVICE: clear() called - resetting central timer state',
       );
+    }
     activeTaskName = null;
     timeRemaining = 0;
     isRunning = false;
     isTimerActive = false;
     currentMode = 'focus';
+    plannedDurationSeconds = null;
     notifyListeners();
   }
 
@@ -130,8 +171,9 @@ class TimerService extends ChangeNotifier {
 
   int? getFocusedTime(String taskName) {
     final v = _focusedTimeCache[taskName];
-    if (kDebugMode)
+    if (kDebugMode) {
       debugPrint('TIMER SERVICE: getFocusedTime($taskName) -> $v');
+    }
     return v;
   }
 }

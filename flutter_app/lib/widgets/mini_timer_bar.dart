@@ -11,11 +11,13 @@ class MiniTimerBar extends StatefulWidget {
   final ApiService api;
   final NotificationService notificationService;
   final Todo? activeTodo;
+  final Future<void> Function(int) onComplete;
 
   const MiniTimerBar({
     required this.api,
     required this.notificationService,
     this.activeTodo,
+    required this.onComplete,
     super.key,
   });
 
@@ -36,8 +38,9 @@ class _MiniTimerBarState extends State<MiniTimerBar> {
       animation: TimerService.instance,
       builder: (context, _) {
         final svc = TimerService.instance;
-        if (!svc.isTimerActive || svc.activeTaskName == null)
+        if (!svc.isTimerActive || svc.activeTaskName == null) {
           return const SizedBox.shrink();
+        }
         final mode = svc.currentMode;
         final borderColor = mode == 'focus'
             ? Colors.redAccent
@@ -51,10 +54,11 @@ class _MiniTimerBarState extends State<MiniTimerBar> {
 
         return GestureDetector(
           onTap: () async {
-            if (kDebugMode)
+            if (kDebugMode) {
               debugPrint(
                 'MINI BAR: opening full Pomodoro sheet; deactivating mini-bar internal ticker first',
               );
+            }
             TimerService.instance.update(active: false);
             await PomodoroScreen.showAsBottomSheet(
               context,
@@ -72,15 +76,19 @@ class _MiniTimerBarState extends State<MiniTimerBar> {
                     overdueTime: 0,
                   ),
               widget.notificationService,
+              () async {
+                if (widget.activeTodo != null) {
+                  await widget.onComplete(widget.activeTodo!.id);
+                }
+              },
             );
           },
           child: Container(
             decoration: BoxDecoration(
               color: AppColors.cardBg,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
-              ),
-              border: Border(top: BorderSide(color: borderColor, width: 3)),
+              // Revert from pill shape to a standard rounded rectangle
+              borderRadius: BorderRadius.circular(12.0),
+              border: Border.all(color: borderColor, width: 3),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
             child: Row(
@@ -113,10 +121,11 @@ class _MiniTimerBarState extends State<MiniTimerBar> {
                 const Spacer(),
                 IconButton(
                   onPressed: () {
-                    if (kDebugMode)
+                    if (kDebugMode) {
                       debugPrint(
                         'MINI BAR: play/pause pressed, delegating to TimerService.toggleRunning()',
                       );
+                    }
                     TimerService.instance.toggleRunning();
                   },
                   icon: Icon(
@@ -128,7 +137,9 @@ class _MiniTimerBarState extends State<MiniTimerBar> {
                 ),
                 IconButton(
                   onPressed: () async {
-                    if (kDebugMode) debugPrint('MINI BAR: expand pressed');
+                    if (kDebugMode) {
+                      debugPrint('MINI BAR: expand pressed');
+                    }
                     await PomodoroScreen.showAsBottomSheet(
                       context,
                       widget.api,
@@ -145,6 +156,11 @@ class _MiniTimerBarState extends State<MiniTimerBar> {
                             overdueTime: 0,
                           ),
                       widget.notificationService,
+                      () async {
+                        if (widget.activeTodo != null) {
+                          await widget.onComplete(widget.activeTodo!.id);
+                        }
+                      },
                     );
                     TimerService.instance.update(active: false);
                   },

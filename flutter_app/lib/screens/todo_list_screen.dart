@@ -7,6 +7,7 @@ import '../theme/app_colors.dart';
 import '../utils/debug_logger.dart';
 import '../widgets/task_card.dart';
 import 'pomodoro_screen.dart';
+import '../services/timer_service.dart';
 import '../widgets/mini_timer_bar.dart';
 
 import '../services/notification_service.dart';
@@ -39,6 +40,21 @@ class _TodoListScreenState extends State<TodoListScreen> {
   void initState() {
     super.initState();
     _reload();
+    TimerService.instance.addListener(_onTimerServiceUpdate);
+  }
+
+  @override
+  void dispose() {
+    TimerService.instance.removeListener(_onTimerServiceUpdate);
+    _newText.dispose();
+    _hours.dispose();
+    _mins.dispose();
+    super.dispose();
+  }
+
+  void _onTimerServiceUpdate() {
+    // Rebuild to find the active todo and pass it to the mini-bar
+    if (mounted) setState(() {});
   }
 
   Future<void> _reload() async {
@@ -140,16 +156,21 @@ class _TodoListScreenState extends State<TodoListScreen> {
   }
 
   Widget _buildTaskCard(Todo t) {
+    final svc = TimerService.instance;
+    final isActive = svc.activeTaskName == t.text && svc.isRunning;
     return TaskCard(
       todo: t,
+      isActive: isActive,
       onPlay: (todo) async {
         await PomodoroScreen.showAsBottomSheet(
           context,
           widget.api,
           todo,
           widget.notificationService,
+          () => _toggleTodo(todo.id),
         );
-        await _reload();
+        debugPrint("POMODORO SHEET CLOSED: Reloading list.");
+        await _reload(); // This reloads the list after the sheet is closed
       },
       onDelete: () async {
         final confirm = await showDialog<bool>(
@@ -189,6 +210,18 @@ class _TodoListScreenState extends State<TodoListScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final maxCardWidth = min(screenWidth * 0.95, 520.0);
+
+    final activeTaskName = TimerService.instance.activeTaskName;
+    Todo? activeTodo;
+    if (activeTaskName != null) {
+      // Use a simple loop to find the todo to avoid exceptions
+      for (final todo in _todos) {
+        if (todo.text == activeTaskName) {
+          activeTodo = todo;
+          break;
+        }
+      }
+    }
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
       body: SafeArea(
@@ -578,6 +611,8 @@ class _TodoListScreenState extends State<TodoListScreen> {
                       child: MiniTimerBar(
                         api: widget.api,
                         notificationService: widget.notificationService,
+                        activeTodo: activeTodo,
+                        onComplete: _toggleTodo,
                       ),
                     ),
                   ],
