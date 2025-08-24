@@ -8,10 +8,13 @@ import '../utils/debug_logger.dart';
 import '../widgets/task_card.dart';
 import 'pomodoro_screen.dart';
 
+import '../services/notification_service.dart';
+
 class TodoListScreen extends StatefulWidget {
   final ApiService api;
   final AuthService auth;
-  const TodoListScreen({required this.api, required this.auth, super.key});
+  final NotificationService notificationService;
+  const TodoListScreen({required this.api, required this.auth, required this.notificationService, super.key});
 
   @override
   State<TodoListScreen> createState() => _TodoListScreenState();
@@ -134,7 +137,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
     return TaskCard(
       todo: t,
       onPlay: (todo) async {
-        await PomodoroScreen.showAsBottomSheet(context, widget.api, todo);
+        await PomodoroScreen.showAsBottomSheet(context, widget.api, todo, widget.notificationService);
         await _reload();
       },
       onDelete: () async {

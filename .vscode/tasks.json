@@ -1,0 +1,34 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start Dart Server",
+			"type": "shell",
+			"command": "cd backend && dart pub get && (kill $(cat server.pid) 2>/dev/null || lsof -tiTCP:5000 -sTCP:LISTEN | xargs -r kill -9) && nohup dart run bin/server.dart > server.log 2>&1 & echo $! > server.pid",
+			"isBackground": true,
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "silent",
+				"panel": "dedicated"
+			}
+		},
+		{
+			"label": "Set up adb reverse",
+			"type": "shell",
+			"command": "adb reverse tcp:5000 tcp:5000",
+			"problemMatcher": []
+		},
+		{
+			"label": "Launch App with Server",
+			"dependsOrder": "sequence",
+			"dependsOn": ["Start Dart Server", "Set up adb reverse"],
+			"type": "shell",
+			"command": "cd flutter_app && flutter run",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": []
+		}
+	]
+}

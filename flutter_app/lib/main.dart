@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'models/todo.dart';
 import 'services/api_service.dart';
@@ -8,9 +9,12 @@ import 'services/local_timer_store.dart';
 import 'screens/login_screen.dart';
 import 'screens/todo_list_screen.dart';
 import 'theme/app_colors.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final notificationService = NotificationService();
+  await notificationService.init();
   // Allow overriding the API host at build/run time with --dart-define=API_BASE_URL
   const envBase = String.fromEnvironment('API_BASE_URL', defaultValue: '');
   String chooseBaseUrl() {
@@ -23,23 +27,25 @@ void main() async {
 
   final baseUrl = chooseBaseUrl();
   // show chosen base for easier debugging during development
-  // ignore: avoid_print
-  print('Using API baseUrl: $baseUrl');
+  if (kDebugMode) debugPrint('Using API baseUrl: $baseUrl');
   final api = ApiService(baseUrl);
   final auth = AuthService(api);
   await auth.loadSavedToken();
-  runApp(MyApp(api: api, auth: auth));
+  runApp(MyApp(api: api, auth: auth, notificationService: notificationService));
 }
 
 class MyApp extends StatelessWidget {
   final ApiService? api;
   final AuthService? auth;
-  const MyApp({this.api, this.auth, super.key});
+  final NotificationService? notificationService;
+  const MyApp({this.api, this.auth, this.notificationService, super.key});
 
   @override
   Widget build(BuildContext context) {
     final ApiService apiClient = api ?? ApiService('http://127.0.0.1:5000');
     final AuthService authService = auth ?? AuthService(apiClient);
+    final NotificationService notificationManager =
+        notificationService ?? NotificationService();
     return MaterialApp(
       title: 'Todo Flutter',
       theme: ThemeData.dark().copyWith(
@@ -53,7 +59,11 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (c) => HomeScreen(api: apiClient, auth: authService),
         '/login': (c) => LoginScreen(api: apiClient, auth: authService),
-        '/todos': (c) => TodoListScreen(api: apiClient, auth: authService),
+        '/todos': (c) => TodoListScreen(
+          api: apiClient,
+          auth: authService,
+          notificationService: notificationManager,
+        ),
       },
     );
   }
@@ -77,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     // Load persisted task timer states (keeps _store referenced so analyzer won't warn).
     _store.loadAll().then(
-      (m) => debugPrint('Loaded \\${m.length} timer states'),
+      (m) => debugPrint('Loaded \${m.length} timer states'),
     );
   }
 

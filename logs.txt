@@ -1,0 +1,111 @@
+--------- beginning of main
+08-23 22:35:14.499 13693 13693 I ple.flutter_app: Late-enabling -Xcheck:jni
+08-23 22:35:14.576 13693 13693 I ple.flutter_app: Using CollectorTypeCMC GC.
+08-23 22:35:14.645 13693 13693 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+08-23 22:35:14.950 13693 13693 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
+08-23 22:35:14.950 13693 13693 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.sidecar.jar
+08-23 22:35:15.388 13693 13693 D nativeloader: Configuring clns-9 for other apk /data/app/~~6TW6MG-0qbHM1M2xLgc-5Q==/com.example.flutter_app-7nLNPXDB91ov-WhxhYOrXg==/base.apk. target_sdk_version=36, uses_libraries=, library_path=/data/app/~~6TW6MG-0qbHM1M2xLgc-5Q==/com.example.flutter_app-7nLNPXDB91ov-WhxhYOrXg==/lib/arm64:/data/app/~~6TW6MG-0qbHM1M2xLgc-5Q==/com.example.flutter_app-7nLNPXDB91ov-WhxhYOrXg==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.example.flutter_app
+08-23 22:35:15.399 13693 13693 I ple.flutter_app: AssetManager2(0xb40000794dc9ee18) locale list changing from [] to [en-US]
+08-23 22:35:15.407 13693 13693 V GraphicsEnvironment: Currently set values for:
+08-23 22:35:15.407 13693 13693 V GraphicsEnvironment:   angle_gl_driver_selection_pkgs=[]
+08-23 22:35:15.407 13693 13693 V GraphicsEnvironment:   angle_gl_driver_selection_values=[]
+08-23 22:35:15.407 13693 13693 V GraphicsEnvironment: com.example.flutter_app is not listed in per-application setting
+08-23 22:35:15.407 13693 13693 V GraphicsEnvironment: ANGLE allowlist from config: com.dreamgames.royalmatch com.dts.freefiremax com.dxx.firenow com.gramgames.mergedragons com.ludo.king com.mojang.minecraftpe com.my.defense com.nintendo.zaka com.os.airforce com.playrix.fishdomdd.gplay io.teslatech.callbreak jp.konami.prospia net.peakgames.toonblast
+08-23 22:35:15.407 13693 13693 V GraphicsEnvironment: com.example.flutter_app is not listed in ANGLE allowlist or settings, returning default
+08-23 22:35:15.408 13693 13693 V GraphicsEnvironment: Neither updatable production driver nor prerelease driver is supported.
+--------- beginning of system
+08-23 22:35:15.451 13693 13754 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+08-23 22:35:15.454 13693 13693 I ple.flutter_app: AssetManager2(0xb40000794dc98a18) locale list changing from [] to [en-US]
+08-23 22:35:15.466 13693 13693 E ashmem  : Pinning is deprecated since Android Q. Please use trim or other methods.
+08-23 22:35:15.490 13693 13756 D FlutterJNI: Beginning load of flutter...
+08-23 22:35:15.491 13693 13757 I ResourceExtractor: Found extracted resources res_timestamp-1-1755961593604
+08-23 22:35:15.497 13693 13757 I ResourceExtractor: Resource version mismatch res_timestamp-1-1755967813619
+08-23 22:35:15.540 13693 13756 D nativeloader: Load /data/app/~~6TW6MG-0qbHM1M2xLgc-5Q==/com.example.flutter_app-7nLNPXDB91ov-WhxhYOrXg==/base.apk!/lib/arm64-v8a/libflutter.so using class loader ns clns-9 (caller=/data/app/~~6TW6MG-0qbHM1M2xLgc-5Q==/com.example.flutter_app-7nLNPXDB91ov-WhxhYOrXg==/base.apk): ok
+08-23 22:35:15.543 13693 13754 I EGL_emulation: Opening libGLESv1_CM_emulation.so
+08-23 22:35:15.543 13693 13754 I EGL_emulation: Opening libGLESv2_emulation.so
+08-23 22:35:15.552 13693 13756 D FlutterJNI: flutter (null) was loaded normally!
+08-23 22:35:15.570 13693 13754 W HWUI    : Failed to choose config with EGL_SWAP_BEHAVIOR_PRESERVED, retrying without...
+08-23 22:35:15.570 13693 13754 W HWUI    : Failed to initialize 101010-2 format, error = EGL_SUCCESS
+08-23 22:35:16.114 13693 13757 I ResourceExtractor: Extracted baseline resource assets/flutter_assets/kernel_blob.bin
+08-23 22:35:16.115 13693 13757 I ResourceExtractor: Extracted baseline resource assets/flutter_assets/vm_snapshot_data
+08-23 22:35:16.169 13693 13757 I ResourceExtractor: Extracted baseline resource assets/flutter_assets/isolate_snapshot_data
+08-23 22:35:16.206 13693 13693 I ple.flutter_app: AssetManager2(0xb40000794dc9b8f8) locale list changing from [] to [en-US]
+08-23 22:35:16.230 13693 13693 W ple.flutter_app: type=1400 audit(0.0:77): avc:  denied  { read } for  name="max_map_count" dev="proc" ino=92599 scontext=u:r:untrusted_app:s0:c214,c256,c512,c768 tcontext=u:object_r:proc_max_map_count:s0 tclass=file permissive=0 app=com.example.flutter_app
+08-23 22:35:16.265 13693 13693 D DesktopModeFlags: Toggle override initialized to: OVERRIDE_UNSET
+08-23 22:35:16.294 13693 13759 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_gl_impeller.cc(104)] Using the Impeller rendering backend (OpenGLES).
+08-23 22:35:16.408 13693 13768 I flutter : The Dart VM service is listening on http://127.0.0.1:37259/aHrjCpEMxxo=/
+08-23 22:35:16.851 13693 13693 I ple.flutter_app: hiddenapi: Accessing hidden method Landroid/view/accessibility/AccessibilityNodeInfo;->getSourceNodeId()J (runtime_flags=0, domain=platform, api=unsupported,test-api) from Lio/flutter/view/AccessibilityViewEmbedder$ReflectionAccessors; (domain=app) using reflection: allowed
+08-23 22:35:16.852 13693 13693 I ple.flutter_app: hiddenapi: Accessing hidden method Landroid/view/accessibility/AccessibilityRecord;->getSourceNodeId()J (runtime_flags=0, domain=platform, api=unsupported) from Lio/flutter/view/AccessibilityViewEmbedder$ReflectionAccessors; (domain=app) using reflection: allowed
+08-23 22:35:16.852 13693 13693 I ple.flutter_app: hiddenapi: Accessing hidden field Landroid/view/accessibility/AccessibilityNodeInfo;->mChildNodeIds:Landroid/util/LongArray; (runtime_flags=0, domain=platform, api=unsupported) from Lio/flutter/view/AccessibilityViewEmbedder$ReflectionAccessors; (domain=app) using reflection: allowed
+08-23 22:35:16.853 13693 13693 I ple.flutter_app: hiddenapi: Accessing hidden method Landroid/util/LongArray;->get(I)J (runtime_flags=0, domain=platform, api=unsupported) from Lio/flutter/view/AccessibilityViewEmbedder$ReflectionAccessors; (domain=app) using reflection: allowed
+08-23 22:35:16.968 13693 13693 D CompatChangeReporter: Compat change id reported: 377864165; UID 10214; state: ENABLED
+08-23 22:35:17.054 13693 13693 W HWUI    : Unknown dataspace 0
+08-23 22:35:17.271 13693 13693 I WindowExtensionsImpl: Initializing Window Extensions, vendor API level=9, activity embedding enabled=true
+08-23 22:35:17.287 13693 13699 I ple.flutter_app: Compiler allocated 5111KB to compile void android.view.ViewRootImpl.performTraversals()
+08-23 22:35:18.346 13693 13693 I Choreographer: Skipped 57 frames!  The application may be doing too much work on its main thread.
+08-23 22:35:18.369 13693 13693 D WindowLayoutComponentImpl: Register WindowLayoutInfoListener on Context=com.example.flutter_app.MainActivity@50969f4, of which baseContext=android.app.ContextImpl@5297619
+08-23 22:35:19.496 13693 13693 I flutter : Using API baseUrl: http://10.0.2.2:5000
+08-23 22:35:21.186 13693 13693 I Choreographer: Skipped 80 frames!  The application may be doing too much work on its main thread.
+08-23 22:35:21.218 13693 13693 I flutter : Loaded ${m.length} timer states
+08-23 22:35:21.254 13693 13778 D ProfileInstaller: Installing profile for com.example.flutter_app
+08-23 22:35:21.805 13693 13693 I ple.flutter_app: AssetManager2(0xb40000794dca9098) locale list changing from [] to [en-US]
+08-23 22:35:21.880 13693 13693 I Choreographer: Skipped 41 frames!  The application may be doing too much work on its main thread.
+08-23 22:35:21.986 13693 13706 I HWUI    : Davey! duration=779ms; Flags=1, FrameTimelineVsyncId=309369, IntendedVsync=17944892816214, Vsync=17945576149520, InputEventId=0, HandleInputStart=17945583460550, AnimationStart=17945583464509, PerformTraversalsStart=17945583469175, DrawStart=17945618243467, FrameDeadline=17944909482880, FrameStartTime=17945583029467, FrameInterval=16666666, WorkloadTarget=16666666, SyncQueued=17945630110967, SyncStart=17945630667009, IssueDrawCommandsStart=17945631759092, SwapBuffers=17945661511550, FrameCompleted=17945672781425, DequeueBufferDuration=1887542, QueueBufferDuration=653458, GpuCompleted=17945670822467, SwapBuffersCompleted=17945672781425, DisplayPresentTime=0, CommandSubmissionCompleted=17945661511550, 
+08-23 22:35:22.662 13693 13693 D InsetsController: hide(ime(), fromIme=false)
+08-23 22:35:22.663 13693 13693 I ImeTracker: com.example.flutter_app:5cce7ed7: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+08-23 22:35:24.959 13693 13693 I ImeTracker: com.example.flutter_app:1fc6ab04: onRequestShow at ORIGIN_CLIENT reason SHOW_SOFT_INPUT fromUser false
+08-23 22:35:25.039 13693 13693 D InsetsController: show(ime(), fromIme=false)
+08-23 22:35:25.041 13693 13693 D InsetsController: Setting requestedVisibleTypes to -1 (was -9)
+08-23 22:35:25.256 13693 13693 D InputConnectionAdaptor: The input method toggled cursor monitoring on
+08-23 22:35:25.280 13693 13693 I AssistStructure: Flattened final assist data: 520 bytes, containing 1 windows, 3 views
+08-23 22:35:25.647 13693 13693 W InteractionJankMonitor: Initializing without READ_DEVICE_CONFIG permission. enabled=false, interval=1, missedFrameThreshold=3, frameTimeThreshold=64, package=com.example.flutter_app
+08-23 22:35:26.069 13693 13693 I ImeTracker: com.example.flutter_app:1fc6ab04: onShown
+08-23 22:35:27.515 13693 13693 I flutter : DEBUG [TODO]: Adding: "Hello" (0h 25m)
+08-23 22:35:27.557 13693 13693 I flutter : DEBUG [TODO]: Add failed: DioException [connection error]: The connection errored: Connection refused This indicates an error which most likely cannot be solved by the library.
+08-23 22:35:27.557 13693 13693 I flutter : Error: SocketException: Connection refused (OS Error: Connection refused, errno = 111), address = 10.0.2.2, port = 50038
+08-23 22:35:27.557 13693 13693 I flutter : #0      DioMixin.fetch (package:dio/src/dio_mixin.dart:523:7)
+08-23 22:35:27.557 13693 13693 I flutter : <asynchronous suspension>
+08-23 22:35:27.557 13693 13693 I flutter : #1      ApiService.addTodo (package:flutter_app/services/api_service.dart:47:18)
+08-23 22:35:27.557 13693 13693 I flutter : <asynchronous suspension>
+08-23 22:35:27.557 13693 13693 I flutter : #2      _TodoListScreenState._addTodo (package:flutter_app/screens/todo_list_screen.dart:75:7)
+08-23 22:35:27.557 13693 13693 I flutter : <asynchronous suspension>
+08-23 22:35:27.722 13693 13693 I ple.flutter_app: AssetManager2(0xb40000794dcb0a78) locale list changing from [] to [en-US]
+08-23 22:35:29.115 13693 13693 I flutter : Toggle tapped for 1755967827
+08-23 22:35:29.115 13693 13693 I flutter : DEBUG [TODO]: Toggling todo 1755967827
+08-23 22:35:29.124 13693 13693 I flutter : DEBUG [TODO]: Toggle failed: DioException [connection error]: The connection errored: Connection refused This indicates an error which most likely cannot be solved by the library.
+08-23 22:35:29.124 13693 13693 I flutter : Error: SocketException: Connection refused (OS Error: Connection refused, errno = 111), address = 10.0.2.2, port = 50048
+08-23 22:35:29.124 13693 13693 I flutter : #0      DioMixin.fetch (package:dio/src/dio_mixin.dart:523:7)
+08-23 22:35:29.124 13693 13693 I flutter : <asynchronous suspension>
+08-23 22:35:29.124 13693 13693 I flutter : #1      ApiService.toggleTodo (package:flutter_app/services/api_service.dart:82:18)
+08-23 22:35:29.124 13693 13693 I flutter : <asynchronous suspension>
+08-23 22:35:29.124 13693 13693 I flutter : #2      _TodoListScreenState._toggleTodo (package:flutter_app/screens/todo_list_screen.dart:121:7)
+08-23 22:35:29.124 13693 13693 I flutter : <asynchronous suspension>
+08-23 22:35:29.124 13693 13693 I flutter : #3      _TodoListScreenState._buildTaskCard.<anonymous closure> (package:flutter_app/screens/todo_list_screen.dart:164:9)
+08-23 22:35:29.124 13693 13693 I flutter : <asynchronous suspension>
+08-23 22:35:29.124 13693 13693 I flutter : #4      TaskCard.build.<anonymous closure>.<anonymous closure> (package:flutter_app/widgets/task_card.dart:283:33)
+08-23 22:35:29.124 13693 13693 I flutter : <asynchronous suspension>
+08-23 22:35:30.250 13693 13693 I flutter : Delete tapped for 1755967827
+08-23 22:35:30.356 13693 13693 I ImeTracker: com.example.flutter_app:75a2a438: onRequestHide at ORIGIN_CLIENT reason HIDE_SOFT_INPUT fromUser false
+08-23 22:35:30.356 13693 13693 D InsetsController: hide(ime(), fromIme=false)
+08-23 22:35:30.358 13693 13693 W WindowOnBackDispatcher: sendCancelIfRunning: isInProgress=false callback=android.view.ImeBackAnimationController@2512d43
+08-23 22:35:30.360 13693 13693 D InsetsController: Setting requestedVisibleTypes to -9 (was -1)
+08-23 22:35:30.369 13693 13693 D CompatChangeReporter: Compat change id reported: 395521150; UID 10214; state: ENABLED
+08-23 22:35:30.782 13693 13693 I ImeTracker: system_server:5c03951e: onCancelled at PHASE_CLIENT_ON_CONTROLS_CHANGED
+08-23 22:35:31.461 13693 13693 I flutter : DEBUG [TODO]: Deleting todo 1755967827
+08-23 22:35:31.484 13693 13693 I flutter : DEBUG [TODO]: Delete failed: DioException [connection error]: The connection errored: Connection refused This indicates an error which most likely cannot be solved by the library.
+08-23 22:35:31.484 13693 13693 I flutter : Error: SocketException: Connection refused (OS Error: Connection refused, errno = 111), address = 10.0.2.2, port = 50054
+08-23 22:35:31.484 13693 13693 I flutter : #0      DioMixin.fetch (package:dio/src/dio_mixin.dart:523:7)
+08-23 22:35:31.484 13693 13693 I flutter : <asynchronous suspension>
+08-23 22:35:31.484 13693 13693 I flutter : #1      ApiService.deleteTodo (package:flutter_app/services/api_service.dart:63:18)
+08-23 22:35:31.484 13693 13693 I flutter : <asynchronous suspension>
+08-23 22:35:31.484 13693 13693 I flutter : #2      _TodoListScreenState._deleteTodo (package:flutter_app/screens/todo_list_screen.dart:111:7)
+08-23 22:35:31.484 13693 13693 I flutter : <asynchronous suspension>
+08-23 22:35:31.484 13693 13693 I flutter : #3      _TodoListScreenState._buildTaskCard.<anonymous closure> (package:flutter_app/screens/todo_list_screen.dart:161:30)
+08-23 22:35:31.484 13693 13693 I flutter : <asynchronous suspension>
+08-23 22:35:31.484 13693 13693 I flutter : #4      TaskCard.build.<anonymous closure>.<anonymous closure> (package:flutter_app/widgets/task_card.dart:297:33)
+08-23 22:35:31.484 13693 13693 I flutter : <asynchronous suspension>
+08-23 22:35:31.495 13693 13693 I ImeTracker: com.example.flutter_app:e5fb9ff8: onRequestShow at ORIGIN_CLIENT reason SHOW_SOFT_INPUT fromUser false
+08-23 22:35:31.496 13693 13693 D InsetsController: show(ime(), fromIme=false)
+08-23 22:35:31.496 13693 13693 D InsetsController: Setting requestedVisibleTypes to -1 (was -9)
+08-23 22:35:31.512 13693 13693 D InputConnectionAdaptor: The input method toggled cursor monitoring on
+08-23 22:35:31.993 13693 13693 I ImeTracker: com.example.flutter_app:e5fb9ff8: onShown

@@ -1,4 +1,10 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+
+// For local development the Dart backend accepts a simple header 'x-user-id'
+// to simulate a logged-in user (the original Flask app used OAuth). When the
+// ApiService is constructed with a local baseUrl we add that header so the
+// client can talk to the Dart server without an OAuth flow.
 
 class ApiService {
   final Dio _dio;
@@ -9,7 +15,15 @@ class ApiService {
           baseUrl: baseUrl,
           connectTimeout: const Duration(seconds: 5),
         ),
-      );
+      ) {
+    final lower = baseUrl.toLowerCase();
+    if (lower.contains('127.0.0.1') ||
+        lower.contains('localhost') ||
+        lower.contains('10.0.2.2')) {
+      // default dev user id
+      _dio.options.headers['x-user-id'] = 'dev';
+    }
+  }
 
   void setAuthToken(String? token) {
     if (token != null) {
@@ -40,8 +54,7 @@ class ApiService {
     );
     // log server response for debugging duplicate issues
     try {
-      // ignore: avoid_print
-      print('ApiService.addTodo response: ${resp.data}');
+      if (kDebugMode) debugPrint('ApiService.addTodo response: ${resp.data}');
     } catch (_) {}
     return resp.data;
   }

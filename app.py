@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 load_dotenv() # Load environment variables from .env file
 
 app = Flask(__name__)
+app.debug = True
+
 app.secret_key = os.urandom(24)
 
 # Database setup

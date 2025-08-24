@@ -191,6 +191,9 @@ class PomodoroController extends ChangeNotifier {
       mode = PomodoroMode.breakMode;
       timeRemaining = breakDuration;
       _focusStart = null;
+      // Auto-start next session
+      isRunning = true;
+      _startTicker();
       notifyListeners();
       onSessionTransition?.call(mode);
     } else {
@@ -198,6 +201,9 @@ class PomodoroController extends ChangeNotifier {
       mode = PomodoroMode.focus;
       timeRemaining = focusDuration;
       _focusStart = DateTime.now();
+      // Auto-start next session
+      isRunning = true;
+      _startTicker();
       notifyListeners();
       onSessionTransition?.call(mode);
     }

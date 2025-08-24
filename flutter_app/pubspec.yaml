@@ -36,7 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_redux: ^0.10.0
   dio: ^5.9.0
-  google_sign_in: ^7.1.1
+  google_sign_in: 7.0.0
   flutter_secure_storage: ^9.2.4
   shared_preferences: ^2.5.3
   flutter_local_notifications: ^19.4.0
@@ -64,6 +64,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/sounds/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

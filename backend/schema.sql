@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS todos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  completed INTEGER DEFAULT 0,
+  duration_hours INTEGER DEFAULT 0,
+  duration_minutes INTEGER DEFAULT 0,
+  focused_time INTEGER DEFAULT 0,
+  was_overdue INTEGER DEFAULT 0,
+  overdue_time INTEGER DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
