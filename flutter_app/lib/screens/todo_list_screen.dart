@@ -7,6 +7,7 @@ import '../theme/app_colors.dart';
 import '../utils/debug_logger.dart';
 import '../widgets/task_card.dart';
 import 'pomodoro_screen.dart';
+import '../widgets/mini_timer_bar.dart';
 
 import '../services/notification_service.dart';
 
@@ -204,207 +205,221 @@ class _TodoListScreenState extends State<TodoListScreen> {
                   horizontal: 20,
                   vertical: 18,
                 ),
-                child: Column(
-                  mainAxisAlignment: _todos.isEmpty
-                      ? MainAxisAlignment.center
-                      : MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                child: Stack(
                   children: [
-                    const SizedBox(height: 20),
-                    Text(
-                      'TO-DO APP',
-                      style: TextStyle(
-                        color: AppColors.brightYellow,
-                        fontSize: 48,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.4,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 14),
-                    const Text(
-                      'Welcome, prayas new!',
-                      style: TextStyle(
-                        color: AppColors.lightGray,
-                        fontSize: 16,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-
-                    const SizedBox(height: 22),
-
-                    // Centered content block: add area + list
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Add area (multiline auto-expanding input)
-                          Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.midGray,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            child: TextField(
-                              controller: _newText,
-                              keyboardType: TextInputType.multiline,
-                              minLines: 1,
-                              maxLines: null,
-                              style: const TextStyle(
-                                color: AppColors.lightGray,
-                                fontSize: 16,
-                              ),
-                              decoration: const InputDecoration(
-                                hintText: 'What do you need to do?',
-                                hintStyle: TextStyle(
-                                  color: AppColors.mediumGray,
-                                ),
-                                border: InputBorder.none,
-                              ),
-                            ),
+                    Column(
+                      mainAxisAlignment: _todos.isEmpty
+                          ? MainAxisAlignment.center
+                          : MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 20),
+                        Text(
+                          'TO-DO APP',
+                          style: TextStyle(
+                            color: AppColors.brightYellow,
+                            fontSize: 48,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.4,
                           ),
-                          const SizedBox(height: 12),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 14),
+                        const Text(
+                          'Welcome, prayas new!',
+                          style: TextStyle(
+                            color: AppColors.lightGray,
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
 
-                          // Time selectors (inline editable) and Add button
-                          Row(
+                        const SizedBox(height: 22),
+
+                        // Centered content block: add area + list
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              SizedBox(
-                                width: 100,
+                              // Add area (multiline auto-expanding input)
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: AppColors.midGray,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
                                 child: TextField(
-                                  controller: _hours,
-                                  keyboardType: TextInputType.number,
-                                  decoration: InputDecoration(
-                                    filled: true,
-                                    fillColor: AppColors.midGray,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 12,
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    hintText: '0',
-                                    suffixText: 'h',
-                                  ),
+                                  controller: _newText,
+                                  keyboardType: TextInputType.multiline,
+                                  minLines: 1,
+                                  maxLines: null,
                                   style: const TextStyle(
                                     color: AppColors.lightGray,
-                                    fontWeight: FontWeight.w600,
+                                    fontSize: 16,
                                   ),
-                                  onSubmitted: (_) => setState(() {}),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              SizedBox(
-                                width: 100,
-                                child: TextField(
-                                  controller: _mins,
-                                  keyboardType: TextInputType.number,
-                                  decoration: InputDecoration(
-                                    filled: true,
-                                    fillColor: AppColors.midGray,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 12,
+                                  decoration: const InputDecoration(
+                                    hintText: 'What do you need to do?',
+                                    hintStyle: TextStyle(
+                                      color: AppColors.mediumGray,
                                     ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    hintText: '25',
-                                    suffixText: 'm',
-                                  ),
-                                  style: const TextStyle(
-                                    color: AppColors.lightGray,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  onSubmitted: (_) => setState(() {}),
-                                ),
-                              ),
-                              const Spacer(),
-                              SizedBox(
-                                height: 44,
-                                child: ElevatedButton(
-                                  onPressed: _addTodo,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.brightYellow,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                  child: const Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                    ),
-                                    child: Text(
-                                      'Add',
-                                      style: TextStyle(
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
+                                    border: InputBorder.none,
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
+                              const SizedBox(height: 12),
 
-                          const SizedBox(height: 18),
-
-                          // Scrolling area
-                          Expanded(
-                            child: _loading
-                                ? const Center(
-                                    child: CircularProgressIndicator(),
-                                  )
-                                : ListView(
-                                    padding: EdgeInsets.zero,
-                                    children: [
-                                      // Active tasks
-                                      ..._todos
-                                          .where((t) => !t.completed)
-                                          .map((t) => _buildTaskCard(t)),
-                                      const SizedBox(height: 18),
-                                      Container(
-                                        height: 2,
-                                        color: AppColors.brightYellow,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      ExpansionTile(
-                                        initiallyExpanded: _completedExpanded,
-                                        onExpansionChanged: (v) => setState(
-                                          () => _completedExpanded = v,
-                                        ),
-                                        title: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Row(
-                                              children: const [
-                                                Icon(
-                                                  Icons.check,
-                                                  color: AppColors.lightGray,
-                                                ),
-                                                SizedBox(width: 8),
-                                                Text(
-                                                  'Completed',
-                                                  style: TextStyle(
-                                                    color: AppColors.lightGray,
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ],
+                              // Time selectors (inline editable) and Add button
+                              Row(
+                                children: [
+                                  SizedBox(
+                                    width: 100,
+                                    child: TextField(
+                                      controller: _hours,
+                                      keyboardType: TextInputType.number,
+                                      decoration: InputDecoration(
+                                        filled: true,
+                                        fillColor: AppColors.midGray,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 12,
                                             ),
-                                            if (_completedExpanded)
-                                              ElevatedButton.icon(
-                                                onPressed: () async {
-                                                  final confirm =
-                                                      await showDialog<bool>(
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                        hintText: '0',
+                                        suffixText: 'h',
+                                      ),
+                                      style: const TextStyle(
+                                        color: AppColors.lightGray,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      onSubmitted: (_) => setState(() {}),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  SizedBox(
+                                    width: 100,
+                                    child: TextField(
+                                      controller: _mins,
+                                      keyboardType: TextInputType.number,
+                                      decoration: InputDecoration(
+                                        filled: true,
+                                        fillColor: AppColors.midGray,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 12,
+                                            ),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                        hintText: '25',
+                                        suffixText: 'm',
+                                      ),
+                                      style: const TextStyle(
+                                        color: AppColors.lightGray,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      onSubmitted: (_) => setState(() {}),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  SizedBox(
+                                    height: 44,
+                                    child: ElevatedButton(
+                                      onPressed: _addTodo,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.brightYellow,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                      ),
+                                      child: const Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                        ),
+                                        child: Text(
+                                          'Add',
+                                          style: TextStyle(
+                                            color: Colors.black,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 18),
+
+                              // Scrolling area
+                              Expanded(
+                                child: _loading
+                                    ? const Center(
+                                        child: CircularProgressIndicator(),
+                                      )
+                                    : ListView(
+                                        padding: EdgeInsets.zero,
+                                        children: [
+                                          // Active tasks
+                                          ..._todos
+                                              .where((t) => !t.completed)
+                                              .map((t) => _buildTaskCard(t)),
+                                          const SizedBox(height: 18),
+                                          Container(
+                                            height: 2,
+                                            color: AppColors.brightYellow,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          ExpansionTile(
+                                            initiallyExpanded:
+                                                _completedExpanded,
+                                            onExpansionChanged: (v) => setState(
+                                              () => _completedExpanded = v,
+                                            ),
+                                            title: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                Row(
+                                                  children: const [
+                                                    Icon(
+                                                      Icons.check,
+                                                      color:
+                                                          AppColors.lightGray,
+                                                    ),
+                                                    SizedBox(width: 8),
+                                                    Text(
+                                                      'Completed',
+                                                      style: TextStyle(
+                                                        color:
+                                                            AppColors.lightGray,
+                                                        fontSize: 18,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                if (_completedExpanded)
+                                                  ElevatedButton.icon(
+                                                    onPressed: () async {
+                                                      final confirm = await showDialog<bool>(
                                                         context: context,
                                                         builder: (dctx) => AlertDialog(
                                                           title: const Text(
@@ -435,115 +450,134 @@ class _TodoListScreenState extends State<TodoListScreen> {
                                                           ],
                                                         ),
                                                       );
-                                                  if (confirm == true) {
-                                                    await _clearCompleted();
-                                                  }
-                                                },
-                                                icon: const Icon(
-                                                  Icons.delete_outline,
-                                                  color: AppColors.lightGray,
-                                                ),
-                                                label: const Text(
-                                                  'Clear All',
-                                                  style: TextStyle(
-                                                    color: AppColors.lightGray,
-                                                    fontWeight: FontWeight.w500,
+                                                      if (confirm == true) {
+                                                        await _clearCompleted();
+                                                      }
+                                                    },
+                                                    icon: const Icon(
+                                                      Icons.delete_outline,
+                                                      color:
+                                                          AppColors.lightGray,
+                                                    ),
+                                                    label: const Text(
+                                                      'Clear All',
+                                                      style: TextStyle(
+                                                        color:
+                                                            AppColors.lightGray,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                    style: ElevatedButton.styleFrom(
+                                                      backgroundColor:
+                                                          AppColors.midGray,
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              8,
+                                                            ),
+                                                      ),
+                                                    ),
                                                   ),
-                                                ),
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      AppColors.midGray,
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
+                                              ],
+                                            ),
+                                            children: [
+                                              ..._todos
+                                                  .where((t) => t.completed)
+                                                  .map(
+                                                    (t) => _buildTaskCard(t),
                                                   ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                        children: [
-                                          ..._todos
-                                              .where((t) => t.completed)
-                                              .map((t) => _buildTaskCard(t)),
+                                            ],
+                                          ),
+
+                                          const SizedBox(height: 24),
                                         ],
                                       ),
-
-                                      const SizedBox(height: 24),
-                                    ],
-                                  ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // Subtle logout at bottom-left
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton.icon(
-                        onPressed: () async {
-                          final nav = Navigator.of(context);
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (dctx) => AlertDialog(
-                              title: const Text('Logout?'),
-                              content: const Text(
-                                'You will be signed out of the app.',
                               ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.of(dctx).pop(false),
-                                  child: const Text('Cancel'),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // Subtle logout at bottom-left
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: () async {
+                              final nav = Navigator.of(context);
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (dctx) => AlertDialog(
+                                  title: const Text('Logout?'),
+                                  content: const Text(
+                                    'You will be signed out of the app.',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(dctx).pop(false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () =>
+                                          Navigator.of(dctx).pop(true),
+                                      child: const Text('Logout'),
+                                    ),
+                                  ],
                                 ),
-                                ElevatedButton(
-                                  onPressed: () => Navigator.of(dctx).pop(true),
-                                  child: const Text('Logout'),
+                              );
+                              if (confirm == true) {
+                                await widget.auth.signOut();
+                                if (!mounted) return;
+                                nav.pushReplacementNamed('/login');
+                              }
+                            },
+                            icon: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: Colors.transparent,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: AppColors.lightGray.withAlpha(
+                                    31,
+                                  ), // ~0.12 opacity
                                 ),
-                              ],
+                              ),
+                              child: const Icon(
+                                Icons.logout,
+                                color: AppColors.lightGray,
+                              ),
                             ),
-                          );
-                          if (confirm == true) {
-                            await widget.auth.signOut();
-                            if (!mounted) return;
-                            nav.pushReplacementNamed('/login');
-                          }
-                        },
-                        icon: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: Colors.transparent,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppColors.lightGray.withAlpha(
-                                31,
-                              ), // ~0.12 opacity
+                            label: Text(
+                              'Logout',
+                              style: TextStyle(
+                                color: AppColors.lightGray.withAlpha(
+                                  179,
+                                ), // ~0.7 opacity
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 6,
+                              ),
                             ),
                           ),
-                          child: const Icon(
-                            Icons.logout,
-                            color: AppColors.lightGray,
-                          ),
                         ),
-                        label: Text(
-                          'Logout',
-                          style: TextStyle(
-                            color: AppColors.lightGray.withAlpha(
-                              179,
-                            ), // ~0.7 opacity
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 6,
-                          ),
-                        ),
+                        // main column end
+                      ],
+                    ),
+                    // Positioned mini-timer overlay that covers bottom controls (e.g., logout)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: MiniTimerBar(
+                        api: widget.api,
+                        notificationService: widget.notificationService,
                       ),
                     ),
                   ],

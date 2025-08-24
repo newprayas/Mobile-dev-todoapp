@@ -8,6 +8,7 @@ import '../services/local_timer_store.dart';
 import '../models/task_timer_state.dart';
 import '../services/notification_service.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/timer_service.dart';
 
 class PomodoroScreen extends StatefulWidget {
   final ApiService api;
@@ -29,6 +30,33 @@ class PomodoroScreen extends StatefulWidget {
     Todo todo,
     NotificationService notificationService,
   ) async {
+    // Function to handle sheet dismissal and update minibar
+    void updateMinibar() {
+      final svc = TimerService.instance;
+      if (kDebugMode) {
+        debugPrint(
+          'POMODORO: Transitioning to mini-bar - running=${svc.isRunning} mode=${svc.currentMode}',
+        );
+      }
+      // If the central service has just been cleared (no active task and not running),
+      // do not re-open the mini-bar. This prevents the close (X) button from hiding
+      // the sheet then immediately re-showing the minibar.
+      if (svc.activeTaskName == null && svc.isRunning == false) {
+        if (kDebugMode)
+          debugPrint('POMODORO: minibar suppressed because service cleared');
+        return;
+      }
+
+      // Otherwise, update the mini-bar with current state to ensure smooth transition
+      svc.update(
+        taskName: todo.text,
+        remaining: svc.timeRemaining,
+        running: svc.isRunning, // Preserve the running state
+        mode: svc.currentMode, // Preserve focus/break mode
+        active: true, // Show the mini-bar
+      );
+    }
+
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -43,15 +71,27 @@ class PomodoroScreen extends StatefulWidget {
             color: AppColors.cardBg,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          child: PomodoroScreen(
-            api: api,
-            todo: todo,
-            notificationService: notificationService,
-            asSheet: true,
+          child: WillPopScope(
+            onWillPop: () async {
+              updateMinibar(); // Handle back button press
+              return true;
+            },
+            child: GestureDetector(
+              onTap: () {},
+              child: PomodoroScreen(
+                api: api,
+                todo: todo,
+                notificationService: notificationService,
+                asSheet: true,
+              ),
+            ),
           ),
         ),
       ),
     );
+
+    // Handle swipe-to-dismiss
+    updateMinibar();
   }
 
   @override
@@ -62,6 +102,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   final LocalTimerStore _store = LocalTimerStore();
   TaskTimerState? _state;
   Timer? _ticker;
+  bool _suppressServiceReactions = false;
 
   late TextEditingController _focusController;
   late TextEditingController _breakController;
@@ -71,6 +112,14 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   void initState() {
     super.initState();
     _loadState();
+    // Post all service interactions to avoid setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // mark the mini-bar inactive while the full sheet is open
+      TimerService.instance.update(active: false);
+      // listen to central timer service so mini-bar controls can affect this screen
+      TimerService.instance.addListener(_onServiceUpdate);
+    });
   }
 
   @override
@@ -79,7 +128,87 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     _focusController.dispose();
     _breakController.dispose();
     _cyclesController.dispose();
+    TimerService.instance.removeListener(_onServiceUpdate);
     super.dispose();
+  }
+
+  void _onServiceUpdate() {
+    if (kDebugMode) {
+      debugPrint('POMODORO: service update received, checking conditions:');
+      debugPrint('- Suppression active: $_suppressServiceReactions');
+      debugPrint('- State exists: ${_state != null}');
+      debugPrint('- Service task: ${TimerService.instance.activeTaskName}');
+      debugPrint('- Current task: ${widget.todo.text}');
+    }
+
+    // Optionally suppress rapid service reactions right after load/open to avoid races
+    if (_suppressServiceReactions) {
+      if (kDebugMode)
+        debugPrint(
+          'POMODORO: ignoring service update due to suppression window',
+        );
+      return;
+    }
+
+    // React to play/pause toggles from the mini-bar only when this screen is active
+    final svc = TimerService.instance;
+    if (_state == null) {
+      if (kDebugMode) debugPrint('POMODORO: ignoring update, state is null');
+      return;
+    }
+
+    // Only apply if the service refers to this task
+    if (svc.activeTaskName != widget.todo.text) {
+      if (kDebugMode)
+        debugPrint(
+          'POMODORO: ignoring update for different task (${svc.activeTaskName} vs ${widget.todo.text})',
+        );
+      return;
+    }
+
+    // If running changed, start/stop our local ticker accordingly
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final shouldBeRunning = svc.isRunning;
+      final isCurrentlyRunning = _state!.timerState == 'running';
+      if (shouldBeRunning && !isCurrentlyRunning) {
+        setState(() {
+          _state = TaskTimerState(
+            taskId: _state!.taskId,
+            timerState: 'running',
+            currentMode: _state!.currentMode,
+            timeRemaining: svc.timeRemaining,
+            focusDuration: _state!.focusDuration,
+            breakDuration: _state!.breakDuration,
+            currentCycle: _state!.currentCycle,
+            totalCycles: _state!.totalCycles,
+          );
+        });
+        _startTicker();
+      } else if (!shouldBeRunning && isCurrentlyRunning) {
+        if (kDebugMode) {
+          debugPrint(
+            'POMODORO: onServiceUpdate - service requested pause for this task',
+          );
+          debugPrintStack(
+            label: 'POMODORO: stack when service requested pause',
+          );
+        }
+        setState(() {
+          _state = TaskTimerState(
+            taskId: _state!.taskId,
+            timerState: 'paused',
+            currentMode: _state!.currentMode,
+            timeRemaining: svc.timeRemaining,
+            focusDuration: _state!.focusDuration,
+            breakDuration: _state!.breakDuration,
+            currentCycle: _state!.currentCycle,
+            totalCycles: _state!.totalCycles,
+          );
+        });
+        _ticker?.cancel();
+      }
+    });
   }
 
   Future<void> _loadState() async {
@@ -97,15 +226,78 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
             breakDuration: 5 * 60,
             totalCycles: 4,
           );
+      // Set up suppression window in post-frame callback to avoid race conditions
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        // briefly suppress reacting to service updates to avoid races with the minibar's ticker
+        _suppressServiceReactions = true;
+        Future.delayed(const Duration(milliseconds: 600), () {
+          if (mounted) {
+            _suppressServiceReactions = false;
+            if (kDebugMode)
+              debugPrint(
+                'POMODORO: suppression window ended, will react to service updates',
+              );
+          }
+        });
+      });
       _focusController = TextEditingController(
         text: (_state!.focusDuration! ~/ 60).toString(),
       );
+      // Recalculate cycles live as the user edits focus duration
+      _focusController.addListener(() {
+        if (!mounted) return;
+        // Update state focusDuration preview immediately
+        final intVal =
+            int.tryParse(_focusController.text.trim()) ??
+            (_state!.focusDuration! ~/ 60);
+        setState(() {
+          _state = TaskTimerState(
+            taskId: _state!.taskId,
+            timerState: _state!.timerState,
+            currentMode: _state!.currentMode,
+            timeRemaining: _state!.timeRemaining,
+            focusDuration: intVal * 60,
+            breakDuration: _state!.breakDuration,
+            currentCycle: _state!.currentCycle,
+            totalCycles: _calculateCycles(intVal),
+          );
+          _cyclesController.text = _state!.totalCycles.toString();
+        });
+      });
       _breakController = TextEditingController(
         text: (_state!.breakDuration! ~/ 60).toString(),
       );
       _cyclesController = TextEditingController(
         text: _state!.totalCycles.toString(),
       );
+      // If TimerService has an active timer for this task, prefer its remaining
+      final svc = TimerService.instance;
+      // Prefer central service state for this task when available
+      if (svc.activeTaskName == widget.todo.text) {
+        if (kDebugMode)
+          debugPrint(
+            'POMODORO: preferring TimerService state for this task during load, isRunning=${svc.isRunning}',
+          );
+        // pull remaining and running state from the central service
+        _state = TaskTimerState(
+          taskId: _state!.taskId,
+          timerState: svc.isRunning ? 'running' : 'paused',
+          currentMode: svc.currentMode,
+          timeRemaining: svc.timeRemaining,
+          focusDuration: _state!.focusDuration,
+          breakDuration: _state!.breakDuration,
+          currentCycle: _state!.currentCycle,
+          totalCycles: _state!.totalCycles,
+        );
+        // If the timer was running in minibar, start it here too
+        if (svc.isRunning) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            _startTicker();
+          });
+        }
+      }
     });
   }
 
@@ -113,12 +305,40 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     if (kDebugMode) debugPrint("Starting ticker...");
     _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+
+    // Update service state but preserve running state during transitions
+    setState(() {
+      _state = TaskTimerState(
+        taskId: _state!.taskId,
+        timerState: 'running',
+        currentMode: _state!.currentMode,
+        timeRemaining: _state!.timeRemaining,
+        focusDuration: _state!.focusDuration,
+        breakDuration: _state!.breakDuration,
+        currentCycle: _state!.currentCycle,
+        totalCycles: _state!.totalCycles,
+      );
+    });
+
+    TimerService.instance.update(
+      taskName: widget.todo.text,
+      running: true,
+      remaining: _state?.timeRemaining ?? (_state?.focusDuration ?? 1500),
+      active: false, // full screen open
+      mode: _state?.currentMode,
+    );
   }
 
   void _stopTicker() {
     if (kDebugMode) debugPrint("Stopping ticker.");
     _ticker?.cancel();
     _ticker = null;
+    TimerService.instance.update(
+      running: false,
+      remaining: _state?.timeRemaining,
+      active: false,
+      mode: _state?.currentMode,
+    );
   }
 
   Future<void> _tick() async {
@@ -139,10 +359,18 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       });
       final rem = _state!.timeRemaining ?? 0;
       if (kDebugMode) debugPrint('Tick: ${rem}s remaining');
+      // save every 10s but update the mini-bar every tick for smooth reflection
+      if (kDebugMode)
+        debugPrint('Saving state to local store tick block check');
       if (rem % 10 == 0) {
-        if (kDebugMode) debugPrint('Saving state to local store.');
         await _store.save(widget.todo.id.toString(), _state!);
       }
+      TimerService.instance.update(
+        taskName: widget.todo.text,
+        running: _state!.timerState == 'running',
+        remaining: _state!.timeRemaining,
+        mode: _state!.currentMode,
+      );
       return;
     }
 
@@ -180,6 +408,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         if (kDebugMode) debugPrint('All cycles completed.');
         _showCompletionModal();
         _stopTicker();
+        TimerService.instance.clear();
         return;
       }
     } else {
@@ -211,6 +440,15 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       );
     }
     await _store.save(widget.todo.id.toString(), _state!);
+
+    // update mini-bar after mode switch
+    TimerService.instance.update(
+      taskName: widget.todo.text,
+      running: _state!.timerState == 'running',
+      remaining: _state!.timeRemaining,
+      active: true,
+      mode: _state!.currentMode,
+    );
 
     _startTicker();
   }
@@ -329,7 +567,33 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                     alignment: Alignment.centerRight,
                     child: IconButton(
                       icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: () {
+                        // First pause the timer if it's running
+                        if (_state?.timerState == 'running') {
+                          _stopTicker();
+                        }
+
+                        // Reset timer to initial state
+                        setState(() {
+                          _state = TaskTimerState(
+                            taskId: widget.todo.id.toString(),
+                            timerState: 'paused',
+                            currentMode: 'focus',
+                            timeRemaining: 25 * 60, // Default 25 minutes
+                            focusDuration: 25 * 60,
+                            breakDuration: 5 * 60,
+                            totalCycles: 4,
+                          );
+                        });
+
+                        // Clear both the service state and mini-bar before closing
+                        TimerService.instance.clear();
+                        // Persist the reset state so reopening shows initial UI
+                        _store.save(widget.todo.id.toString(), _state!);
+
+                        // Close the sheet
+                        Navigator.of(context).pop();
+                      },
                     ),
                   ),
                 ],
@@ -697,6 +961,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                               _stopTicker();
                               _store.save(widget.todo.id.toString(), _state!);
                             });
+                            // clear mini-bar
+                            TimerService.instance.clear();
                           },
                           child: const Icon(
                             Icons.replay_rounded,
@@ -728,7 +994,13 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                           backgroundColor: AppColors.brightYellow,
                           onPressed: () async {
                             if (isRunning) {
-                              if (kDebugMode) debugPrint("Pausing timer.");
+                              if (kDebugMode) {
+                                debugPrint("Pausing timer.");
+                                debugPrintStack(
+                                  label:
+                                      'POMODORO: stack when user tapped pause',
+                                );
+                              }
                               setState(() {
                                 _state = TaskTimerState(
                                   taskId: s.taskId,
@@ -747,7 +1019,13 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                               await _applyAutoCalculateCyclesIfNeeded(
                                 force: true,
                               );
-                              if (kDebugMode) debugPrint("Starting timer.");
+                              if (kDebugMode) {
+                                debugPrint("Starting timer.");
+                                debugPrintStack(
+                                  label:
+                                      'POMODORO: stack when user tapped start',
+                                );
+                              }
                               setState(() {
                                 _state = TaskTimerState(
                                   taskId: s.taskId,
