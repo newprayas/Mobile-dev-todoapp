@@ -7,12 +7,14 @@ import '../theme/app_colors.dart';
 import '../services/local_timer_store.dart';
 import '../models/task_timer_state.dart';
 import '../services/notification_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class PomodoroScreen extends StatefulWidget {
   final ApiService api;
   final Todo todo;
   final NotificationService notificationService;
   final bool asSheet;
+
   const PomodoroScreen({
     required this.api,
     required this.todo,
@@ -30,28 +32,24 @@ class PomodoroScreen extends StatefulWidget {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      // Keep the system sheet background transparent so our container
+      // can render a fully opaque styled surface at 80% height.
       backgroundColor: Colors.transparent,
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (dctx, scrollCtrl) {
-          return Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).scaffoldBackgroundColor,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(20),
-              ),
-            ),
-            child: PomodoroScreen(
-              api: api,
-              todo: todo,
-              notificationService: notificationService,
-              asSheet: true,
-            ),
-          );
-        },
+      builder: (context) => FractionallySizedBox(
+        heightFactor: 0.8,
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.cardBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: PomodoroScreen(
+            api: api,
+            todo: todo,
+            notificationService: notificationService,
+            asSheet: true,
+          ),
+        ),
       ),
     );
   }
@@ -126,7 +124,6 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   Future<void> _tick() async {
     if (_state == null) return;
 
-    // If there's still time remaining, decrement it.
     if ((_state!.timeRemaining ?? 0) > 0) {
       setState(() {
         _state = TaskTimerState(
@@ -149,7 +146,6 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       return;
     }
 
-    // Time reached zero: stop ticker to avoid duplicate triggers
     _ticker?.cancel();
     if (kDebugMode) {
       debugPrint(
@@ -158,8 +154,6 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     }
 
     if (_state!.currentMode == 'focus') {
-      // Switching to break
-      if (kDebugMode) debugPrint('DEBUG: Switching to BREAK mode.');
       final newCycle = _state!.currentCycle + 1;
       setState(() {
         _state = TaskTimerState(
@@ -189,8 +183,6 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         return;
       }
     } else {
-      // Switching to focus
-      if (kDebugMode) debugPrint('DEBUG: Switching to FOCUS mode.');
       setState(() {
         _state = TaskTimerState(
           taskId: _state!.taskId,
@@ -220,7 +212,6 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     }
     await _store.save(widget.todo.id.toString(), _state!);
 
-    // Automatically start next session ticker
     _startTicker();
   }
 
@@ -246,7 +237,6 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     return '$m:$s';
   }
 
-  // Calculate suggested cycles based on task total duration and focus minutes.
   int _calculateCycles(int focusMinutes) {
     final taskMinutes =
         (widget.todo.durationHours * 60) + widget.todo.durationMinutes;
@@ -255,8 +245,6 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     return raw > 0 ? raw : 1;
   }
 
-  // Apply auto-calculation of cycles only when user hasn't provided a manual cycles value
-  // or when force==true (used when starting a session).
   Future<void> _applyAutoCalculateCyclesIfNeeded({bool force = false}) async {
     final curText = _cyclesController.text.trim();
     final curVal = int.tryParse(curText) ?? 0;
@@ -284,7 +272,6 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       );
     }
 
-    // Update controller and persisted state
     setState(() {
       _cyclesController.text = calculated.toString();
       _state = TaskTimerState(
@@ -333,8 +320,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                       'Pomodoro Timer',
                       style: TextStyle(
                         color: AppColors.brightYellow,
-                        fontSize: 36.0,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 22.0,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
@@ -347,7 +334,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              // Increased space between title and task box for clearer hierarchy
+              const SizedBox(height: 40),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -361,12 +349,14 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                   widget.todo.text,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontSize: 24.0,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 18.0,
+                    fontWeight: FontWeight.w700,
+                    height: 1.1,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              // More vertical breathing room between task box and settings
+              const SizedBox(height: 56),
             ],
           ),
           // Settings row (Focus / Break / Cycles)
@@ -374,184 +364,287 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
           if (s.timerState == 'paused' &&
               s.timeRemaining == s.focusDuration) ...[
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                // Focus
-                Container(
-                  width: 88,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[850],
-                    borderRadius: BorderRadius.circular(10.0),
-                  ),
-                  child: TextField(
-                    controller: _focusController,
-                    textAlign: TextAlign.center,
-                    keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 18.0, color: Colors.white),
-                    decoration: const InputDecoration(border: InputBorder.none),
-                    onChanged: (value) async {
-                      final intValue = int.tryParse(value) ?? 0;
-                      setState(() {
-                        _state = TaskTimerState(
-                          taskId: s.taskId,
-                          timerState: s.timerState,
-                          currentMode: s.currentMode,
-                          timeRemaining:
-                              s.currentMode == 'focus' && intValue > 0
-                              ? intValue * 60
-                              : s.timeRemaining,
-                          focusDuration: intValue > 0
-                              ? intValue * 60
-                              : s.focusDuration,
-                          breakDuration: s.breakDuration,
-                          currentCycle: s.currentCycle,
-                          totalCycles: s.totalCycles,
-                        );
-                        _store.save(widget.todo.id.toString(), _state!);
-                      });
-                      await _applyAutoCalculateCyclesIfNeeded();
-                    },
-                  ),
+                // Column 1: Work Duration (box, long yellow line, bottom label)
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 88,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        border: Border.all(
+                          color: Colors.grey.shade700,
+                          width: 1.0,
+                        ),
+                        borderRadius: BorderRadius.circular(10.0),
+                      ),
+                      child: TextField(
+                        controller: _focusController,
+                        textAlign: TextAlign.center,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(
+                          fontSize: 18.0,
+                          color: Colors.white,
+                        ),
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                        ),
+                        onChanged: (value) async {
+                          final intValue = int.tryParse(value) ?? 0;
+                          setState(() {
+                            _state = TaskTimerState(
+                              taskId: s.taskId,
+                              timerState: s.timerState,
+                              currentMode: s.currentMode,
+                              timeRemaining:
+                                  s.currentMode == 'focus' && intValue > 0
+                                  ? intValue * 60
+                                  : s.timeRemaining,
+                              focusDuration: intValue > 0
+                                  ? intValue * 60
+                                  : s.focusDuration,
+                              breakDuration: s.breakDuration,
+                              currentCycle: s.currentCycle,
+                              totalCycles: s.totalCycles,
+                            );
+                            _store.save(widget.todo.id.toString(), _state!);
+                          });
+                          await _applyAutoCalculateCyclesIfNeeded();
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: 2,
+                      height: 56,
+                      color: AppColors.brightYellow,
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Work Duration',
+                      style: TextStyle(
+                        fontSize: 12.0,
+                        color: AppColors.brightYellow,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                // Break
-                Container(
-                  width: 88,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[850],
-                    borderRadius: BorderRadius.circular(10.0),
-                  ),
-                  child: TextField(
-                    controller: _breakController,
-                    textAlign: TextAlign.center,
-                    keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 18.0, color: Colors.white),
-                    decoration: const InputDecoration(border: InputBorder.none),
-                    onChanged: (value) {
-                      final intValue = int.tryParse(value) ?? 0;
-                      setState(() {
-                        _state = TaskTimerState(
-                          taskId: s.taskId,
-                          timerState: s.timerState,
-                          currentMode: s.currentMode,
-                          timeRemaining:
-                              s.currentMode == 'break' && intValue > 0
-                              ? intValue * 60
-                              : s.timeRemaining,
-                          focusDuration: s.focusDuration,
-                          breakDuration: intValue > 0
-                              ? intValue * 60
-                              : s.breakDuration,
-                          currentCycle: s.currentCycle,
-                          totalCycles: s.totalCycles,
-                        );
-                        _store.save(widget.todo.id.toString(), _state!);
-                      });
-                    },
-                  ),
+
+                // Column 2: Break Time (label above, long yellow line, box)
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Break Time',
+                      style: TextStyle(
+                        fontSize: 12.0,
+                        color: AppColors.brightYellow,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: 2,
+                      height: 56,
+                      color: AppColors.brightYellow,
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: 88,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        border: Border.all(
+                          color: Colors.grey.shade700,
+                          width: 1.0,
+                        ),
+                        borderRadius: BorderRadius.circular(10.0),
+                      ),
+                      child: TextField(
+                        controller: _breakController,
+                        textAlign: TextAlign.center,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(
+                          fontSize: 18.0,
+                          color: Colors.white,
+                        ),
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                        ),
+                        onChanged: (value) {
+                          final intValue = int.tryParse(value) ?? 0;
+                          setState(() {
+                            _state = TaskTimerState(
+                              taskId: s.taskId,
+                              timerState: s.timerState,
+                              currentMode: s.currentMode,
+                              timeRemaining:
+                                  s.currentMode == 'break' && intValue > 0
+                                  ? intValue * 60
+                                  : s.timeRemaining,
+                              focusDuration: s.focusDuration,
+                              breakDuration: intValue > 0
+                                  ? intValue * 60
+                                  : s.breakDuration,
+                              currentCycle: s.currentCycle,
+                              totalCycles: s.totalCycles,
+                            );
+                            _store.save(widget.todo.id.toString(), _state!);
+                          });
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                // Cycles
-                Container(
-                  width: 88,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[850],
-                    borderRadius: BorderRadius.circular(10.0),
-                  ),
-                  child: TextField(
-                    controller: _cyclesController,
-                    textAlign: TextAlign.center,
-                    keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 18.0, color: Colors.white),
-                    decoration: const InputDecoration(border: InputBorder.none),
-                    onChanged: (value) {
-                      final intValue = int.tryParse(value) ?? 0;
-                      if (intValue <= 0) return;
-                      setState(() {
-                        _state = TaskTimerState(
-                          taskId: s.taskId,
-                          timerState: s.timerState,
-                          currentMode: s.currentMode,
-                          timeRemaining: s.timeRemaining,
-                          focusDuration: s.focusDuration,
-                          breakDuration: s.breakDuration,
-                          currentCycle: s.currentCycle,
-                          totalCycles: intValue,
-                        );
-                        _store.save(widget.todo.id.toString(), _state!);
-                      });
-                    },
-                  ),
+
+                // Column 3: Cycles (box, long yellow line, bottom label)
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 88,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        border: Border.all(
+                          color: Colors.grey.shade700,
+                          width: 1.0,
+                        ),
+                        borderRadius: BorderRadius.circular(10.0),
+                      ),
+                      child: TextField(
+                        controller: _cyclesController,
+                        textAlign: TextAlign.center,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(
+                          fontSize: 18.0,
+                          color: Colors.white,
+                        ),
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                        ),
+                        onChanged: (value) {
+                          final intValue = int.tryParse(value) ?? 0;
+                          if (intValue <= 0) return;
+                          setState(() {
+                            _state = TaskTimerState(
+                              taskId: s.taskId,
+                              timerState: s.timerState,
+                              currentMode: s.currentMode,
+                              timeRemaining: s.timeRemaining,
+                              focusDuration: s.focusDuration,
+                              breakDuration: s.breakDuration,
+                              currentCycle: s.currentCycle,
+                              totalCycles: intValue,
+                            );
+                            _store.save(widget.todo.id.toString(), _state!);
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: 2,
+                      height: 56,
+                      color: AppColors.brightYellow,
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Cycles',
+                      style: TextStyle(
+                        fontSize: 12.0,
+                        color: AppColors.brightYellow,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
+            // Space between settings and the main timer
+            const SizedBox(height: 24),
           ] else ...[
             // Compact settings display after timer has started
             Text(
               '${(s.focusDuration! ~/ 60)} / ${(s.breakDuration! ~/ 60)} / ${s.totalCycles}',
               style: const TextStyle(
                 fontSize: 16.0,
-                fontWeight: FontWeight.w500,
-                color: Colors.white70,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
             ),
-          ],
-          const SizedBox(height: 12),
-          // Cycle counter
-          Text(
-            '${s.currentCycle} / ${s.totalCycles}',
-            style: const TextStyle(
-              fontSize: 20.0,
-              fontWeight: FontWeight.bold,
-              color: Colors.white70,
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Timer area: tight-fitting border around the timer digits
-          Expanded(
-            child: Center(
-              child: IntrinsicWidth(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color:
-                          (s.timerState == 'running' ||
-                              s.timerState == 'paused')
-                          ? (s.currentMode == 'focus'
-                                ? Colors.redAccent
-                                : Colors.greenAccent)
-                          : Colors.transparent,
-                      width: 4.0,
-                    ),
-                    borderRadius: BorderRadius.circular(12.0),
+            const SizedBox(height: 12),
+            // Cycle counter (no icon in any state)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${s.currentCycle} / ${s.totalCycles}',
+                  style: const TextStyle(
+                    fontSize: 28.0,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
                   ),
-                  child: Padding(
-                    // Small padding so digits don't touch the border; set to EdgeInsets.zero for absolute tight fit
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8.0,
-                      vertical: 2.0,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Divider(color: Color(0xFF262626)),
+            const SizedBox(height: 12),
+            // Make the timer the dominant visual element
+            Expanded(
+              flex: 5,
+              child: Center(
+                child: IntrinsicWidth(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color:
+                            (s.timerState == 'running' ||
+                                s.timerState == 'paused')
+                            ? (s.currentMode == 'focus'
+                                  ? Colors.redAccent
+                                  : Colors.greenAccent)
+                            : Colors.transparent,
+                        width: 4.0,
+                      ),
+                      borderRadius: BorderRadius.circular(12.0),
                     ),
-                    child: Transform.translate(
-                      offset: const Offset(0, -6),
-                      child: Text(
-                        _format(s.timeRemaining!),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 90.0,
-                          fontWeight: FontWeight.bold,
-                          height: 1.0,
+                    child: Padding(
+                      // Comfortable padding so digits have clear breathing room
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24.0,
+                        vertical: 28.0,
+                      ),
+                      child: Transform.translate(
+                        offset: const Offset(0, -4),
+                        child: Text(
+                          _format(s.timeRemaining!),
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.oswald(
+                            fontSize: 140.0,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -6.0,
+                            height: 0.8,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
@@ -559,153 +652,198 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                 ),
               ),
             ),
-          ),
+            const SizedBox(height: 12),
+            const Divider(color: Color(0xFF262626)),
+          ],
 
           // Buttons row
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.brightYellow,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.0),
+                  // Left secondary circular outlined button (Reset) with yellow ring
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppColors.brightYellow,
+                            width: 2.0,
+                          ),
+                        ),
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            shape: const CircleBorder(),
+                            side: BorderSide(color: Colors.transparent),
+                            padding: const EdgeInsets.all(12),
+                          ),
+                          onPressed: () {
+                            if (kDebugMode) debugPrint("Resetting timer.");
+                            setState(() {
+                              _state = TaskTimerState(
+                                taskId: s.taskId,
+                                timerState: 'paused',
+                                currentMode: 'focus',
+                                timeRemaining: s.focusDuration,
+                                focusDuration: s.focusDuration,
+                                breakDuration: s.breakDuration,
+                                currentCycle: 0,
+                                totalCycles: s.totalCycles,
+                              );
+                              _stopTicker();
+                              _store.save(widget.todo.id.toString(), _state!);
+                            });
+                          },
+                          child: const Icon(
+                            Icons.replay_rounded,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                        ),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Reset',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    onPressed: () {
-                      if (kDebugMode) debugPrint("Resetting timer.");
-                      setState(() {
-                        _state = TaskTimerState(
-                          taskId: s.taskId,
-                          timerState: 'paused',
-                          currentMode: 'focus',
-                          timeRemaining: s.focusDuration,
-                          focusDuration: s.focusDuration,
-                          breakDuration: s.breakDuration,
-                          currentCycle: 0,
-                          totalCycles: s.totalCycles,
-                        );
-                        _stopTicker();
-                        _store.save(widget.todo.id.toString(), _state!);
-                      });
-                    },
-                    child: const Text(
-                      'Reset',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18.0,
-                      ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 16),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.brightYellow,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.0),
+
+                  // Center primary circular action
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 72,
+                        height: 72,
+                        child: FloatingActionButton(
+                          backgroundColor: AppColors.brightYellow,
+                          onPressed: () async {
+                            if (isRunning) {
+                              if (kDebugMode) debugPrint("Pausing timer.");
+                              setState(() {
+                                _state = TaskTimerState(
+                                  taskId: s.taskId,
+                                  timerState: 'paused',
+                                  currentMode: s.currentMode,
+                                  timeRemaining: s.timeRemaining,
+                                  focusDuration: s.focusDuration,
+                                  breakDuration: s.breakDuration,
+                                  currentCycle: s.currentCycle,
+                                  totalCycles: s.totalCycles,
+                                );
+                                _stopTicker();
+                                _store.save(widget.todo.id.toString(), _state!);
+                              });
+                            } else {
+                              await _applyAutoCalculateCyclesIfNeeded(
+                                force: true,
+                              );
+                              if (kDebugMode) debugPrint("Starting timer.");
+                              setState(() {
+                                _state = TaskTimerState(
+                                  taskId: s.taskId,
+                                  timerState: 'running',
+                                  currentMode: s.currentMode,
+                                  timeRemaining: s.timeRemaining,
+                                  focusDuration: s.focusDuration,
+                                  breakDuration: s.breakDuration,
+                                  currentCycle: s.currentCycle,
+                                  totalCycles: s.totalCycles,
+                                );
+                                _startTicker();
+                                _store.save(widget.todo.id.toString(), _state!);
+                              });
+                            }
+                          },
+                          child: Icon(
+                            isRunning
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                            color: Colors.black,
+                            size: 40,
+                          ),
+                        ),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 28,
-                        vertical: 12,
+                      const SizedBox(height: 8),
+                      Text(
+                        isRunning ? 'Pause' : 'Start',
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    onPressed: () async {
-                      // Only force auto-calc when starting the session.
-                      if (isRunning) {
-                        if (kDebugMode) debugPrint("Pausing timer.");
-                        setState(() {
-                          _state = TaskTimerState(
-                            taskId: s.taskId,
-                            timerState: 'paused',
-                            currentMode: s.currentMode,
-                            timeRemaining: s.timeRemaining,
-                            focusDuration: s.focusDuration,
-                            breakDuration: s.breakDuration,
-                            currentCycle: s.currentCycle,
-                            totalCycles: s.totalCycles,
-                          );
-                          _stopTicker();
-                          _store.save(widget.todo.id.toString(), _state!);
-                        });
-                      } else {
-                        // Force auto-calculation so we don't start with empty cycles.
-                        await _applyAutoCalculateCyclesIfNeeded(force: true);
-                        if (kDebugMode) debugPrint("Starting timer.");
-                        setState(() {
-                          _state = TaskTimerState(
-                            taskId: s.taskId,
-                            timerState: 'running',
-                            currentMode: s.currentMode,
-                            timeRemaining: s.timeRemaining,
-                            focusDuration: s.focusDuration,
-                            breakDuration: s.breakDuration,
-                            currentCycle: s.currentCycle,
-                            totalCycles: s.totalCycles,
-                          );
-                          _startTicker();
-                          _store.save(widget.todo.id.toString(), _state!);
-                        });
-                      }
-                    },
-                    child: Text(
-                      isRunning ? 'PAUSE' : 'START',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 16),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.brightYellow,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.0),
+
+                  // Right secondary circular outlined button (Skip)
+                  // Right secondary circular outlined button (Skip) with yellow ring
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppColors.brightYellow,
+                            width: 2.0,
+                          ),
+                        ),
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            shape: const CircleBorder(),
+                            side: BorderSide(color: Colors.transparent),
+                            padding: const EdgeInsets.all(12),
+                          ),
+                          onPressed: () {
+                            if (kDebugMode)
+                              debugPrint("Skipping to next phase.");
+                            final bool isFocus = s.currentMode == 'focus';
+                            setState(() {
+                              _state = TaskTimerState(
+                                taskId: s.taskId,
+                                timerState: 'running',
+                                currentMode: isFocus ? 'break' : 'focus',
+                                timeRemaining: isFocus
+                                    ? s.breakDuration
+                                    : s.focusDuration,
+                                focusDuration: s.focusDuration,
+                                breakDuration: s.breakDuration,
+                                currentCycle: isFocus
+                                    ? s.currentCycle + 1
+                                    : s.currentCycle,
+                                totalCycles: s.totalCycles,
+                              );
+                              _startTicker();
+                              _store.save(widget.todo.id.toString(), _state!);
+                            });
+                          },
+                          child: const Icon(
+                            Icons.fast_forward_rounded,
+                            color: AppColors.brightYellow,
+                            size: 22,
+                          ),
+                        ),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Skip',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    onPressed: () {
-                      if (kDebugMode) debugPrint("Skipping to next phase.");
-                      final bool isFocus = s.currentMode == 'focus';
-                      setState(() {
-                        _state = TaskTimerState(
-                          taskId: s.taskId,
-                          timerState: 'running',
-                          currentMode: isFocus ? 'break' : 'focus',
-                          timeRemaining: isFocus
-                              ? s.breakDuration
-                              : s.focusDuration,
-                          focusDuration: s.focusDuration,
-                          breakDuration: s.breakDuration,
-                          currentCycle: isFocus
-                              ? s.currentCycle + 1
-                              : s.currentCycle,
-                          totalCycles: s.totalCycles,
-                        );
-                        _startTicker();
-                        _store.save(widget.todo.id.toString(), _state!);
-                      });
-                    },
-                    child: const Text(
-                      'Skip',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18.0,
-                      ),
-                    ),
+                    ],
                   ),
                 ],
               ),

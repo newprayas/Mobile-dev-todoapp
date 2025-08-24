@@ -14,7 +14,12 @@ class TodoListScreen extends StatefulWidget {
   final ApiService api;
   final AuthService auth;
   final NotificationService notificationService;
-  const TodoListScreen({required this.api, required this.auth, required this.notificationService, super.key});
+  const TodoListScreen({
+    required this.api,
+    required this.auth,
+    required this.notificationService,
+    super.key,
+  });
 
   @override
   State<TodoListScreen> createState() => _TodoListScreenState();
@@ -137,7 +142,12 @@ class _TodoListScreenState extends State<TodoListScreen> {
     return TaskCard(
       todo: t,
       onPlay: (todo) async {
-        await PomodoroScreen.showAsBottomSheet(context, widget.api, todo, widget.notificationService);
+        await PomodoroScreen.showAsBottomSheet(
+          context,
+          widget.api,
+          todo,
+          widget.notificationService,
+        );
         await _reload();
       },
       onDelete: () async {
@@ -509,7 +519,9 @@ class _TodoListScreenState extends State<TodoListScreen> {
                             color: Colors.transparent,
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: AppColors.lightGray.withOpacity(0.12),
+                              color: AppColors.lightGray.withAlpha(
+                                31,
+                              ), // ~0.12 opacity
                             ),
                           ),
                           child: const Icon(
@@ -520,7 +532,9 @@ class _TodoListScreenState extends State<TodoListScreen> {
                         label: Text(
                           'Logout',
                           style: TextStyle(
-                            color: AppColors.lightGray.withOpacity(0.7),
+                            color: AppColors.lightGray.withAlpha(
+                              179,
+                            ), // ~0.7 opacity
                             fontWeight: FontWeight.w500,
                           ),
                         ),

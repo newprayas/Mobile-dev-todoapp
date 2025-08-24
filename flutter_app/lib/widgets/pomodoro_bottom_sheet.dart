@@ -66,12 +66,12 @@ class PomodoroBottomSheet extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Text(
                 ctl.mode == PomodoroMode.focus ? 'Focus' : 'Break',
                 style: const TextStyle(color: AppColors.lightGray),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
               IntrinsicWidth(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -86,12 +86,13 @@ class PomodoroBottomSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8.0),
                   ),
                   child: Padding(
+                    // a small breathing room on all sides
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 6.0,
-                      vertical: 2.0,
+                      horizontal: 10.0,
+                      vertical: 6.0,
                     ),
                     child: Transform.translate(
-                      offset: const Offset(0, -4),
+                      offset: const Offset(0, -3),
                       child: Text(
                         _format(ctl.timeRemaining),
                         style: const TextStyle(
@@ -106,7 +107,7 @@ class PomodoroBottomSheet extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -129,19 +130,20 @@ class PomodoroBottomSheet extends StatelessWidget {
                           },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.brightYellow,
+                      elevation: 6,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 22,
-                        vertical: 12,
+                        horizontal: 24,
+                        vertical: 14,
                       ),
                     ),
                     child: Text(
                       ctl.isRunning ? 'Pause' : 'Start',
                       style: const TextStyle(
                         color: Colors.black,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
