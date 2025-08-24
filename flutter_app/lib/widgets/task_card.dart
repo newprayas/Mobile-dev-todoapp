@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
 import '../models/todo.dart';
 import '../theme/app_colors.dart';
+import 'progress_bar.dart';
+import '../services/timer_service.dart';
 
 typedef PlayCallback = Future<void> Function(Todo todo);
 
@@ -35,9 +37,17 @@ class TaskCard extends StatelessWidget {
         : (todo.focusedTime / totalMins).clamp(0.0, 1.0);
     final plannedSeconds =
         (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+    // Use TimerService cache when a live focused value exists for immediate UI sync
+    final cachedFocused =
+        TimerService.instance.getFocusedTime(todo.text) ?? todo.focusedTime;
     final isOverdue = plannedSeconds > 0 && todo.focusedTime >= plannedSeconds;
     final editController = TextEditingController(text: todo.text);
 
+    if (kDebugMode) {
+      debugPrint(
+        'TASK_CARD: id=${todo.id} cachedFocused=$cachedFocused planned=$plannedSeconds isOverdue=$isOverdue',
+      );
+    }
     return Opacity(
       opacity: todo.completed ? 0.5 : 1.0,
       child: Column(
@@ -52,42 +62,17 @@ class TaskCard extends StatelessWidget {
                   (isOverdue
                       ? (todo.focusedTime / math.max(1, totalMins))
                       : progress));
-              final fillColor = isOverdue ? Colors.red : AppColors.brightYellow;
+              final fillColor = isActive
+                  ? AppColors.brightYellow.withOpacity(0.1)
+                  : Colors.transparent;
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppColors.midGray,
                   borderRadius: BorderRadius.circular(12),
-                  border: isActive
-                      ? Border.all(
-                          color: AppColors.brightYellow.withOpacity(0.9),
-                          width: 2,
-                        )
-                      : (isOverdue
-                            ? Border.all(
-                                color: AppColors.priorityHigh,
-                                width: 2,
-                              )
-                            : null),
-                  boxShadow: isActive
-                      ? [
-                          BoxShadow(
-                            color: AppColors.brightYellow.withOpacity(0.14),
-                            blurRadius: 12,
-                            spreadRadius: 1,
-                          ),
-                        ]
-                      : (isOverdue
-                            ? [
-                                BoxShadow(
-                                  color: AppColors.priorityHigh.withOpacity(
-                                    0.12,
-                                  ),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ]
-                            : null),
+                  // Use a consistent single gray appearance; remove colored borders/shadows
+                  border: null,
+                  boxShadow: null,
                 ),
                 child: Stack(
                   alignment: Alignment.centerLeft,
@@ -95,7 +80,7 @@ class TaskCard extends StatelessWidget {
                     Container(
                       height: 64,
                       decoration: BoxDecoration(
-                        color: Colors.grey[850],
+                        color: AppColors.midGray,
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
@@ -300,12 +285,25 @@ class TaskCard extends StatelessWidget {
                             ),
                           ],
                         ),
+                        // Live progress bar was moved below the card for full visibility
                       ],
                     ),
                   ],
                 ),
               );
             },
+          ),
+          // Progress bar below the task card (full-width and easy to see)
+          Padding(
+            padding: const EdgeInsets.only(top: 6.0),
+            child: SizedBox(
+              height: 18,
+              child: ProgressBar(
+                focusedSeconds: cachedFocused,
+                plannedSeconds: plannedSeconds,
+                isFocusMode: false,
+              ),
+            ),
           ),
         ],
       ),

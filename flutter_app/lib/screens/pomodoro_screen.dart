@@ -9,6 +9,7 @@ import '../models/task_timer_state.dart';
 import '../services/notification_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/timer_service.dart';
+import '../widgets/progress_bar.dart';
 
 class PomodoroScreen extends StatefulWidget {
   final ApiService api;
@@ -362,9 +363,43 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       // save every 10s but update the mini-bar every tick for smooth reflection
       if (kDebugMode)
         debugPrint('Saving state to local store tick block check');
-      if (rem % 10 == 0) {
-        await _store.save(widget.todo.id.toString(), _state!);
+      // If we are in focus mode, increment the task's focused time and sync
+      if (_state!.currentMode == 'focus') {
+        // update lastFocusedTime in our stored state (lastFocusedTime is non-nullable)
+        final newLastFocused = _state!.lastFocusedTime + 1;
+        setState(() {
+          _state = TaskTimerState(
+            taskId: _state!.taskId,
+            timerState: _state!.timerState,
+            currentMode: _state!.currentMode,
+            timeRemaining: _state!.timeRemaining,
+            focusDuration: _state!.focusDuration,
+            breakDuration: _state!.breakDuration,
+            currentCycle: _state!.currentCycle,
+            totalCycles: _state!.totalCycles,
+            // preserve lastFocusedTime
+            lastFocusedTime: newLastFocused,
+          );
+        });
+
+        // update TimerService cache immediately for UI sync
+        TimerService.instance.setFocusedTime(widget.todo.text, newLastFocused);
+
+        // persist every 10s to store and occasionally to server
+        if (rem % 10 == 0) {
+          await _store.save(widget.todo.id.toString(), _state!);
+          try {
+            await widget.api.updateFocusTime(widget.todo.id, newLastFocused);
+          } catch (_) {
+            // ignore network errors; local store keeps the truth
+          }
+        }
+      } else {
+        if (rem % 10 == 0) {
+          await _store.save(widget.todo.id.toString(), _state!);
+        }
       }
+
       TimerService.instance.update(
         taskName: widget.todo.text,
         running: _state!.timerState == 'running',
@@ -618,6 +653,31 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                     height: 1.1,
                   ),
                 ),
+              ),
+              // Progress bar for overall task completion
+              Builder(
+                builder: (ctx) {
+                  final plannedSeconds =
+                      (widget.todo.durationHours * 3600) +
+                      (widget.todo.durationMinutes * 60);
+                  final cached =
+                      TimerService.instance.getFocusedTime(widget.todo.text) ??
+                      widget.todo.focusedTime;
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 12.0, bottom: 8.0),
+                    child: SizedBox(
+                      height: 18,
+                      child: ProgressBar(
+                        focusedSeconds: cached,
+                        plannedSeconds: plannedSeconds,
+                        isFocusMode:
+                            (_state?.currentMode ??
+                                TimerService.instance.currentMode) ==
+                            'focus',
+                      ),
+                    ),
+                  );
+                },
               ),
               // More vertical breathing room between task box and settings
               const SizedBox(height: 56),

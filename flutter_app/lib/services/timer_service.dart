@@ -11,6 +11,8 @@ class TimerService extends ChangeNotifier {
   bool isTimerActive = false; // whether mini-bar should show
   String currentMode = 'focus';
   Timer? _ticker;
+  // cache of latest focused time per task (seconds) for UI sync
+  final Map<String, int> _focusedTimeCache = {};
 
   void update({
     String? taskName,
@@ -110,5 +112,26 @@ class TimerService extends ChangeNotifier {
     isTimerActive = false;
     currentMode = 'focus';
     notifyListeners();
+  }
+
+  // Focused time cache helpers - used to sync progress across UI without
+  // requiring immediate backend refresh.
+  void setFocusedTime(String taskName, int seconds) {
+    if (taskName.isEmpty) return;
+    final prev = _focusedTimeCache[taskName];
+    _focusedTimeCache[taskName] = seconds;
+    if (kDebugMode) {
+      debugPrint(
+        'TIMER SERVICE: setFocusedTime -> $taskName : $prev -> $seconds',
+      );
+    }
+    notifyListeners();
+  }
+
+  int? getFocusedTime(String taskName) {
+    final v = _focusedTimeCache[taskName];
+    if (kDebugMode)
+      debugPrint('TIMER SERVICE: getFocusedTime($taskName) -> $v');
+    return v;
   }
 }
