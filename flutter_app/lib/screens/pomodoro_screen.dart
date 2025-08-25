@@ -313,6 +313,23 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
             s.timerState == 'idle' ||
             s.timerState == 'paused'); // Allow setup for new/idle tasks
 
+    // SPECIAL CASE: For overdue tasks where user chose to continue and no saved state exists,
+    // treat as new task to force setup screen
+    bool isOverdueTaskRestart =
+        TimerService.instance.hasUserContinuedOverdue(widget.todo.text) &&
+        s == null &&
+        TimerService.instance.activeTaskName != widget.todo.text;
+
+    if (kDebugMode) {
+      debugPrint(
+        "LOAD STATE DEBUG: focusedTime=${widget.todo.focusedTime}, "
+        "hasStoredState=${s != null}, "
+        "isNewTask=$isNewTask, "
+        "isOverdueTaskRestart=$isOverdueTaskRestart, "
+        "hasUserContinuedOverdue=${TimerService.instance.hasUserContinuedOverdue(widget.todo.text)}",
+      );
+    }
+
     // Additional check: if there's no stored state and no service state, definitely show setup
     if (s == null && TimerService.instance.activeTaskName != widget.todo.text) {
       isNewTask = true;
@@ -324,13 +341,18 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     }
 
     setState(() {
-      if (shouldResetToSetup || hasCorruptedState || isNewTask) {
+      if (shouldResetToSetup ||
+          hasCorruptedState ||
+          isNewTask ||
+          isOverdueTaskRestart) {
         // Force reset to initial setup state
         if (kDebugMode) {
           String reason = shouldResetToSetup
               ? "reverted completed task"
               : hasCorruptedState
               ? "corrupted state detected"
+              : isOverdueTaskRestart
+              ? "overdue task restart after continue"
               : "new task requiring setup";
           debugPrint("LOAD STATE: Resetting to setup screen - $reason");
         }
@@ -642,10 +664,11 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
           return; // Stop further processing in this tick
         }
 
-        // Check for progress bar full condition
+        // Check for progress bar full condition (but NOT for overdue tasks that user chose to continue)
         if (plannedSeconds > 0 &&
             totalFocusedTime >= plannedSeconds &&
-            !_state!.isProgressBarFull) {
+            !_state!.isProgressBarFull &&
+            !TimerService.instance.hasUserContinuedOverdue(widget.todo.text)) {
           _showProgressBarFullDialog();
           return; // Stop further processing in this tick
         }
@@ -926,27 +949,60 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     // Clear timer state completely like pressing the X button
     TimerService.instance.clear();
 
-    // Clear local state and ensure it shows setup screen on next open
-    setState(() {
-      _state = _createUpdatedState(
-        isProgressBarFull: false, // Clear progress bar full dialog state
-        timerState: 'idle', // Reset to idle state to trigger setup screen
-        timeRemaining: _state!.focusDuration, // Reset to full duration
-        lastFocusedTime: 0, // Reset session time
-      );
-    });
-
-    // Save the cleared state to ensure setup screen shows on next open
-    _store.save(widget.todo.id.toString(), _state!);
-
-    // Navigate back to close pomodoro screen - this should trigger setup screen on next open
-    Navigator.of(context).pop();
+    // For overdue tasks, remove the saved state to force setup screen on next open
+    _deleteTaskState();
 
     if (kDebugMode) {
       debugPrint(
-        'POMODORO: Continue working - cleared state and returned to task list',
+        'POMODORO: Continue working - cleared local state for task: ${widget.todo.text}',
+      );
+      debugPrint(
+        'POMODORO: Task is marked as hasUserContinuedOverdue: ${TimerService.instance.hasUserContinuedOverdue(widget.todo.text)}',
       );
     }
+
+    // Navigate back to close pomodoro screen - this should trigger setup screen on next open
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _deleteTaskState() async {
+    final all = await _store.loadAll();
+    all.remove(widget.todo.id.toString());
+    await _store.saveAll(all);
+  }
+
+  Widget _buildOverdueTimeDisplay(int focusedSeconds, int plannedSeconds) {
+    final overdueSeconds = focusedSeconds - plannedSeconds;
+    final hours = overdueSeconds ~/ 3600;
+    final minutes = (overdueSeconds % 3600) ~/ 60;
+    final seconds = overdueSeconds % 60;
+
+    String timeText;
+    if (hours > 0) {
+      timeText =
+          '${hours}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    } else {
+      timeText = '${minutes}:${seconds.toString().padLeft(2, '0')}';
+    }
+
+    return Container(
+      height: 28.0,
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(14.0),
+        border: Border.all(color: Colors.red, width: 1.0),
+      ),
+      child: Center(
+        child: Text(
+          'OVERDUE TIME: $timeText',
+          style: const TextStyle(
+            color: Colors.red,
+            fontSize: 16.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
   }
 
   // Handle mark complete after progress bar full
@@ -1198,6 +1254,15 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                   final cached =
                       TimerService.instance.getFocusedTime(widget.todo.text) ??
                       widget.todo.focusedTime;
+
+                  // Check if this is an overdue task that user chose to continue
+                  final isOverdueTask =
+                      plannedSeconds > 0 &&
+                      cached >= plannedSeconds &&
+                      TimerService.instance.hasUserContinuedOverdue(
+                        widget.todo.text,
+                      );
+
                   return Padding(
                     // Slightly reduced top padding so the progress bar sits
                     // a bit closer to the content above and ultimately
@@ -1207,11 +1272,13 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                       // Wrapper to control overall space. Height increased
                       // to comfortably contain a thicker progress bar.
                       height: 34,
-                      child: ProgressBar(
-                        focusedSeconds: cached,
-                        plannedSeconds: plannedSeconds,
-                        barHeight: 28.0, // Thicker progress bar
-                      ),
+                      child: isOverdueTask
+                          ? _buildOverdueTimeDisplay(cached, plannedSeconds)
+                          : ProgressBar(
+                              focusedSeconds: cached,
+                              plannedSeconds: plannedSeconds,
+                              barHeight: 28.0, // Thicker progress bar
+                            ),
                     ),
                   );
                 },
