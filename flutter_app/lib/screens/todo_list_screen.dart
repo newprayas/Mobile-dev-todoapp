@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../models/todo.dart';
@@ -130,8 +131,47 @@ class _TodoListScreenState extends State<TodoListScreen> {
 
   Future<void> _deleteTodo(int id) async {
     debugLog('TODO', 'Deleting todo $id');
+
+    // Find the todo being deleted to check if it has an active timer
+    final todoToDelete = _todos.firstWhere(
+      (todo) => todo.id == id,
+      orElse: () => Todo(
+        id: -1,
+        userId: '',
+        text: '',
+        completed: false,
+        durationHours: 0,
+        durationMinutes: 0,
+        focusedTime: 0,
+        wasOverdue: 0,
+        overdueTime: 0,
+      ),
+    );
+
+    // Check if this task has an active timer in TimerService
+    final svc = TimerService.instance;
+    bool shouldClearTimer = false;
+
+    if (todoToDelete.id != -1 && svc.activeTaskName == todoToDelete.text) {
+      shouldClearTimer = true;
+      if (kDebugMode) {
+        debugPrint(
+          'TODO DELETE: Task "${todoToDelete.text}" has active timer - will clear minibar',
+        );
+      }
+    }
+
     try {
       await widget.api.deleteTodo(id);
+
+      // Clear timer service if this was the active task
+      if (shouldClearTimer) {
+        svc.clear();
+        if (kDebugMode) {
+          debugPrint('TODO DELETE: Cleared timer service for deleted task');
+        }
+      }
+
       await _reload();
     } catch (err, st) {
       debugLog('TODO', 'Delete failed: $err\n$st');

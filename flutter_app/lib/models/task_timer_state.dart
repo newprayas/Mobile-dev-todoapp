@@ -8,6 +8,10 @@ class TaskTimerState {
   final int lastFocusedTime;
   final int? focusDuration;
   final int? breakDuration;
+  // New session tracking fields
+  final int completedSessions;
+  final bool isProgressBarFull;
+  final bool allSessionsComplete;
 
   TaskTimerState({
     this.taskId,
@@ -19,6 +23,9 @@ class TaskTimerState {
     this.lastFocusedTime = 0,
     this.focusDuration,
     this.breakDuration,
+    this.completedSessions = 0,
+    this.isProgressBarFull = false,
+    this.allSessionsComplete = false,
   });
 
   Map<String, dynamic> toJson() {
@@ -32,6 +39,9 @@ class TaskTimerState {
       'lastFocusedTime': lastFocusedTime,
       'focusDuration': focusDuration,
       'breakDuration': breakDuration,
+      'completedSessions': completedSessions,
+      'isProgressBarFull': isProgressBarFull,
+      'allSessionsComplete': allSessionsComplete,
     };
   }
 
@@ -46,6 +56,9 @@ class TaskTimerState {
       lastFocusedTime: j['lastFocusedTime'] ?? 0,
       focusDuration: j['focusDuration'],
       breakDuration: j['breakDuration'],
+      completedSessions: j['completedSessions'] ?? 0,
+      isProgressBarFull: j['isProgressBarFull'] ?? false,
+      allSessionsComplete: j['allSessionsComplete'] ?? false,
     );
   }
 }
