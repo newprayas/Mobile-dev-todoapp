@@ -315,9 +315,14 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
 
     // SPECIAL CASE: For overdue tasks where user chose to continue and no saved state exists,
     // treat as new task to force setup screen
+    // Treat an overdue task that the user opted to "continue" as a fresh setup
+    // regardless of whether a stored state exists. Previously this only triggered
+    // when there was no stored state (s == null), which caused the UI to reopen
+    // directly in the running view instead of the setup screen until the user
+    // manually pressed reset. This fixes the reported issue: the setup page
+    // should appear immediately after continuing an overdue task.
     bool isOverdueTaskRestart =
         TimerService.instance.hasUserContinuedOverdue(widget.todo.text) &&
-        s == null &&
         TimerService.instance.activeTaskName != widget.todo.text;
 
     if (kDebugMode) {
@@ -750,7 +755,10 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         title: 'Focus session ended',
         body: 'Time for a break!',
       );
-      widget.notificationService.playSound('sounds/Break timer start.wav');
+      // Play break start sound if asset exists
+      try {
+        widget.notificationService.playSound('sounds/Break timer start.wav');
+      } catch (_) {}
 
       // Check if all sessions are complete - but only if progress bar is not already full
       // Progress bar full dialog takes priority over session completion
@@ -784,7 +792,9 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         title: 'Break ended',
         body: 'Time to focus!',
       );
-      widget.notificationService.playSound('sounds/Focus timer start.wav');
+      try {
+        widget.notificationService.playSound('sounds/Focus timer start.wav');
+      } catch (_) {}
     }
 
     if (kDebugMode) {
@@ -823,7 +833,9 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     );
     // Corrected filename (no spaces) and wrapped in a try-catch
     try {
-      widget.notificationService.playSound('sounds/progress bar full.wav');
+      try {
+        widget.notificationService.playSound('sounds/progress bar full.wav');
+      } catch (_) {}
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Failed to play sound: $e');
@@ -866,6 +878,34 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       try {
         TimerService.instance.markUserContinuedOverdue(widget.todo.text);
       } catch (_) {}
+      // Immediately transition this screen back to the setup state so the
+      // user can reconfigure durations before starting a new session.
+      if (mounted && _state != null) {
+        setState(() {
+          _state = TaskTimerState(
+            taskId: _state!.taskId,
+            timerState: 'idle', // ensures setup UI path
+            currentMode: 'focus',
+            timeRemaining: _state!.focusDuration ?? 25 * 60,
+            focusDuration: _state!.focusDuration ?? 25 * 60,
+            breakDuration: _state!.breakDuration ?? 5 * 60,
+            totalCycles: _state!.totalCycles ?? _calculateCycles(25),
+            completedSessions: 0,
+            isProgressBarFull: false,
+            allSessionsComplete: false,
+            lastFocusedTime: 0,
+          );
+        });
+        // Persist so that reopening also shows setup without requiring a manual reset
+        try {
+          await _store.save(widget.todo.id.toString(), _state!);
+        } catch (_) {}
+        if (kDebugMode) {
+          debugPrint(
+            'POMODORO: Reset to setup after continue-overdue selection. Showing setup screen.',
+          );
+        }
+      }
     }
   }
 
