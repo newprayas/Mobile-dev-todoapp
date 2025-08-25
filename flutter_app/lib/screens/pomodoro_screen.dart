@@ -449,6 +449,41 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
             'POMODORO: preferring TimerService state for this task during load, isRunning=${svc.isRunning}',
           );
         }
+        // If task is an overdue task the user chose to continue earlier, always restore to setup when reopening
+        final plannedSecondsForResume =
+            (widget.todo.durationHours * 3600) +
+            (widget.todo.durationMinutes * 60);
+        final cachedFocused =
+            svc.getFocusedTime(widget.todo.text) ?? widget.todo.focusedTime;
+        final isContinuedOverdue =
+            plannedSecondsForResume > 0 &&
+            cachedFocused >= plannedSecondsForResume &&
+            TimerService.instance.hasUserContinuedOverdue(widget.todo.text);
+        if (isContinuedOverdue) {
+          if (kDebugMode) {
+            debugPrint(
+              'POMODORO: Reopening continued overdue task -> forcing setup screen',
+            );
+          }
+          setState(() {
+            _state = TaskTimerState(
+              taskId: widget.todo.id.toString(),
+              timerState: 'idle',
+              currentMode: 'focus',
+              timeRemaining: (_state?.focusDuration) ?? 25 * 60,
+              focusDuration: _state?.focusDuration ?? 25 * 60,
+              breakDuration: _state?.breakDuration ?? 5 * 60,
+              totalCycles:
+                  _state?.totalCycles ??
+                  _calculateCycles((_state?.focusDuration ?? 1500) ~/ 60),
+              completedSessions: 0,
+              isProgressBarFull: false,
+              allSessionsComplete: false,
+              lastFocusedTime: 0,
+            );
+          });
+          return; // skip adopting running state
+        }
         // Get the total focused time from the service, which is the most up-to-date
         final serviceFocusedTime =
             svc.getFocusedTime(widget.todo.text) ?? widget.todo.focusedTime;
@@ -1857,6 +1892,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                               setState(() {
                                 _state = _createUpdatedState(
                                   timerState: 'running',
+                                  // Fresh session start: reset per-session accumulator to zero
+                                  lastFocusedTime: 0,
                                 );
                                 _startTicker();
                                 _store.save(widget.todo.id.toString(), _state!);
