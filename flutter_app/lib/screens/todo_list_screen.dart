@@ -66,7 +66,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
       final raw = list
           .map<Todo>((e) => Todo.fromJson(Map<String, dynamic>.from(e)))
           .toList();
-      // Deduplicate by id (first-seen kept)
+      // Deduplicate by id (first-seen kept) then sort newest-first by id so newest tasks appear on top
       final seen = <int>{};
       final unique = <Todo>[];
       for (final t in raw) {
@@ -75,6 +75,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
           seen.add(t.id);
         }
       }
+      unique.sort((a, b) => b.id.compareTo(a.id));
       _todos = unique;
     } catch (_) {
       _todos = [];
@@ -450,65 +451,71 @@ class _TodoListScreenState extends State<TodoListScreen> {
                                                   ],
                                                 ),
                                                 if (_completedExpanded)
-                                                  ElevatedButton.icon(
-                                                    onPressed: () async {
-                                                      final confirm = await showDialog<bool>(
-                                                        context: context,
-                                                        builder: (dctx) => AlertDialog(
-                                                          title: const Text(
-                                                            'Clear completed?',
-                                                          ),
-                                                          content: const Text(
-                                                            'This will permanently delete all completed tasks.',
-                                                          ),
-                                                          actions: [
-                                                            TextButton(
-                                                              onPressed: () =>
-                                                                  Navigator.of(
-                                                                    dctx,
-                                                                  ).pop(false),
-                                                              child: const Text(
-                                                                'Cancel',
-                                                              ),
+                                                  Tooltip(
+                                                    message: 'Clear completed',
+                                                    child: ElevatedButton(
+                                                      onPressed: () async {
+                                                        final confirm = await showDialog<bool>(
+                                                          context: context,
+                                                          builder: (dctx) => AlertDialog(
+                                                            title: const Text(
+                                                              'Clear completed?',
                                                             ),
-                                                            ElevatedButton(
-                                                              onPressed: () =>
-                                                                  Navigator.of(
-                                                                    dctx,
-                                                                  ).pop(true),
-                                                              child: const Text(
-                                                                'Clear',
-                                                              ),
+                                                            content: const Text(
+                                                              'This will permanently delete all completed tasks.',
                                                             ),
-                                                          ],
-                                                        ),
-                                                      );
-                                                      if (confirm == true) {
-                                                        await _clearCompleted();
-                                                      }
-                                                    },
-                                                    icon: const Icon(
-                                                      Icons.delete_outline,
-                                                      color:
-                                                          AppColors.lightGray,
-                                                    ),
-                                                    label: const Text(
-                                                      'Clear All',
-                                                      style: TextStyle(
+                                                            actions: [
+                                                              TextButton(
+                                                                onPressed: () =>
+                                                                    Navigator.of(
+                                                                      dctx,
+                                                                    ).pop(
+                                                                      false,
+                                                                    ),
+                                                                child:
+                                                                    const Text(
+                                                                      'Cancel',
+                                                                    ),
+                                                              ),
+                                                              ElevatedButton(
+                                                                onPressed: () =>
+                                                                    Navigator.of(
+                                                                      dctx,
+                                                                    ).pop(true),
+                                                                child:
+                                                                    const Text(
+                                                                      'Clear',
+                                                                    ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        );
+                                                        if (confirm == true) {
+                                                          await _clearCompleted();
+                                                        }
+                                                      },
+                                                      child: const Icon(
+                                                        Icons.delete_outline,
                                                         color:
                                                             AppColors.lightGray,
-                                                        fontWeight:
-                                                            FontWeight.w500,
                                                       ),
-                                                    ),
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor:
-                                                          AppColors.midGray,
-                                                      shape: RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              8,
+                                                      style: ElevatedButton.styleFrom(
+                                                        backgroundColor:
+                                                            AppColors.midGray,
+                                                        shape: RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                8,
+                                                              ),
+                                                        ),
+                                                        padding:
+                                                            const EdgeInsets.all(
+                                                              10,
                                                             ),
+                                                        minimumSize: const Size(
+                                                          40,
+                                                          40,
+                                                        ),
                                                       ),
                                                     ),
                                                   ),
