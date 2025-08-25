@@ -147,22 +147,24 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     if (_state != null) {
       _store.save(widget.todo.id.toString(), _state!);
 
-      // Also ensure the timer service has the latest focused time for this task
-      // Use WidgetsBinding to avoid setState during widget tree lock
-      if (_state!.currentMode == 'focus' && _state!.lastFocusedTime > 0) {
-        final totalFocusedTime =
-            widget.todo.focusedTime + _state!.lastFocusedTime;
+      // FIX: Get current service focused time instead of using lastFocusedTime from state
+      // This prevents progress bar reset when transitioning to minibar
+      final currentServiceFocusedTime = TimerService.instance.getFocusedTime(
+        widget.todo.text,
+      );
 
+      if (_state!.currentMode == 'focus' && currentServiceFocusedTime != null) {
+        // Use service's current focused time as it has the latest cumulative value
         WidgetsBinding.instance.addPostFrameCallback((_) {
           TimerService.instance.setFocusedTime(
             widget.todo.text,
-            totalFocusedTime,
+            currentServiceFocusedTime,
           );
         });
 
         if (kDebugMode) {
           debugPrint(
-            'POMODORO: disposing, saved focused time for ${widget.todo.text}: ${totalFocusedTime}s (base: ${widget.todo.focusedTime}s + session: ${_state!.lastFocusedTime}s)',
+            'POMODORO: disposing, preserved focused time for ${widget.todo.text}: ${currentServiceFocusedTime}s from service',
           );
         }
       }
@@ -704,9 +706,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         title: 'Focus session ended',
         body: 'Time for a break!',
       );
-      widget.notificationService.playSound(
-        'assets/sounds/Break timer start.wav',
-      );
+      widget.notificationService.playSound('sounds/Break timer start.wav');
 
       // Check if all sessions are complete - but only if progress bar is not already full
       // Progress bar full dialog takes priority over session completion
@@ -740,9 +740,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         title: 'Break ended',
         body: 'Time to focus!',
       );
-      widget.notificationService.playSound(
-        'assets/sounds/Focus timer start.wav',
-      );
+      widget.notificationService.playSound('sounds/Focus timer start.wav');
     }
 
     if (kDebugMode) {
@@ -781,9 +779,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     );
     // Corrected filename (no spaces) and wrapped in a try-catch
     try {
-      widget.notificationService.playSound(
-        'assets/sounds/progress bar full.wav',
-      );
+      widget.notificationService.playSound('sounds/progress bar full.wav');
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Failed to play sound: $e');
@@ -923,24 +919,32 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   void _handleContinueWorking() {
     if (kDebugMode) {
       debugPrint(
-        'POMODORO: _handleContinueWorking - navigating back to setup screen as requested',
+        'POMODORO: _handleContinueWorking - clearing timer state and navigating back',
       );
     }
 
-    // Timer was already hard reset when dialog appeared, just clear dialog state
-    // and navigate back to close the pomodoro screen (like pressing X button)
+    // Clear timer state completely like pressing the X button
+    TimerService.instance.clear();
+
+    // Clear local state and ensure it shows setup screen on next open
     setState(() {
       _state = _createUpdatedState(
         isProgressBarFull: false, // Clear progress bar full dialog state
+        timerState: 'idle', // Reset to idle state to trigger setup screen
+        timeRemaining: _state!.focusDuration, // Reset to full duration
+        lastFocusedTime: 0, // Reset session time
       );
     });
 
-    // Navigate back to close pomodoro screen and return to setup screen
+    // Save the cleared state to ensure setup screen shows on next open
+    _store.save(widget.todo.id.toString(), _state!);
+
+    // Navigate back to close pomodoro screen - this should trigger setup screen on next open
     Navigator.of(context).pop();
 
     if (kDebugMode) {
       debugPrint(
-        'POMODORO: Continue working - navigated back to task list, setup screen will show on next open',
+        'POMODORO: Continue working - cleared state and returned to task list',
       );
     }
   }
@@ -973,8 +977,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         actions: [
           ElevatedButton(
             onPressed: () {
-              Navigator.of(context).pop();
-              _handleDismissTimer();
+              Navigator.of(context).pop(); // Close dialog
+              _handleDismissTimer(); // Clear timer and close pomodoro screen
             },
             child: const Text('Dismiss'),
           ),
