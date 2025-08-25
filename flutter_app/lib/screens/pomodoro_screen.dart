@@ -824,21 +824,26 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                       TimerService.instance.getFocusedTime(widget.todo.text) ??
                       widget.todo.focusedTime;
                   return Padding(
-                    padding: const EdgeInsets.only(top: 12.0, bottom: 8.0),
+                    // Slightly reduced top padding so the progress bar sits
+                    // a bit closer to the content above and ultimately
+                    // closer to the timer when the large spacer is reduced.
+                    padding: const EdgeInsets.only(top: 48.0, bottom: 8.0),
                     child: SizedBox(
-                      // Wrapper to control overall space
-                      height: 26, // Increased height for thicker bar + padding
+                      // Wrapper to control overall space. Height increased
+                      // to comfortably contain a thicker progress bar.
+                      height: 34,
                       child: ProgressBar(
                         focusedSeconds: cached,
                         plannedSeconds: plannedSeconds,
-                        barHeight: 24.0, // Make the bar thicker
+                        barHeight: 28.0, // Thicker progress bar
                       ),
                     ),
                   );
                 },
               ),
-              // More vertical breathing room between task box and settings
-              const SizedBox(height: 56),
+              // Reduced vertical breathing room so the progress bar,
+              // cycle counters and timer are visually closer together.
+              const SizedBox(height: 12),
             ],
           ),
           // Settings row (Focus / Break / Cycles)
@@ -1105,29 +1110,24 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                                   ? Colors.redAccent
                                   : Colors.greenAccent)
                             : Colors.transparent,
-                        width: 4.0,
+                        width: 6.0, // make border slightly thicker
                       ),
-                      borderRadius: BorderRadius.circular(12.0),
+                      borderRadius: BorderRadius.circular(14.0),
                     ),
-                    child: Padding(
-                      // Comfortable padding so digits have clear breathing room
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24.0,
-                        vertical: 12.0,
-                      ),
-                      child: Transform.translate(
-                        // Adjust offset to vertically center the large font
-                        offset: const Offset(0, -8),
-                        child: Text(
-                          _format(s.timeRemaining!),
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.oswald(
-                            fontSize: 140.0,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -6.0,
-                            height: 0.8,
-                            color: Colors.white,
-                          ),
+                    child: Container(
+                      // Give the timer box a slightly larger footprint
+                      // and uniform padding so digits sit away from all edges.
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.all(20.0),
+                      child: Text(
+                        _format(s.timeRemaining!),
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.oswald(
+                          fontSize: 120.0,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -2.0,
+                          height: 1.05,
+                          color: Colors.white,
                         ),
                       ),
                     ),

@@ -41,6 +41,15 @@ class _MiniTimerBarState extends State<MiniTimerBar> {
         if (!svc.isTimerActive || svc.activeTaskName == null) {
           return const SizedBox.shrink();
         }
+        // Hide the mini-timer when the keyboard is visible so it doesn't
+        // float on top of the keyboard and obstruct typing.
+        final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+        if (keyboardVisible) {
+          if (kDebugMode) {
+            debugPrint('MINI BAR: hiding because keyboard is visible');
+          }
+          return const SizedBox.shrink();
+        }
         final mode = svc.currentMode;
         final borderColor = mode == 'focus'
             ? Colors.redAccent
@@ -90,7 +99,9 @@ class _MiniTimerBarState extends State<MiniTimerBar> {
               borderRadius: BorderRadius.circular(12.0),
               border: Border.all(color: borderColor, width: 3),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            // Keep padding consistent but slightly reduced vertical padding
+            // so the bar sits comfortably when visible.
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
                 Column(

@@ -533,88 +533,91 @@ class _TodoListScreenState extends State<TodoListScreen> {
 
                         const SizedBox(height: 12),
 
-                        // Subtle logout at bottom-left
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton.icon(
-                            onPressed: () async {
-                              final nav = Navigator.of(context);
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (dctx) => AlertDialog(
-                                  title: const Text('Logout?'),
-                                  content: const Text(
-                                    'You will be signed out of the app.',
+                        // Subtle logout at bottom-left - hide when keyboard is visible
+                        if (MediaQuery.of(context).viewInsets.bottom == 0)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: () async {
+                                final nav = Navigator.of(context);
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (dctx) => AlertDialog(
+                                    title: const Text('Logout?'),
+                                    content: const Text(
+                                      'You will be signed out of the app.',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(dctx).pop(false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () =>
+                                            Navigator.of(dctx).pop(true),
+                                        child: const Text('Logout'),
+                                      ),
+                                    ],
                                   ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.of(dctx).pop(false),
-                                      child: const Text('Cancel'),
-                                    ),
-                                    ElevatedButton(
-                                      onPressed: () =>
-                                          Navigator.of(dctx).pop(true),
-                                      child: const Text('Logout'),
-                                    ),
-                                  ],
+                                );
+                                if (confirm == true) {
+                                  await widget.auth.signOut();
+                                  if (!mounted) return;
+                                  nav.pushReplacementNamed('/login');
+                                }
+                              },
+                              icon: Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: Colors.transparent,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppColors.lightGray.withAlpha(
+                                      31,
+                                    ), // ~0.12 opacity
+                                  ),
                                 ),
-                              );
-                              if (confirm == true) {
-                                await widget.auth.signOut();
-                                if (!mounted) return;
-                                nav.pushReplacementNamed('/login');
-                              }
-                            },
-                            icon: Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: Colors.transparent,
-                                shape: BoxShape.circle,
-                                border: Border.all(
+                                child: const Icon(
+                                  Icons.logout,
+                                  color: AppColors.lightGray,
+                                ),
+                              ),
+                              label: Text(
+                                'Logout',
+                                style: TextStyle(
                                   color: AppColors.lightGray.withAlpha(
-                                    31,
-                                  ), // ~0.12 opacity
+                                    179,
+                                  ), // ~0.7 opacity
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
-                              child: const Icon(
-                                Icons.logout,
-                                color: AppColors.lightGray,
-                              ),
-                            ),
-                            label: Text(
-                              'Logout',
-                              style: TextStyle(
-                                color: AppColors.lightGray.withAlpha(
-                                  179,
-                                ), // ~0.7 opacity
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 6,
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 6,
+                                ),
                               ),
                             ),
                           ),
-                        ),
                         // main column end
                       ],
                     ),
                     // Positioned mini-timer overlay that covers bottom controls (e.g., logout)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: MiniTimerBar(
-                        api: widget.api,
-                        notificationService: widget.notificationService,
-                        activeTodo: activeTodo,
-                        onComplete: _toggleTodo,
+                    // Only show the mini-timer when the keyboard is not visible.
+                    if (MediaQuery.of(context).viewInsets.bottom == 0)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: MiniTimerBar(
+                          api: widget.api,
+                          notificationService: widget.notificationService,
+                          activeTodo: activeTodo,
+                          onComplete: _toggleTodo,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),

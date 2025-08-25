@@ -1,21 +1,43 @@
+# MAIN RULE - MUST FOLLOW - always run the temrinal command 
+    afplay "/Users/pustak/Documents/VS code projects/Todoapp flutter copy gemini code/static/sounds/Focus timer start.wav" 
+    When you FINISH your response. RUN THIS IN THE PROJECT'S TERMINAL WIHTOUT ASKING USER FOR PERMISSION  
+
+
+# GOOD WAY TO RESPOND - FOLLOW THIS 
+    For every repsone 
+
+    FIRST Make a paln on what is asked and how do you paln to implement this 
+    THEN execude the paln in the same response (do not ask for user to say yes to execute)
+    Then after execution - play the sound 
+    Then give the summary of what you did 
+    And then give suggestions for next step 
+    then STOP - CONCLUDE YOUR RESPONSE 
+
 # IMPORTANT - GOOD USER EXPSEIRNCE 
     (IMPOETNAT) - MUST FOLLOW THIS ✅ -  ALWAYS RUN FLUTTER ANALYZE after you have made all code changes - EVERYTIMEAfter making any code chagnes, always assess for any ERRORS in the code - maybe use flutter analyze and then FIX those error before giving the final response to the user 
 
     After every operation give a berif report in bullet points - of what changes you made, why it was not working, what are the potential next steps to be taken by you (the coding agent) and the user (if rquired) - make it in bullet point format and be simple in your langauge so even non coders would understand (IMPORTANT)
 
-    
-
-# IMPORTANT - DEBUG RULE  
-     
-    DO THIS FIRST : when debugging for an error or when the user says a certain feature is not working, ALWAYS run this command :  adb logcat -d --pid=$(adb shell pidof -s com.example.flutter_app) > logs.txt in the terminal of this directory  - which will put the debug logs into the logs.txt file
-
-    FOLLOWED BY   - DO THIS SECOND
-
-    Always check out information in the logs.txt file - for debugging information (this file contains output form the DEBUG CONSOLE of my IDE) -USE the information from 
-
-    Whenever you are building a new feature in the app always add debugging code that shows up in the DEBUG CONSOLE in the IDE (VS CODE) [it should NOT show in my app GUI though] - which will give you good information of how the features are working or not (for debugging purpose) 
+     ! ALWYAS FOLLOW : CAUTION -  ONLY BUILD ONE FEATURE AT ONCE - ALWAYS ASK THE USER BEFORE PROCEEDING TO BUILD ANY FEATURE (Suggest features to build user) - after asking the USER for next steps STOP your response. 
+                # DO NOT CONTINUE NEXT FEATURE - STOP YOUR RESPONSE UNTIL USER GIVE PERMISSION TO PROCEED 
+                # DO NOT KEEP RESPONDING FOR LONG TIMES BULIDNG NEW FEATURES - work on only the feature the user has asekd and then STOP after fnisninh 
 
 
+      IMPORTANT -   STOP the response once you play the sound and give the user a summary of what did you do. CONCLUDE YOUR OUTPUT. DO NOT WAIT FOR USER'S Response - JUST STOP. 
+
+# CAUTION - MUST FOLLOW - AVOID LOOPS - FOLLOW CORRECT LOGIC 
+    Why is This Happening?
+        The root cause is a disconnect between the agent's state (its knowledge of the file) and its actions (the plan it tries to execute).
+        The agent's logic is flawed like this:
+            If replace fails:
+            Assume file has changed.
+            Read the file again to update my knowledge.
+            BUG: Re-run the previous command that was built on my old knowledge.
+    The correct logic should be:
+        If replace fails:
+        Assume file has changed.
+        Read the file again to update my knowledge.
+        FIX: Discard the old plan. Generate a brand new replace command based on the newly read file content.
 # RUN SERVER FIRST _ IMPORATNAT 
     The project now uses a Dart backend in `backend/`. Start the Dart server with the
     instructions in `backend/README.md`. Do not run the old Flask server.  
@@ -27,7 +49,9 @@
 Here is a detailed description of the to-do application's UI, logic, and user experience, designed to be used as a prompt for an AI agent torecreate a similar app in Flutter for MOBILE devl (the app was desinged for website - change to mobile deisgn princples).
 
 # ALWAYS keep the overall outline of the app in mind while creating features 
+ ! ALWYAS FOLLOW : CAUTION -  ONLY BUILD ONE FEATURE AT ONCE - ALWAYS ASK THE USER BEFORE PROCEEDING TO BUILD ANY FEATURE (Suggest features to build user) 
 
+    # DO NOT CONTINUE NEXT FEATURE - STOP YOUR RESPONSE UNTIL USER GIVE PERMISSION TO PROCEED 
   ---
 
   App Concept: A To-Do List with an Integrated Pomodoro Timer
