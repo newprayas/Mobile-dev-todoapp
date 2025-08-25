@@ -576,6 +576,17 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         allSessionsComplete: _state!.allSessionsComplete,
       );
     });
+    // Play focus start only when entering a fresh focus session (not resume) and mode is focus
+    try {
+      if (_state?.currentMode == 'focus' &&
+          (_state?.timeRemaining == _state?.focusDuration)) {
+        widget.notificationService.showNotification(
+          title: 'Focus Started',
+          body: 'Stay on task: "${widget.todo.text}"',
+        );
+        widget.notificationService.playSound('sounds/Focus timer start.wav');
+      }
+    } catch (_) {}
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (kDebugMode && mounted) {
         debugPrint(
@@ -997,6 +1008,14 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         ],
       ),
     );
+    // Notify user and play sound for progress bar full
+    try {
+      widget.notificationService.showNotification(
+        title: 'Planned Time Complete',
+        body: 'Decide: Continue or mark "${widget.todo.text}" complete.',
+      );
+      widget.notificationService.playSound('sounds/progress bar full.wav');
+    } catch (_) {}
   }
 
   // Handle continue working after progress bar full

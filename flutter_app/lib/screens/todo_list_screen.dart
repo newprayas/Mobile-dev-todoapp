@@ -97,6 +97,12 @@ class _TodoListScreenState extends State<TodoListScreen> {
     try {
       debugLog('TODO', 'Adding: "$text" (${h}h ${m}m)');
       await widget.api.addTodo(text, h, m);
+      // Play a subtle start sound (reusing focus start) on task creation
+      try {
+        await widget.notificationService.playSound(
+          'sounds/Focus timer start.wav',
+        );
+      } catch (_) {}
       _newText.clear();
       _hours.text = '0';
       _mins.text = '25';
@@ -163,6 +169,11 @@ class _TodoListScreenState extends State<TodoListScreen> {
 
     try {
       await widget.api.deleteTodo(id);
+      try {
+        await widget.notificationService.playSound(
+          'sounds/Break timer start.wav',
+        );
+      } catch (_) {}
 
       // Clear timer service if this was the active task
       if (shouldClearTimer) {
@@ -181,8 +192,47 @@ class _TodoListScreenState extends State<TodoListScreen> {
   Future<void> _toggleTodo(int id) async {
     debugLog('TODO', 'Toggling todo $id');
     try {
+      // Find current todo state before toggle to detect restoring from completed
+      final existing = _todos.firstWhere(
+        (t) => t.id == id,
+        orElse: () => Todo(
+          id: -1,
+          userId: '',
+          text: '',
+          completed: false,
+          durationHours: 0,
+          durationMinutes: 0,
+          focusedTime: 0,
+          wasOverdue: 0,
+          overdueTime: 0,
+        ),
+      );
+      final wasCompleted = existing.completed;
+      final plannedSeconds =
+          (existing.durationHours * 3600) + (existing.durationMinutes * 60);
+      final wasUnderdue = wasCompleted && existing.focusedTime < plannedSeconds;
+      // Perform toggle
       await widget.api.toggleTodo(id);
       await _reload();
+      // After reload, if we restored a previously completed task that had the green Completed label
+      // (i.e., it was not overdue and not underdue label was shown), treat it now as overdue.
+      if (wasCompleted && !wasUnderdue) {
+        try {
+          final restored = _todos.firstWhere((t) => t.id == id);
+          // Mark in TimerService so UI treats as continued overdue scenario
+          TimerService.instance.markUserContinuedOverdue(restored.text);
+          try {
+            await widget.notificationService.playSound(
+              'sounds/progress bar full.wav',
+            );
+          } catch (_) {}
+          if (kDebugMode) {
+            debugPrint(
+              'RESTORE: Marked restored completed task as overdue (continued) -> ${restored.text}',
+            );
+          }
+        } catch (_) {}
+      }
     } catch (err, st) {
       debugLog('TODO', 'Toggle failed: $err\n$st');
     }

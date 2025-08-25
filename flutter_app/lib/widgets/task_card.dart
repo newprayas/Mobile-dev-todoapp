@@ -435,7 +435,7 @@ class TaskCard extends StatelessWidget {
         );
       }
     }
-    // If task is completed and has neither overdue nor underdue label, show a green Completed label
+    // If task is completed and has neither overdue nor underdue label (percentage >=100 means already handled as overdue earlier), show green Completed
     if (todo.completed) {
       return const Text(
         'Completed',
