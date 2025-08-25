@@ -61,6 +61,41 @@ class _MiniTimerBarState extends State<MiniTimerBar> {
           );
         }
 
+        // Schedule a post-frame prompt if the central service indicates the planned duration
+        // was crossed while running in the mini-bar. This ensures the dialog appears even
+        // when the full Pomodoro sheet is not open.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final svcAfter = TimerService.instance;
+          if (svcAfter.overdueCrossedTaskName != null &&
+              svcAfter.overdueCrossedTaskName ==
+                  (svcAfter.activeTaskName ?? '') &&
+              !svcAfter.hasOverduePromptBeenShown(
+                svcAfter.overdueCrossedTaskName!,
+              )) {
+            if (context.mounted) {
+              _showOverduePromptFromMiniBar(
+                context,
+                widget.activeTodo ??
+                    Todo(
+                      id: 0,
+                      userId: '',
+                      text: svcAfter.activeTaskName ?? '',
+                      completed: false,
+                      durationHours: 0,
+                      durationMinutes: 0,
+                      focusedTime: 0,
+                      wasOverdue: 0,
+                      overdueTime: 0,
+                    ),
+                widget.onComplete,
+                widget.notificationService,
+              );
+            }
+          }
+        });
+
+        // (No-op) post-frame work already scheduled earlier in this builder.
+
         return GestureDetector(
           onTap: () async {
             if (kDebugMode) {
@@ -186,5 +221,60 @@ class _MiniTimerBarState extends State<MiniTimerBar> {
         );
       },
     );
+  }
+}
+
+// Helper to show overdue prompt when mini-bar detects a crossed planned duration
+Future<void> _showOverduePromptFromMiniBar(
+  BuildContext context,
+  Todo todo,
+  Future<void> Function(int) onComplete,
+  NotificationService notificationService,
+) async {
+  final svc = TimerService.instance;
+  final taskName = svc.overdueCrossedTaskName;
+  if (taskName == null || taskName != (svc.activeTaskName ?? '')) return;
+  if (svc.hasOverduePromptBeenShown(taskName)) return;
+
+  // mark as shown so it won't repeat
+  svc.markOverduePromptShown(taskName);
+
+  notificationService.showNotification(
+    title: 'Task Overdue',
+    body: 'Planned time for "${todo.text}" is complete.',
+  );
+  try {
+    notificationService.playSound('assets/sounds/progress_bar_full.wav');
+  } catch (_) {}
+
+  final res = await showDialog<String>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => AlertDialog(
+      title: Text('"${todo.text}" Overdue'),
+      content: const Text(
+        'Planned time is complete. Mark task as done or continue working?',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop('continue'),
+          child: const Text('Continue'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(ctx).pop('complete'),
+          child: const Text('Mark Complete'),
+        ),
+      ],
+    ),
+  );
+
+  if (res == 'complete') {
+    await onComplete(todo.id);
+    TimerService.instance.clear();
+  } else {
+    // keep running; record that the user chose to continue so UI can reflect it
+    try {
+      TimerService.instance.markUserContinuedOverdue(taskName);
+    } catch (_) {}
   }
 }

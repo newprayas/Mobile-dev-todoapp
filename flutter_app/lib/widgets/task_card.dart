@@ -116,36 +116,93 @@ class TaskCard extends StatelessWidget {
                           child: Focus(
                             child: Builder(
                               builder: (ctx) {
-                                return TextField(
-                                  controller: editController,
-                                  style: TextStyle(
-                                    color: AppColors.lightGray,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    decoration: todo.completed
-                                        ? TextDecoration.lineThrough
-                                        : TextDecoration.none,
-                                  ),
-                                  decoration: InputDecoration(
-                                    isDense: true,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
+                                // Place the editable title and a possible red-dot indicator in a row
+                                return Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        controller: editController,
+                                        style: TextStyle(
+                                          color: AppColors.lightGray,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          decoration: todo.completed
+                                              ? TextDecoration.lineThrough
+                                              : TextDecoration.none,
+                                        ),
+                                        decoration: InputDecoration(
+                                          isDense: true,
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 4,
+                                              ),
+                                          filled: false,
+                                          border: InputBorder.none,
+                                        ),
+                                        onSubmitted: (v) async {
+                                          final newText = v.trim();
+                                          if (newText.isEmpty) return;
+                                          await onUpdateText(newText);
+                                        },
+                                      ),
                                     ),
-                                    filled: false,
-                                    border: InputBorder.none,
-                                  ),
-                                  onSubmitted: (v) async {
-                                    final newText = v.trim();
-                                    if (newText.isEmpty) return;
-                                    await onUpdateText(newText);
-                                  },
+                                    // show red-dot emoji if user chose to continue on an overdue task
+                                    if (TimerService.instance
+                                        .hasUserContinuedOverdue(todo.text))
+                                      const Padding(
+                                        padding: EdgeInsets.only(left: 8.0),
+                                        child: Text('🔴'),
+                                      ),
+                                  ],
                                 );
                               },
                             ),
                           ),
                         ),
                         const SizedBox(height: 8),
+                        // Completed / Underdue / Overdue status label (shown only for completed tasks)
+                        Builder(
+                          builder: (sctx) {
+                            // Only show when the server provided a planned duration
+                            if (!todo.completed) return const SizedBox.shrink();
+                            final plannedSecondsLocal = plannedSeconds;
+                            if (plannedSecondsLocal <= 0) {
+                              return const SizedBox.shrink();
+                            }
+                            // Decide state: overdue > 0 => overdue; else underdue if focused < planned; else completed
+                            final isOverdueNow = todo.overdueTime > 0;
+                            final focused = todo.focusedTime;
+                            String labelText;
+                            Color labelColor;
+                            if (isOverdueNow) {
+                              labelText = 'Overdue: +${todo.overdueTime}m';
+                              labelColor = Colors.redAccent;
+                            } else if (focused < plannedSecondsLocal) {
+                              labelText = 'Underdue task';
+                              labelColor = AppColors.brightYellow;
+                            } else {
+                              labelText = 'Completed task';
+                              labelColor = AppColors.priorityLow; // green-ish
+                            }
+                            if (kDebugMode) {
+                              debugPrint(
+                                'TASK_STATUS: id=${todo.id} label=$labelText focused=$focused planned=$plannedSecondsLocal overdue=${todo.overdueTime}',
+                              );
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 6.0),
+                              child: Text(
+                                labelText,
+                                style: TextStyle(
+                                  color: labelColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                         Row(
                           children: [
                             GestureDetector(
@@ -227,7 +284,10 @@ class TaskCard extends StatelessWidget {
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                    if (isOverdue && todo.overdueTime > 0) ...[
+                                    // Inline overdue badge only for active (not completed) tasks
+                                    if (!todo.completed &&
+                                        isOverdue &&
+                                        todo.overdueTime > 0) ...[
                                       const SizedBox(width: 6),
                                       Text(
                                         '(+${todo.overdueTime}m overdue)',
@@ -242,22 +302,26 @@ class TaskCard extends StatelessWidget {
                               ),
                             ),
                             const Spacer(),
-                            Hero(
-                              tag: 'play_${todo.id}',
-                              child: Material(
-                                color: Colors.transparent,
-                                child: IconButton(
-                                  icon: const Icon(Icons.play_arrow),
-                                  color: AppColors.lightGray,
-                                  onPressed: () async {
-                                    if (kDebugMode) {
-                                      debugPrint('Play tapped for ${todo.id}');
-                                    }
-                                    await onPlay(todo);
-                                  },
+                            // Hide play button for completed tasks
+                            if (!todo.completed)
+                              Hero(
+                                tag: 'play_${todo.id}',
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: IconButton(
+                                    icon: const Icon(Icons.play_arrow),
+                                    color: AppColors.lightGray,
+                                    onPressed: () async {
+                                      if (kDebugMode) {
+                                        debugPrint(
+                                          'Play tapped for ${todo.id}',
+                                        );
+                                      }
+                                      await onPlay(todo);
+                                    },
+                                  ),
                                 ),
                               ),
-                            ),
                             const SizedBox(width: 10),
                             IconButton(
                               icon: Icon(

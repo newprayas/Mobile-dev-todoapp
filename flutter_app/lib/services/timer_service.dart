@@ -11,6 +11,12 @@ class TimerService extends ChangeNotifier {
   bool isTimerActive = false; // whether mini-bar should show
   String currentMode = 'focus';
   int? plannedDurationSeconds;
+  // Name of a task that just crossed its planned duration and requires prompting
+  String? overdueCrossedTaskName;
+  // Track which tasks have already had the overdue prompt shown so we don't spam the user
+  final Set<String> _overduePromptShown = {};
+  // Track tasks for which the user chose to continue working when overdue
+  final Set<String> _overdueContinued = {};
   Timer? _ticker;
   // cache of latest focused time per task (seconds) for UI sync
   final Map<String, int> _focusedTimeCache = {};
@@ -72,6 +78,30 @@ class TimerService extends ChangeNotifier {
     }
   }
 
+  bool hasOverduePromptBeenShown(String taskName) {
+    return _overduePromptShown.contains(taskName);
+  }
+
+  void markOverduePromptShown(String taskName) {
+    if (taskName.isEmpty) return;
+    _overduePromptShown.add(taskName);
+    // clear the crossed marker if it matches
+    if (overdueCrossedTaskName == taskName) overdueCrossedTaskName = null;
+    notifyListeners();
+  }
+
+  bool hasUserContinuedOverdue(String taskName) {
+    return _overdueContinued.contains(taskName);
+  }
+
+  void markUserContinuedOverdue(String taskName) {
+    if (taskName.isEmpty) return;
+    _overdueContinued.add(taskName);
+    // also mark prompt shown so we won't show it again
+    _overduePromptShown.add(taskName);
+    notifyListeners();
+  }
+
   void toggleRunning() {
     isRunning = !isRunning;
     if (kDebugMode) {
@@ -104,10 +134,12 @@ class TimerService extends ChangeNotifier {
                 totalFocusedTime >= plannedDurationSeconds!) {
               if (kDebugMode) {
                 debugPrint(
-                  'TIMER SERVICE: Task is now overdue. Pausing timer.',
+                  'TIMER SERVICE: Task crossed planned duration (mini-bar). marking for prompt.',
                 );
               }
-              toggleRunning(); // This will pause the timer and stop the ticker
+              // Mark the crossed task; don't toggle running here — let UI decide how to prompt.
+              overdueCrossedTaskName = taskName;
+              notifyListeners();
               return;
             }
             if (kDebugMode) {

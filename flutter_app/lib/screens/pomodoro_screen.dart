@@ -612,6 +612,10 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       debugPrint('POMODORO: Task is now overdue. Showing prompt.');
     }
     _overduePromptShown = true; // Prevent showing it again
+    // Also inform the central TimerService that this task's overdue prompt has been shown
+    try {
+      TimerService.instance.markOverduePromptShown(widget.todo.text);
+    } catch (_) {}
     _stopTicker(); // Pause the timer
 
     widget.notificationService.showNotification(
@@ -661,6 +665,10 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       if (kDebugMode) {
         debugPrint('POMODORO: User chose to continue overdue task.');
       }
+      // Mark centrally that the user chose to continue working on this overdue task
+      try {
+        TimerService.instance.markUserContinuedOverdue(widget.todo.text);
+      } catch (_) {}
     }
   }
 
@@ -1297,7 +1305,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                       Text(
                         isRunning ? 'Pause' : 'Start',
                         style: const TextStyle(
-                          color: Colors.black,
+                          color: Colors.white,
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                         ),
