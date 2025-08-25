@@ -483,6 +483,17 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         final plannedSeconds =
             (widget.todo.durationHours * 3600) +
             (widget.todo.durationMinutes * 60);
+
+        if (kDebugMode) {
+          debugPrint(
+            "OVERDUE CHECK ON LOAD: task=${widget.todo.text}, "
+            "totalFocused=$totalFocusedTime, planned=$plannedSeconds, "
+            "isOverdue=${totalFocusedTime >= plannedSeconds}, "
+            "promptShown=$_overduePromptShown, "
+            "servicePromptShown=${TimerService.instance.hasOverduePromptBeenShown(widget.todo.text)}",
+          );
+        }
+
         if (plannedSeconds > 0 &&
             totalFocusedTime >= plannedSeconds &&
             !_overduePromptShown &&
@@ -654,6 +665,16 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
             (widget.todo.durationMinutes * 60);
 
         // Check for overdue condition before updating UI
+        if (kDebugMode) {
+          debugPrint(
+            "OVERDUE CHECK IN TICK: task=${widget.todo.text}, "
+            "totalFocused=$totalFocusedTime, planned=$plannedSeconds, "
+            "isOverdue=${totalFocusedTime >= plannedSeconds}, "
+            "promptShown=$_overduePromptShown, "
+            "servicePromptShown=${TimerService.instance.hasOverduePromptBeenShown(widget.todo.text)}",
+          );
+        }
+
         if (plannedSeconds > 0 &&
             totalFocusedTime >= plannedSeconds &&
             !_overduePromptShown &&
