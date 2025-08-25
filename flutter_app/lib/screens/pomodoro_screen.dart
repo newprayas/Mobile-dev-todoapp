@@ -342,7 +342,10 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
             (widget.todo.durationMinutes * 60);
         if (plannedSeconds > 0 &&
             totalFocusedTime >= plannedSeconds &&
-            !_overduePromptShown) {
+            !_overduePromptShown &&
+            !TimerService.instance.hasOverduePromptBeenShown(
+              widget.todo.text,
+            )) {
           _showOverduePrompt();
         }
       }
@@ -470,7 +473,10 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         // Check for overdue condition before updating UI
         if (plannedSeconds > 0 &&
             totalFocusedTime >= plannedSeconds &&
-            !_overduePromptShown) {
+            !_overduePromptShown &&
+            !TimerService.instance.hasOverduePromptBeenShown(
+              widget.todo.text,
+            )) {
           _showOverduePrompt();
           return; // Stop further processing in this tick
         }
@@ -625,7 +631,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     // Corrected filename (no spaces) and wrapped in a try-catch
     try {
       widget.notificationService.playSound(
-        'assets/sounds/progress_bar_full.wav',
+        'assets/sounds/progress bar full.wav',
       );
     } catch (e) {
       if (kDebugMode) {
