@@ -244,7 +244,8 @@ Future<void> _showOverduePromptFromMiniBar(
     body: 'Planned time for "${todo.text}" is complete.',
   );
   try {
-    notificationService.playSound('assets/sounds/progress_bar_full.wav');
+    // Use standardized asset path (directory declared in pubspec: assets/sounds/)
+    notificationService.playSound('sounds/progress bar full.wav');
   } catch (_) {}
 
   final res = await showDialog<String>(

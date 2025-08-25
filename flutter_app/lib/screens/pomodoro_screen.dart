@@ -580,13 +580,16 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     try {
       if (_state?.currentMode == 'focus' &&
           (_state?.timeRemaining == _state?.focusDuration)) {
+        if (kDebugMode) debugPrint('SOUND: Focus timer start (fresh session).');
         widget.notificationService.showNotification(
           title: 'Focus Started',
           body: 'Stay on task: "${widget.todo.text}"',
         );
         widget.notificationService.playSound('sounds/Focus timer start.wav');
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint('SOUND ERROR (focus start fresh): $e');
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (kDebugMode && mounted) {
         debugPrint(
@@ -605,6 +608,10 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
           (widget.todo.durationMinutes * 60),
       // Provide planned duration to service
       mode: _state?.currentMode,
+      focusDuration: _state?.focusDuration ?? 1500,
+      breakDuration: _state?.breakDuration ?? 300,
+      setTotalCycles: _state?.totalCycles ?? 4,
+      setCurrentCycle: _state?.currentCycle ?? 1,
     );
   }
 
@@ -619,6 +626,10 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       remaining: _state?.timeRemaining,
       active: false,
       mode: _state?.currentMode,
+      focusDuration: _state?.focusDuration,
+      breakDuration: _state?.breakDuration,
+      setTotalCycles: _state?.totalCycles,
+      setCurrentCycle: _state?.currentCycle,
     );
     if (_state != null) {
       final totalFocusedTime =
@@ -768,8 +779,11 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       );
       // Play break start sound if asset exists
       try {
+        if (kDebugMode) debugPrint('SOUND: Break timer start.');
         widget.notificationService.playSound('sounds/Break timer start.wav');
-      } catch (_) {}
+      } catch (e) {
+        if (kDebugMode) debugPrint('SOUND ERROR (break start): $e');
+      }
 
       // Check if all sessions are complete - but only if progress bar is not already full
       // Progress bar full dialog takes priority over session completion
@@ -804,8 +818,11 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         body: 'Time to focus!',
       );
       try {
+        if (kDebugMode) debugPrint('SOUND: Focus timer start (after break).');
         widget.notificationService.playSound('sounds/Focus timer start.wav');
-      } catch (_) {}
+      } catch (e) {
+        if (kDebugMode) debugPrint('SOUND ERROR (focus start after break): $e');
+      }
     }
 
     if (kDebugMode) {
@@ -822,6 +839,10 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       remaining: _state!.timeRemaining,
       active: true,
       mode: _state!.currentMode,
+      focusDuration: _state!.focusDuration,
+      breakDuration: _state!.breakDuration,
+      setTotalCycles: _state!.totalCycles,
+      setCurrentCycle: _state!.currentCycle,
     );
 
     _startTicker();
@@ -1010,12 +1031,19 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     );
     // Notify user and play sound for progress bar full
     try {
+      if (kDebugMode) {
+        debugPrint('SOUND: Playing progress bar full sound (dialog).');
+      }
       widget.notificationService.showNotification(
         title: 'Planned Time Complete',
         body: 'Decide: Continue or mark "${widget.todo.text}" complete.',
       );
       widget.notificationService.playSound('sounds/progress bar full.wav');
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('SOUND ERROR: $e');
+      }
+    }
   }
 
   // Handle continue working after progress bar full
@@ -1760,6 +1788,10 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                               remaining: _state?.timeRemaining,
                               mode: _state?.currentMode,
                               active: false,
+                              focusDuration: _state?.focusDuration,
+                              breakDuration: _state?.breakDuration,
+                              setTotalCycles: _state?.totalCycles,
+                              setCurrentCycle: _state?.currentCycle,
                             );
                           },
                           child: const Icon(

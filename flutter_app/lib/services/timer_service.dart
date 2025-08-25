@@ -11,6 +11,11 @@ class TimerService extends ChangeNotifier {
   bool isTimerActive = false; // whether mini-bar should show
   String currentMode = 'focus';
   int? plannedDurationSeconds;
+  // Session (focus/break) durations so mini-bar ticker can handle transitions
+  int? focusDurationSeconds;
+  int? breakDurationSeconds;
+  int currentCycle = 1;
+  int totalCycles = 1;
   // Name of a task that just crossed its planned duration and requires prompting
   String? overdueCrossedTaskName;
   // Track which tasks have already had the overdue prompt shown so we don't spam the user
@@ -28,6 +33,10 @@ class TimerService extends ChangeNotifier {
     bool? active,
     int? plannedDuration,
     String? mode,
+    int? focusDuration,
+    int? breakDuration,
+    int? setTotalCycles,
+    int? setCurrentCycle,
   }) {
     if (kDebugMode) {
       debugPrint(
@@ -62,6 +71,22 @@ class TimerService extends ChangeNotifier {
     }
     if (plannedDuration != null && plannedDuration != plannedDurationSeconds) {
       plannedDurationSeconds = plannedDuration;
+      changed = true;
+    }
+    if (focusDuration != null && focusDuration != focusDurationSeconds) {
+      focusDurationSeconds = focusDuration;
+      changed = true;
+    }
+    if (breakDuration != null && breakDuration != breakDurationSeconds) {
+      breakDurationSeconds = breakDuration;
+      changed = true;
+    }
+    if (setTotalCycles != null && setTotalCycles != totalCycles) {
+      totalCycles = setTotalCycles;
+      changed = true;
+    }
+    if (setCurrentCycle != null && setCurrentCycle != currentCycle) {
+      currentCycle = setCurrentCycle;
       changed = true;
     }
     if (changed) {
@@ -154,11 +179,40 @@ class TimerService extends ChangeNotifier {
           }
           notifyListeners();
         } else {
-          // stop when finished
-          if (kDebugMode) {
-            debugPrint('TIMER SERVICE: internal ticker reached 0, clearing');
+          // timeRemaining == 0
+          // Handle automatic transition instead of clearing to avoid restart loop
+          if (currentMode == 'focus' && breakDurationSeconds != null) {
+            // Transition to break
+            currentMode = 'break';
+            timeRemaining = breakDurationSeconds!;
+            currentCycle +=
+                1; // increment cycle after a focus session completes
+            if (kDebugMode) {
+              debugPrint(
+                'TIMER SERVICE: focus session complete -> switching to BREAK (cycle=$currentCycle/${totalCycles})',
+              );
+            }
+            notifyListeners();
+            return; // next tick will count down break
+          } else if (currentMode == 'break' && focusDurationSeconds != null) {
+            // Transition back to focus
+            currentMode = 'focus';
+            timeRemaining = focusDurationSeconds!;
+            if (kDebugMode) {
+              debugPrint(
+                'TIMER SERVICE: break complete -> switching to FOCUS (cycle=$currentCycle/${totalCycles})',
+              );
+            }
+            notifyListeners();
+            return;
+          } else {
+            if (kDebugMode) {
+              debugPrint(
+                'TIMER SERVICE: no durations to transition, clearing.',
+              );
+            }
+            clear();
           }
-          clear();
         }
       });
     } else {

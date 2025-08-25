@@ -97,12 +97,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
     try {
       debugLog('TODO', 'Adding: "$text" (${h}h ${m}m)');
       await widget.api.addTodo(text, h, m);
-      // Play a subtle start sound (reusing focus start) on task creation
-      try {
-        await widget.notificationService.playSound(
-          'sounds/Focus timer start.wav',
-        );
-      } catch (_) {}
+      // NOTE: Removed sound on task creation per user request to avoid distraction.
       _newText.clear();
       _hours.text = '0';
       _mins.text = '25';
@@ -170,6 +165,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
     try {
       await widget.api.deleteTodo(id);
       try {
+        // Retain delete auditory feedback (break sound) – path standardized.
         await widget.notificationService.playSound(
           'sounds/Break timer start.wav',
         );
@@ -222,6 +218,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
           // Mark in TimerService so UI treats as continued overdue scenario
           TimerService.instance.markUserContinuedOverdue(restored.text);
           try {
+            // Standardized progress bar full sound path (no assets/ prefix, keep spaces).
             await widget.notificationService.playSound(
               'sounds/progress bar full.wav',
             );
