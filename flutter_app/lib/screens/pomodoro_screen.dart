@@ -308,7 +308,18 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         (s == null || s.lastFocusedTime == 0) &&
         TimerService.instance.activeTaskName != widget.todo.text &&
         (s == null ||
-            s.timerState == 'idle'); // Only reset if no timer state exists
+            s.timerState == 'idle' ||
+            s.timerState == 'paused'); // Allow setup for new/idle tasks
+
+    // Additional check: if there's no stored state and no service state, definitely show setup
+    if (s == null && TimerService.instance.activeTaskName != widget.todo.text) {
+      isNewTask = true;
+      if (kDebugMode) {
+        debugPrint(
+          "LOAD STATE: No stored state and no active service state - treating as new task",
+        );
+      }
+    }
 
     setState(() {
       if (shouldResetToSetup || hasCorruptedState || isNewTask) {
@@ -334,6 +345,11 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
           allSessionsComplete: false,
           lastFocusedTime: 0, // Start fresh
         );
+        if (kDebugMode) {
+          debugPrint(
+            "LOAD STATE: Created fresh setup state with timerState='idle' for new task",
+          );
+        }
       } else {
         _state =
             s ??
@@ -592,16 +608,22 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       if (isFocus) {
         // CRITICAL FIX: Calculate total focused time correctly during timer resumption
         // Get the current cached focused time from TimerService (which already includes previous sessions)
-        final currentCachedTime = TimerService.instance.getFocusedTime(widget.todo.text) ?? widget.todo.focusedTime;
-        
+        final currentCachedTime =
+            TimerService.instance.getFocusedTime(widget.todo.text) ??
+            widget.todo.focusedTime;
+
         // If we're resuming (cached time > base time), add just 1 second to cached time
         // If we're starting fresh, calculate as base + session time
-        final totalFocusedTime = currentCachedTime > widget.todo.focusedTime 
-            ? currentCachedTime + 1  // Resume: increment cached time
-            : widget.todo.focusedTime + newLastFocused;  // Fresh start: base + session
-        
+        final totalFocusedTime = currentCachedTime > widget.todo.focusedTime
+            ? currentCachedTime +
+                  1 // Resume: increment cached time
+            : widget.todo.focusedTime +
+                  newLastFocused; // Fresh start: base + session
+
         if (kDebugMode) {
-          debugPrint('TICK DEBUG: cachedTime=$currentCachedTime, baseTime=${widget.todo.focusedTime}, sessionTime=$newLastFocused, totalTime=$totalFocusedTime');
+          debugPrint(
+            'TICK DEBUG: cachedTime=$currentCachedTime, baseTime=${widget.todo.focusedTime}, sessionTime=$newLastFocused, totalTime=$totalFocusedTime',
+          );
         }
         final plannedSeconds =
             (widget.todo.durationHours * 3600) +
@@ -1063,6 +1085,16 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
 
     final isRunning = s.timerState == 'running';
 
+    // DEBUG: Log UI decision
+    if (kDebugMode) {
+      final showSetup =
+          (s.timerState == 'paused' && s.timeRemaining == s.focusDuration) ||
+          (s.timerState == 'idle');
+      debugPrint(
+        "UI DEBUG: timerState=${s.timerState}, timeRemaining=${s.timeRemaining}, focusDuration=${s.focusDuration}, showSetup=$showSetup",
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -1186,9 +1218,10 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
             ],
           ),
           // Settings row (Focus / Break / Cycles)
-          // Show full interactive settings only in the initial pre-start state.
-          if (s.timerState == 'paused' &&
-              s.timeRemaining == s.focusDuration) ...[
+          // Show full interactive settings only in the initial pre-start state or idle state.
+          if ((s.timerState == 'paused' &&
+                  s.timeRemaining == s.focusDuration) ||
+              (s.timerState == 'idle')) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               crossAxisAlignment: CrossAxisAlignment.end,
