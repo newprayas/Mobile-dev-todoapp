@@ -419,115 +419,132 @@ class _TodoListScreenState extends State<TodoListScreen> {
                                             color: AppColors.brightYellow,
                                           ),
                                           const SizedBox(height: 8),
-                                          ExpansionTile(
-                                            initiallyExpanded:
-                                                _completedExpanded,
-                                            onExpansionChanged: (v) => setState(
-                                              () => _completedExpanded = v,
+                                          Theme(
+                                            data: Theme.of(context).copyWith(
+                                              dividerColor: Colors.transparent,
                                             ),
-                                            title: Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
-                                              children: [
-                                                Row(
-                                                  children: const [
-                                                    Icon(
-                                                      Icons.check,
-                                                      color:
-                                                          AppColors.lightGray,
-                                                    ),
-                                                    SizedBox(width: 8),
-                                                    Text(
-                                                      'Completed',
-                                                      style: TextStyle(
-                                                        color:
-                                                            AppColors.lightGray,
-                                                        fontSize: 18,
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                if (_completedExpanded)
-                                                  Tooltip(
-                                                    message: 'Clear completed',
-                                                    child: ElevatedButton(
-                                                      onPressed: () async {
-                                                        final confirm = await showDialog<bool>(
-                                                          context: context,
-                                                          builder: (dctx) => AlertDialog(
-                                                            title: const Text(
-                                                              'Clear completed?',
-                                                            ),
-                                                            content: const Text(
-                                                              'This will permanently delete all completed tasks.',
-                                                            ),
-                                                            actions: [
-                                                              TextButton(
-                                                                onPressed: () =>
-                                                                    Navigator.of(
-                                                                      dctx,
-                                                                    ).pop(
-                                                                      false,
-                                                                    ),
-                                                                child:
-                                                                    const Text(
-                                                                      'Cancel',
-                                                                    ),
-                                                              ),
-                                                              ElevatedButton(
-                                                                onPressed: () =>
-                                                                    Navigator.of(
-                                                                      dctx,
-                                                                    ).pop(true),
-                                                                child:
-                                                                    const Text(
-                                                                      'Clear',
-                                                                    ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        );
-                                                        if (confirm == true) {
-                                                          await _clearCompleted();
-                                                        }
-                                                      },
-                                                      child: const Icon(
-                                                        Icons.delete_outline,
-                                                        color:
-                                                            AppColors.lightGray,
-                                                      ),
-                                                      style: ElevatedButton.styleFrom(
-                                                        backgroundColor:
-                                                            AppColors.midGray,
-                                                        shape: RoundedRectangleBorder(
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                8,
-                                                              ),
-                                                        ),
-                                                        padding:
-                                                            const EdgeInsets.all(
-                                                              10,
-                                                            ),
-                                                        minimumSize: const Size(
-                                                          40,
-                                                          40,
-                                                        ),
-                                                      ),
-                                                    ),
+                                            child: ExpansionTile(
+                                              backgroundColor:
+                                                  Colors.transparent,
+                                              collapsedBackgroundColor:
+                                                  Colors.transparent,
+                                              childrenPadding: EdgeInsets.zero,
+                                              initiallyExpanded:
+                                                  _completedExpanded,
+                                              onExpansionChanged: (v) =>
+                                                  setState(
+                                                    () =>
+                                                        _completedExpanded = v,
                                                   ),
+                                              title: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Icon(
+                                                        Icons.check,
+                                                        color:
+                                                            AppColors.lightGray,
+                                                        size: 18,
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        'Completed',
+                                                        style: TextStyle(
+                                                          color: AppColors
+                                                              .lightGray,
+                                                          fontSize: 14,
+                                                          fontWeight:
+                                                              FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  if (_completedExpanded)
+                                                    Tooltip(
+                                                      message:
+                                                          'Clear completed',
+                                                      child: ElevatedButton(
+                                                        onPressed: () async {
+                                                          final confirm = await showDialog<bool>(
+                                                            context: context,
+                                                            builder: (dctx) => AlertDialog(
+                                                              title: const Text(
+                                                                'Clear completed?',
+                                                              ),
+                                                              content: const Text(
+                                                                'This will permanently delete all completed tasks.',
+                                                              ),
+                                                              actions: [
+                                                                TextButton(
+                                                                  onPressed: () =>
+                                                                      Navigator.of(
+                                                                        dctx,
+                                                                      ).pop(
+                                                                        false,
+                                                                      ),
+                                                                  child:
+                                                                      const Text(
+                                                                        'Cancel',
+                                                                      ),
+                                                                ),
+                                                                ElevatedButton(
+                                                                  onPressed: () =>
+                                                                      Navigator.of(
+                                                                        dctx,
+                                                                      ).pop(
+                                                                        true,
+                                                                      ),
+                                                                  child:
+                                                                      const Text(
+                                                                        'Clear',
+                                                                      ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          );
+                                                          if (confirm == true) {
+                                                            await _clearCompleted();
+                                                          }
+                                                        },
+                                                        child: const Icon(
+                                                          Icons.delete_outline,
+                                                          color: AppColors
+                                                              .lightGray,
+                                                        ),
+                                                        style: ElevatedButton.styleFrom(
+                                                          backgroundColor:
+                                                              AppColors.midGray,
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  8,
+                                                                ),
+                                                          ),
+                                                          padding:
+                                                              const EdgeInsets.all(
+                                                                10,
+                                                              ),
+                                                          minimumSize:
+                                                              const Size(
+                                                                40,
+                                                                40,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                              children: [
+                                                ..._todos
+                                                    .where((t) => t.completed)
+                                                    .map(
+                                                      (t) => _buildTaskCard(t),
+                                                    ),
                                               ],
                                             ),
-                                            children: [
-                                              ..._todos
-                                                  .where((t) => t.completed)
-                                                  .map(
-                                                    (t) => _buildTaskCard(t),
-                                                  ),
-                                            ],
                                           ),
 
                                           const SizedBox(height: 24),
