@@ -158,7 +158,9 @@ class _TodoListScreenState extends State<TodoListScreen> {
 
   Widget _buildTaskCard(Todo t) {
     final svc = TimerService.instance;
-    final isActive = svc.activeTaskName == t.text && svc.isRunning;
+    // Show highlight for the task that is currently active in the timer service
+    // even when the timer is paused. Previously this only showed while running.
+    final isActive = svc.activeTaskName == t.text;
     return TaskCard(
       todo: t,
       isActive: isActive,
