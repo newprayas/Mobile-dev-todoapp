@@ -435,6 +435,17 @@ class TaskCard extends StatelessWidget {
         );
       }
     }
+    // If task is completed and has neither overdue nor underdue label, show a green Completed label
+    if (todo.completed) {
+      return const Text(
+        'Completed',
+        style: TextStyle(
+          color: Colors.greenAccent,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+    }
 
     return const SizedBox.shrink();
   }

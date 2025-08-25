@@ -1115,8 +1115,16 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     final focusMinutes = int.tryParse(_focusController.text.trim()) ?? 25;
     final taskTotalMinutes =
         (widget.todo.durationHours * 60) + widget.todo.durationMinutes;
-
-    if (focusMinutes > taskTotalMinutes) {
+    // If user continued an overdue task, allow any focus duration (skip rule)
+    final continuedOverdue = TimerService.instance.hasUserContinuedOverdue(
+      widget.todo.text,
+    );
+    if (kDebugMode) {
+      debugPrint(
+        'VALIDATION: focusMinutes=$focusMinutes taskTotalMinutes=$taskTotalMinutes continuedOverdue=$continuedOverdue',
+      );
+    }
+    if (!continuedOverdue && focusMinutes > taskTotalMinutes) {
       _showFocusDurationError(focusMinutes, taskTotalMinutes);
       return false;
     }
