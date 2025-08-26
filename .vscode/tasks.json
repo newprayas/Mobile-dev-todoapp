@@ -6,7 +6,19 @@
 			"type": "shell",
 			"command": "cd backend && dart pub get && (kill $(cat server.pid) 2>/dev/null || lsof -tiTCP:5000 -sTCP:LISTEN | xargs -r kill -9) && nohup dart run bin/server.dart > server.log 2>&1 & echo $! > server.pid",
 			"isBackground": true,
-			"problemMatcher": [],
+			"problemMatcher": [
+				{
+					"owner": "dart-server",
+					"pattern": {
+						"regexp": ".*"
+					},
+					"background": {
+						"activeOnStart": true,
+						"beginsPattern": ".*",
+						"endsPattern": "Server listening on"
+					}
+				}
+			],
 			"presentation": {
 				"reveal": "silent",
 				"panel": "dedicated"
