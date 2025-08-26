@@ -324,9 +324,22 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         TimerService.instance.hasUserContinuedOverdue(widget.todo.text) &&
         TimerService.instance.activeTaskName != widget.todo.text;
 
-    // Force setup when the user previously chose to continue working on an overdue task.
-    // This ensures re-opening the Pomodoro screen always shows the setup UI even if
-    // the central TimerService still references this task.
+    // Check if this task has become overdue but user hasn't made a choice yet
+    // This happens when: task exceeded planned duration, TimerService called clear(),
+    // but user hasn't clicked "Continue Working" or "Mark Complete" yet
+    bool taskJustBecameOverdue =
+        widget.todo.focusedTime > 0 && // Task has some progress
+        TimerService.instance.activeTaskName !=
+            widget.todo.text && // Service is cleared
+        !TimerService.instance.hasUserContinuedOverdue(
+          widget.todo.text,
+        ) && // User hasn't chosen to continue
+        !TimerService.instance.hasOverduePromptBeenShown(
+          widget.todo.text,
+        ); // Prompt hasn't been shown yet
+
+    // Force setup ONLY when the user previously chose to continue working on an overdue task.
+    // Do NOT force setup for tasks that just became overdue - those should show the overdue prompt
     bool forceSetupForContinuedOverdue = TimerService.instance
         .hasUserContinuedOverdue(widget.todo.text);
 
@@ -336,6 +349,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         "hasStoredState=${s != null}, "
         "isNewTask=$isNewTask, "
         "isOverdueTaskRestart=$isOverdueTaskRestart, "
+        "taskJustBecameOverdue=$taskJustBecameOverdue, "
         "hasUserContinuedOverdue=${TimerService.instance.hasUserContinuedOverdue(widget.todo.text)}",
       );
     }
@@ -369,14 +383,29 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
               : "new task requiring setup";
           debugPrint("LOAD STATE: Resetting to setup screen - $reason");
         }
+
+        // Calculate proper cycles based on task duration, not hardcoded 25 minutes
+        final defaultFocusMinutes = 25;
+        // Clamp default focus duration to planned task duration if smaller (avoid 25m session on 1m task)
+        final plannedSecondsForClamp =
+            (widget.todo.durationHours * 3600) +
+            (widget.todo.durationMinutes * 60);
+        final clampedFocusSeconds = plannedSecondsForClamp > 0
+            ? (plannedSecondsForClamp < defaultFocusMinutes * 60
+                  ? plannedSecondsForClamp
+                  : defaultFocusMinutes * 60)
+            : defaultFocusMinutes * 60;
+        final calculatedCycles = _calculateCycles(clampedFocusSeconds ~/ 60);
+
         _state = TaskTimerState(
           taskId: widget.todo.id.toString(),
           timerState: 'idle', // Use 'idle' for setup screen
           currentMode: 'focus',
-          timeRemaining: 25 * 60, // Default 25 minutes
-          focusDuration: 25 * 60,
+          timeRemaining: clampedFocusSeconds,
+          focusDuration: clampedFocusSeconds,
           breakDuration: 5 * 60,
-          totalCycles: _calculateCycles(25),
+          totalCycles:
+              calculatedCycles, // Use calculated cycles based on task duration
           completedSessions: 0,
           isProgressBarFull: false,
           allSessionsComplete: false,
@@ -384,9 +413,55 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         );
         if (kDebugMode) {
           debugPrint(
-            "LOAD STATE: Created fresh setup state with timerState='idle' for new task",
+            "LOAD STATE: Created fresh setup state (clampedFocus=${clampedFocusSeconds}s planned=${plannedSecondsForClamp}s) with timerState='idle'",
           );
         }
+      } else if (taskJustBecameOverdue) {
+        // Task just became overdue - create a state that will trigger the overdue prompt
+        if (kDebugMode) {
+          debugPrint(
+            "LOAD STATE: Task just became overdue - preparing to show overdue prompt",
+          );
+        }
+        _state =
+            s ??
+            TaskTimerState(
+              taskId: widget.todo.id.toString(),
+              timerState: 'paused', // Use paused state to trigger overdue check
+              currentMode: 'focus',
+              timeRemaining: 0, // No time remaining since it's overdue
+              focusDuration: 25 * 60,
+              breakDuration: 5 * 60,
+              totalCycles: _calculateCycles(
+                25,
+              ), // This is correct - calculating based on task duration
+              completedSessions: 0,
+              isProgressBarFull: false,
+              allSessionsComplete: false,
+              lastFocusedTime:
+                  widget.todo.focusedTime, // Use actual focused time
+            );
+
+        // Trigger overdue prompt immediately in the next frame
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && !_overduePromptShown) {
+            final plannedSeconds =
+                (widget.todo.durationHours * 3600) +
+                (widget.todo.durationMinutes * 60);
+            if (plannedSeconds > 0 &&
+                widget.todo.focusedTime >= plannedSeconds &&
+                !TimerService.instance.hasOverduePromptBeenShown(
+                  widget.todo.text,
+                )) {
+              if (kDebugMode) {
+                debugPrint(
+                  "LOAD STATE: Triggering overdue prompt for task that just became overdue",
+                );
+              }
+              _showOverduePrompt();
+            }
+          }
+        });
       } else {
         _state =
             s ??
@@ -894,6 +969,9 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   Future<void> _showOverduePrompt() async {
     if (kDebugMode) {
       debugPrint('POMODORO: Task is now overdue. Showing prompt.');
+      try {
+        TimerService.instance.logStateSnapshot('ON OVERDUE PROMPT ENTRY');
+      } catch (_) {}
     }
     _overduePromptShown = true; // Prevent showing it again
     // Also inform the central TimerService that this task's overdue prompt has been shown
@@ -901,6 +979,21 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       TimerService.instance.markOverduePromptShown(widget.todo.text);
     } catch (_) {}
     _stopTicker(); // Pause the timer
+
+    // HARD SUPPRESSION: Clear the central service so the mini-bar hides immediately when overdue dialog shows.
+    // This aligns overdue path with progress-bar-full path (auto-hide screen + minibar while user decides).
+    try {
+      if (kDebugMode)
+        debugPrint(
+          'POMODORO: Clearing TimerService for overdue prompt (hide minibar).',
+        );
+      TimerService.instance.clear();
+      try {
+        TimerService.instance.logStateSnapshot(
+          'AFTER CLEAR FOR OVERDUE PROMPT',
+        );
+      } catch (_) {}
+    } catch (_) {}
 
     widget.notificationService.showNotification(
       title: 'Task Overdue',
@@ -948,6 +1041,11 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     } else {
       if (kDebugMode) {
         debugPrint('POMODORO: User chose to continue overdue task.');
+        try {
+          TimerService.instance.logStateSnapshot(
+            'USER CONTINUE OVERDUE (BEFORE RESET)',
+          );
+        } catch (_) {}
       }
       // Mark centrally that the user chose to continue working on this overdue task
       try {
@@ -980,6 +1078,17 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
             'POMODORO: Reset to setup after continue-overdue selection. Showing setup screen.',
           );
         }
+        // CRITICAL: Clear central service AGAIN to ensure minibar stays hidden after dialog dismissal.
+        try {
+          if (kDebugMode)
+            debugPrint(
+              'POMODORO: Clearing TimerService after continue to suppress minibar until user restarts.',
+            );
+          TimerService.instance.clear();
+          try {
+            TimerService.instance.logStateSnapshot('AFTER CLEAR ON CONTINUE');
+          } catch (_) {}
+        } catch (_) {}
       }
     }
   }
@@ -1024,15 +1133,14 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
 
     // IMMEDIATE HARD RESET when progress bar full dialog appears
     _ticker?.cancel();
-
-    // Immediately clear central timer state and hide the minibar so UI doesn't linger.
-    // Use clear() to fully reset service (activeTaskName, running, isTimerActive).
+    // Suppress automatic mini-bar reactivation after closing.
+    TimerService.instance.suppressNextActivation = true;
     try {
       TimerService.instance.clear();
     } catch (_) {}
-
-    // Immediately close the Pomodoro screen to hide both the screen and mini-bar
-    Navigator.of(context).pop();
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
 
     // Show dialog after closing the screen
     Future.microtask(() {
@@ -1065,17 +1173,28 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     });
 
     setState(() {
+      final plannedSecondsForClamp =
+          (widget.todo.durationHours * 3600) +
+          (widget.todo.durationMinutes * 60);
+      final defaultFocusSeconds = 25 * 60;
+      final clampedFocusSeconds = plannedSecondsForClamp > 0
+          ? (plannedSecondsForClamp < defaultFocusSeconds
+                ? plannedSecondsForClamp
+                : defaultFocusSeconds)
+          : defaultFocusSeconds;
       _state = _createUpdatedState(
-        timerState: 'idle', // Back to initial idle state
-        currentMode: 'focus', // Reset to focus mode
-        timeRemaining: 1500, // Fresh focus duration (25 minutes)
-        focusDuration: 1500, // Default 25 minutes
-        breakDuration: 300, // Default 5 minutes
-        currentCycle: 1, // Reset to first cycle
-        totalCycles: 4,
-        lastFocusedTime: 0, // Reset focused time for fresh start
-        isProgressBarFull: true, // Show dialog state
-        allSessionsComplete: false, // Reset completion state
+        timerState: 'idle',
+        currentMode: 'focus',
+        timeRemaining: clampedFocusSeconds,
+        focusDuration: clampedFocusSeconds,
+        breakDuration: 300,
+        currentCycle: 0, // not started yet
+        totalCycles:
+            _state?.totalCycles ??
+            4, // preserve manual value if user changed it
+        lastFocusedTime: 0,
+        isProgressBarFull: true,
+        allSessionsComplete: false,
       );
     });
 
@@ -1100,37 +1219,54 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   void _handleContinueWorking() {
     if (kDebugMode) {
       debugPrint(
-        'POMODORO: _handleContinueWorking - clearing timer state and marking task for overdue restart',
+        'POMODORO: _handleContinueWorking - setting up overdue timer with minibar',
       );
     }
+    // User wants to continue: return to SETUP (idle) screen so they can adjust
+    // durations & cycles again. Respect any manual cycles input already present.
+    final plannedSecondsForClamp =
+        (widget.todo.durationHours * 3600) + (widget.todo.durationMinutes * 60);
+    final preservedFocusRaw = _state?.focusDuration ?? 25 * 60;
+    final preservedFocus = plannedSecondsForClamp > 0
+        ? (preservedFocusRaw > plannedSecondsForClamp
+              ? plannedSecondsForClamp
+              : preservedFocusRaw)
+        : preservedFocusRaw;
+    final preservedBreak = _state?.breakDuration ?? 5 * 60;
+    // If user manually changed cycles text, use it; else keep existing or recalc.
+    int manualCycles = int.tryParse(_cyclesController.text.trim()) ?? 0;
+    if (manualCycles <= 0) {
+      manualCycles =
+          _state?.totalCycles ?? _calculateCycles(preservedFocus ~/ 60);
+    }
 
-    // Clear timer state completely like pressing the X button
-    try {
-      // ensure the minibar is hidden and no active task remains
-      TimerService.instance.clear();
-      TimerService.instance.update(active: false);
-    } catch (_) {}
-
-    // For overdue tasks, remove the saved state to force setup screen on next open
-    _deleteTaskState();
-
+    setState(() {
+      _state = TaskTimerState(
+        taskId: widget.todo.id.toString(),
+        timerState: 'idle', // show setup UI
+        currentMode: 'focus',
+        timeRemaining: preservedFocus,
+        focusDuration: preservedFocus,
+        breakDuration: preservedBreak,
+        totalCycles: manualCycles,
+        currentCycle: 0,
+        completedSessions: 0,
+        isProgressBarFull: false,
+        allSessionsComplete: false,
+      );
+    });
+    // Persist setup state so re-opening reflects idle configuration.
+    _store.save(widget.todo.id.toString(), _state!);
+    // Ensure central timer is fully cleared & minibar hidden until user presses start.
+    TimerService.instance.suppressNextActivation = true;
+    TimerService.instance.clear();
     if (kDebugMode) {
-      debugPrint(
-        'POMODORO: Continue working - cleared local state for task: ${widget.todo.text}',
-      );
-      debugPrint(
-        'POMODORO: Task is marked as hasUserContinuedOverdue: ${TimerService.instance.hasUserContinuedOverdue(widget.todo.text)}',
-      );
+      debugPrint('POMODORO: Continue working -> returned to setup (idle)');
     }
-
-    // Note: We don't navigate here since the Pomodoro screen is already closed
-    // The task card will handle reopening when user taps play again
-  }
-
-  Future<void> _deleteTaskState() async {
-    final all = await _store.loadAll();
-    all.remove(widget.todo.id.toString());
-    await _store.saveAll(all);
+    // Close dialog only (pomodoro sheet already closed earlier when progress bar full) if still mounted.
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
   }
 
   Widget _buildOverdueTimeDisplay(int focusedSeconds, int plannedSeconds) {
@@ -1365,23 +1501,26 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                           _stopTicker();
                         }
 
-                        // Reset timer to initial state - this ensures next opening goes to setup
+                        // Reset timer to idle setup preserving any manual cycles entered earlier
+                        final preservedCycles =
+                            _state?.totalCycles ?? _calculateCycles(25);
                         setState(() {
                           _state = TaskTimerState(
                             taskId: widget.todo.id.toString(),
                             timerState: 'paused',
                             currentMode: 'focus',
-                            timeRemaining: 25 * 60, // Default 25 minutes
-                            focusDuration: 25 * 60,
-                            breakDuration: 5 * 60,
-                            totalCycles: _calculateCycles(25),
+                            timeRemaining: _state?.focusDuration ?? 25 * 60,
+                            focusDuration: _state?.focusDuration ?? 25 * 60,
+                            breakDuration: _state?.breakDuration ?? 5 * 60,
+                            totalCycles: preservedCycles,
                             completedSessions: 0,
                             isProgressBarFull: false,
                             allSessionsComplete: false,
                           );
                         });
 
-                        // Clear both the service state and mini-bar before closing
+                        // Clear both the service state and minibar, and suppress reactivation
+                        TimerService.instance.suppressNextActivation = true;
                         TimerService.instance.clear();
 
                         // Persist the reset state so reopening shows initial UI
@@ -1969,6 +2108,30 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                               debugPrint("Skipping to next phase.");
                             }
                             final bool isFocus = s.currentMode == 'focus';
+
+                            // ENFORCE SESSION LIMITS: Prevent user from going beyond designated sessions
+                            if (isFocus) {
+                              final newCompletedSessions =
+                                  s.completedSessions + 1;
+                              if (newCompletedSessions >=
+                                  (s.totalCycles ?? 0)) {
+                                // User has completed all their designated sessions
+                                if (kDebugMode) {
+                                  debugPrint(
+                                    'SESSION LIMIT: User attempted to skip beyond designated sessions ($newCompletedSessions >= ${s.totalCycles})',
+                                  );
+                                }
+                                // Show dialog instead of allowing skip
+                                widget.notificationService.showNotification(
+                                  title: 'All Sessions Completed!',
+                                  body:
+                                      'You have completed all ${s.totalCycles} focus sessions for "${widget.todo.text}".',
+                                );
+                                _showSessionCompletionDialog();
+                                return; // Don't allow skip
+                              }
+                            }
+
                             // Persist progress from the focus session being skipped
                             if (isFocus) {
                               final totalFocusedTime =
@@ -1992,6 +2155,10 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                                 currentCycle: isFocus
                                     ? s.currentCycle + 1
                                     : s.currentCycle,
+                                // When skipping focus to break, increment completed sessions
+                                completedSessions: isFocus
+                                    ? s.completedSessions + 1
+                                    : s.completedSessions,
                                 // When starting break, reset lastFocusedTime for break tracking
                                 // When starting focus, keep current lastFocusedTime to preserve session progress
                                 lastFocusedTime: isFocus

@@ -25,6 +25,9 @@ class TimerService extends ChangeNotifier {
   Timer? _ticker;
   // cache of latest focused time per task (seconds) for UI sync
   final Map<String, int> _focusedTimeCache = {};
+  // When true, the next attempt to auto-activate the mini-bar (after closing
+  // the full screen) will be suppressed. Used e.g. after progress bar full.
+  bool suppressNextActivation = false;
 
   void update({
     String? taskName,
@@ -45,6 +48,7 @@ class TimerService extends ChangeNotifier {
       debugPrint(
         'TIMER SERVICE: before -> activeTaskName:$activeTaskName timeRemaining:$timeRemaining isRunning:$isRunning isTimerActive:$isTimerActive currentMode:$currentMode',
       );
+      logStateSnapshot('SNAPSHOT BEFORE MUTATIONS');
     }
     var changed = false;
     if (taskName != null && taskName != activeTaskName) {
@@ -96,6 +100,7 @@ class TimerService extends ChangeNotifier {
       debugPrint(
         'TIMER SERVICE: state changed -> activeTaskName:$activeTaskName timeRemaining:$timeRemaining isRunning:$isRunning isTimerActive:$isTimerActive currentMode:$currentMode',
       );
+      logStateSnapshot('SNAPSHOT AFTER MUTATIONS');
     }
     // Only manage ticker when running state explicitly changes
     if (running != null) {
@@ -156,14 +161,21 @@ class TimerService extends ChangeNotifier {
             // Check for overdue condition while running in mini-bar
             if (plannedDurationSeconds != null &&
                 plannedDurationSeconds! > 0 &&
-                totalFocusedTime >= plannedDurationSeconds!) {
+                totalFocusedTime >= plannedDurationSeconds! &&
+                // Do NOT trigger overdue clearing if user already chose to continue.
+                !_overdueContinued.contains(taskName) &&
+                // Also skip if prompt already shown (prevents repeated clears).
+                !_overduePromptShown.contains(taskName)) {
               if (kDebugMode) {
                 debugPrint(
-                  'TIMER SERVICE: Task crossed planned duration -> clearing service immediately to prevent auto-transition',
+                  'TIMER SERVICE: Task crossed planned duration -> setting overdueCrossedTaskName and clearing service',
                 );
+                logStateSnapshot('BEFORE CLEAR FOR OVERDUE (TICK PATH)');
               }
-              // Clear the service immediately to prevent auto-transition to break
-              clear();
+              // Set the overdue crossed marker so the mini-bar can detect and show the dialog
+              overdueCrossedTaskName = taskName;
+              // Clear most state but preserve the overdue marker
+              _clearButPreserveOverdue();
               return;
             }
             if (kDebugMode) {
@@ -189,14 +201,17 @@ class TimerService extends ChangeNotifier {
             // Check if task is now overdue (focused time >= planned duration)
             if (plannedDurationSeconds != null &&
                 plannedDurationSeconds! > 0 &&
-                totalFocusedTime >= plannedDurationSeconds!) {
+                totalFocusedTime >= plannedDurationSeconds! &&
+                !_overdueContinued.contains(taskName) &&
+                !_overduePromptShown.contains(taskName)) {
               if (kDebugMode) {
                 debugPrint(
-                  'TIMER SERVICE: Task $taskName became overdue at completion -> clearing service to trigger overdue prompt',
+                  'TIMER SERVICE: Task $taskName became overdue at completion -> setting overdue marker and clearing service',
                 );
+                logStateSnapshot('BEFORE CLEAR FOR OVERDUE (SESSION END PATH)');
               }
               overdueCrossedTaskName = taskName;
-              clear(); // This will stop the ticker and notify listeners
+              _clearButPreserveOverdue(); // Preserve overdue marker for dialog detection
               return;
             }
           }
@@ -276,6 +291,45 @@ class TimerService extends ChangeNotifier {
 
     if (kDebugMode) {
       logStateSnapshot('AFTER CLEAR');
+    }
+  }
+
+  // Clear most state but preserve overdue marker for mini-bar dialog detection
+  void _clearButPreserveOverdue() {
+    if (kDebugMode) {
+      debugPrint(
+        'TIMER SERVICE: _clearButPreserveOverdue() called - preserving overdueCrossedTaskName',
+      );
+      logStateSnapshot('BEFORE CLEAR BUT PRESERVE OVERDUE');
+    }
+    // Stop internal ticker first to prevent race conditions
+    _ticker?.cancel();
+    _ticker = null;
+
+    // NOTE: Previously we nulled activeTaskName & set isTimerActive=false which
+    // prevented the mini-bar builder from scheduling the overdue/progress-full
+    // dialog (it early-returned when !isTimerActive || activeTaskName == null).
+    // To ensure the popup appears, we now PRESERVE activeTaskName and keep
+    // isTimerActive true but freeze the timer (isRunning=false, timeRemaining=0).
+    // This allows a final build frame where the dialog logic can run.
+    final preservedOverdueTask = overdueCrossedTaskName;
+    // Keep activeTaskName as-is
+    isRunning = false; // pause
+    // Keep isTimerActive so mini bar stays mounted for one more frame
+    timeRemaining = 0; // nothing left to count
+    currentMode = 'focus'; // normalize
+    // Clear adjustable durations (not needed after completion)
+    plannedDurationSeconds = null;
+    focusDurationSeconds = null;
+    breakDurationSeconds = null;
+    totalCycles = 1;
+    currentCycle = 1;
+    overdueCrossedTaskName = preservedOverdueTask; // explicit clarity
+
+    notifyListeners(); // trigger mini bar rebuild & dialog scheduling
+
+    if (kDebugMode) {
+      logStateSnapshot('AFTER CLEAR BUT PRESERVE OVERDUE');
     }
   }
 

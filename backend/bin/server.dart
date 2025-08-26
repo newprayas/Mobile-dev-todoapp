@@ -251,6 +251,7 @@ void main(List<String> args) async {
     '/update_focus_time',
     (Request request) => updateFocusTime(request),
   );
+  router.get('/health', (Request request) => jsonResponse({'status': 'ok'}));
 
   final handler =
       const Pipeline().addMiddleware(logRequests()).addHandler(router);
