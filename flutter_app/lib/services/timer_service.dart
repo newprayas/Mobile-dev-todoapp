@@ -179,7 +179,29 @@ class TimerService extends ChangeNotifier {
           notifyListeners();
         } else {
           // timeRemaining == 0
-          // Handle automatic transition between focus and break modes
+          // CRITICAL: Check for overdue condition BEFORE transitioning to break
+          // This prevents the race condition where a task becomes overdue but
+          // immediately transitions to break instead of clearing
+          if (currentMode == 'focus' && activeTaskName != null) {
+            final taskName = activeTaskName!;
+            final totalFocusedTime = _focusedTimeCache[taskName] ?? 0;
+
+            // Check if task is now overdue (focused time >= planned duration)
+            if (plannedDurationSeconds != null &&
+                plannedDurationSeconds! > 0 &&
+                totalFocusedTime >= plannedDurationSeconds!) {
+              if (kDebugMode) {
+                debugPrint(
+                  'TIMER SERVICE: Task $taskName became overdue at completion -> clearing service to trigger overdue prompt',
+                );
+              }
+              overdueCrossedTaskName = taskName;
+              clear(); // This will stop the ticker and notify listeners
+              return;
+            }
+          }
+
+          // If not overdue, then handle automatic transition between focus and break modes
           if (currentMode == 'focus' && breakDurationSeconds != null) {
             // Transition to break
             currentMode = 'break';
@@ -230,14 +252,31 @@ class TimerService extends ChangeNotifier {
       debugPrint(
         'TIMER SERVICE: clear() called - resetting central timer state',
       );
+      logStateSnapshot('BEFORE CLEAR');
     }
+    // Stop internal ticker first to prevent race conditions
+    _ticker?.cancel();
+    _ticker = null;
+
+    // Clear all state
     activeTaskName = null;
     timeRemaining = 0;
     isRunning = false;
     isTimerActive = false;
     currentMode = 'focus';
     plannedDurationSeconds = null;
+    focusDurationSeconds = null;
+    breakDurationSeconds = null;
+    totalCycles = 1; // Reset to default
+    currentCycle = 1; // Reset to default
+    overdueCrossedTaskName = null;
+
+    // Notify listeners that everything is cleared
     notifyListeners();
+
+    if (kDebugMode) {
+      logStateSnapshot('AFTER CLEAR');
+    }
   }
 
   // Focused time cache helpers - used to sync progress across UI without
@@ -260,5 +299,55 @@ class TimerService extends ChangeNotifier {
       debugPrint('TIMER SERVICE: getFocusedTime($taskName) -> $v');
     }
     return v;
+  }
+
+  // State management helpers for better debugging and maintenance
+  String getStateSnapshot() {
+    return 'TimerService State: '
+        'activeTask=$activeTaskName, '
+        'remaining=${timeRemaining}s, '
+        'running=$isRunning, '
+        'active=$isTimerActive, '
+        'mode=$currentMode, '
+        'planned=${plannedDurationSeconds}s, '
+        'cycle=$currentCycle/$totalCycles, '
+        'overdueCrossed=$overdueCrossedTaskName';
+  }
+
+  void logStateSnapshot([String context = '']) {
+    if (kDebugMode) {
+      debugPrint(
+        'TIMER SERVICE STATE${context.isNotEmpty ? ' ($context)' : ''}: ${getStateSnapshot()}',
+      );
+    }
+  }
+
+  // Validate internal state consistency for debugging
+  bool validateState() {
+    final issues = <String>[];
+
+    if (isTimerActive && activeTaskName == null) {
+      issues.add('Timer active but no active task');
+    }
+
+    if (isRunning && !isTimerActive && activeTaskName != null) {
+      issues.add('Running but not active with task set');
+    }
+
+    if (timeRemaining < 0) {
+      issues.add('Negative time remaining');
+    }
+
+    if (currentCycle > totalCycles) {
+      issues.add('Current cycle exceeds total cycles');
+    }
+
+    if (issues.isNotEmpty && kDebugMode) {
+      debugPrint('TIMER SERVICE STATE ISSUES: ${issues.join(', ')}');
+      logStateSnapshot('VALIDATION FAILED');
+      return false;
+    }
+
+    return true;
   }
 }

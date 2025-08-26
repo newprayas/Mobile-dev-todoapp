@@ -1017,10 +1017,12 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   // Show progress bar full dialog
   void _showProgressBarFullDialog() {
     if (kDebugMode) {
-      debugPrint('POMODORO: Progress bar full - implementing HARD RESET');
+      debugPrint(
+        'POMODORO: Progress bar full - implementing IMMEDIATE HARD RESET',
+      );
     }
 
-    // HARD RESET when progress bar full dialog appears
+    // IMMEDIATE HARD RESET when progress bar full dialog appears
     _ticker?.cancel();
 
     // Immediately clear central timer state and hide the minibar so UI doesn't linger.
@@ -1028,6 +1030,39 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     try {
       TimerService.instance.clear();
     } catch (_) {}
+
+    // Immediately close the Pomodoro screen to hide both the screen and mini-bar
+    Navigator.of(context).pop();
+
+    // Show dialog after closing the screen
+    Future.microtask(() {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Progress Bar Full!'),
+          content: const Text(
+            'You have completed your planned time for this task. The timer has been reset. What would you like to do?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _handleContinueWorking();
+              },
+              child: const Text('Continue Working'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _handleMarkComplete();
+              },
+              child: const Text('Mark Complete'),
+            ),
+          ],
+        ),
+      );
+    });
 
     setState(() {
       _state = _createUpdatedState(
@@ -1044,34 +1079,6 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       );
     });
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Progress Bar Full!'),
-        content: const Text(
-          'You have completed your planned time for this task. The timer has been reset. What would you like to do?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              // Close dialog then handle continue working. Ensure minibar is hidden and
-              // state is cleared immediately so the mini-bar won't persist.
-              Navigator.of(context).pop();
-              _handleContinueWorking();
-            },
-            child: const Text('Continue Working'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _handleMarkComplete();
-            },
-            child: const Text('Mark Complete'),
-          ),
-        ],
-      ),
-    );
     // Notify user and play sound for progress bar full
     try {
       if (kDebugMode) {
@@ -1093,7 +1100,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   void _handleContinueWorking() {
     if (kDebugMode) {
       debugPrint(
-        'POMODORO: _handleContinueWorking - clearing timer state and navigating back',
+        'POMODORO: _handleContinueWorking - clearing timer state and marking task for overdue restart',
       );
     }
 
@@ -1116,9 +1123,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       );
     }
 
-    // Navigate back to close pomodoro screen - this should trigger setup screen on next open
-    // Ensure we close the full-screen/sheet which will also call updateMinibar in showAsBottomSheet
-    Navigator.of(context).pop();
+    // Note: We don't navigate here since the Pomodoro screen is already closed
+    // The task card will handle reopening when user taps play again
   }
 
   Future<void> _deleteTaskState() async {
