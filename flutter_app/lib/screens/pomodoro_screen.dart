@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
@@ -1123,9 +1122,9 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     String timeText;
     if (hours > 0) {
       timeText =
-          '${hours}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+          '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
     } else {
-      timeText = '${minutes}:${seconds.toString().padLeft(2, '0')}';
+      timeText = '$minutes:${seconds.toString().padLeft(2, '0')}';
     }
 
     return Container(
@@ -1765,24 +1764,28 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                             _ticker
                                 ?.cancel(); // Stop timer without saving progress
 
-                            // Calculate the session progress that will be lost
+                            // Calculate the session progress that will be lost — prefer
+                            // the service's cached total focused time when available.
                             final sessionProgress = _state!.lastFocusedTime;
-                            final currentFocusedTime =
+                            final serviceTotalFocused =
                                 TimerService.instance.getFocusedTime(
                                   widget.todo.text,
                                 ) ??
                                 widget.todo.focusedTime;
-                            final revertedFocusedTime = max(
-                              0,
-                              currentFocusedTime - sessionProgress,
-                            );
+                            // The reverted focused time should only remove the current
+                            // session progress, never drop below the server-known base.
+                            final baseFocused = widget.todo.focusedTime;
+                            final revertedFocusedTime =
+                                (serviceTotalFocused - sessionProgress)
+                                    .clamp(baseFocused, serviceTotalFocused)
+                                    .toInt();
 
                             if (kDebugMode) {
                               debugPrint(
                                 "RESET: Session progress to revert: ${sessionProgress}s",
                               );
                               debugPrint(
-                                "RESET: Current total focused: ${currentFocusedTime}s -> ${revertedFocusedTime}s",
+                                "RESET: Service total focused: ${serviceTotalFocused}s -> ${revertedFocusedTime}s (base ${baseFocused}s)",
                               );
                             }
 

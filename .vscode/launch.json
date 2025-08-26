@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "name": "Flutter App + Backend",
+            "cwd": "flutter_app",
+            "request": "launch",
+            "type": "dart",
+            "preLaunchTask": "Start Dart Server"
+        }
+    ]
+}

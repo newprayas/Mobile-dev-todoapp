@@ -180,6 +180,24 @@ class TimerService extends ChangeNotifier {
           notifyListeners();
         } else {
           // timeRemaining == 0
+          // If we've crossed the planned duration and the UI has not yet
+          // handled the overdue prompt, pause the service so the UI can
+          // show the dialog and avoid auto-transitioning to break.
+          if (activeTaskName != null &&
+              overdueCrossedTaskName != null &&
+              overdueCrossedTaskName == activeTaskName &&
+              !_overdueContinued.contains(activeTaskName)) {
+            if (kDebugMode) {
+              debugPrint(
+                'TIMER SERVICE: overdue prompt pending for $activeTaskName - pausing instead of auto-transition',
+              );
+            }
+            // Pause running state so UI can take over and prompt the user
+            isRunning = false;
+            notifyListeners();
+            return;
+          }
+
           // Handle automatic transition instead of clearing to avoid restart loop
           if (currentMode == 'focus' && breakDurationSeconds != null) {
             // Transition to break
@@ -189,7 +207,7 @@ class TimerService extends ChangeNotifier {
                 1; // increment cycle after a focus session completes
             if (kDebugMode) {
               debugPrint(
-                'TIMER SERVICE: focus session complete -> switching to BREAK (cycle=$currentCycle/${totalCycles})',
+                'TIMER SERVICE: focus session complete -> switching to BREAK (cycle=$currentCycle/$totalCycles)',
               );
             }
             notifyListeners();
@@ -200,7 +218,7 @@ class TimerService extends ChangeNotifier {
             timeRemaining = focusDurationSeconds!;
             if (kDebugMode) {
               debugPrint(
-                'TIMER SERVICE: break complete -> switching to FOCUS (cycle=$currentCycle/${totalCycles})',
+                'TIMER SERVICE: break complete -> switching to FOCUS (cycle=$currentCycle/$totalCycles)',
               );
             }
             notifyListeners();

@@ -77,9 +77,18 @@ class _TodoListScreenState extends State<TodoListScreen> {
         }
       }
       unique.sort((a, b) => b.id.compareTo(a.id));
-      _todos = unique;
+      // Merge optimistic local todos (those with empty userId) so they persist
+      // when the backend is unreachable or hasn't yet returned them.
+      final optimistic = _todos.where((t) => t.userId.isEmpty).toList();
+      // Keep optimistic todos that don't already exist in the fetched list (by id)
+      final missingOpt = optimistic
+          .where((opt) => !unique.any((u) => u.id == opt.id))
+          .toList();
+      _todos = [...missingOpt, ...unique];
     } catch (_) {
-      _todos = [];
+      // If reload fails (e.g. server unreachable), keep the current list so
+      // optimistic inserts remain visible instead of clearing the UI.
+      // _todos remains unchanged.
     } finally {
       setState(() {
         _loading = false;
@@ -598,11 +607,6 @@ class _TodoListScreenState extends State<TodoListScreen> {
                                                             await _clearCompleted();
                                                           }
                                                         },
-                                                        child: const Icon(
-                                                          Icons.delete_outline,
-                                                          color: AppColors
-                                                              .lightGray,
-                                                        ),
                                                         style: ElevatedButton.styleFrom(
                                                           backgroundColor:
                                                               AppColors.midGray,
@@ -621,6 +625,11 @@ class _TodoListScreenState extends State<TodoListScreen> {
                                                                 40,
                                                                 40,
                                                               ),
+                                                        ),
+                                                        child: const Icon(
+                                                          Icons.delete_outline,
+                                                          color: AppColors
+                                                              .lightGray,
                                                         ),
                                                       ),
                                                     ),

@@ -21,7 +21,10 @@
 		{
 			"label": "Launch App with Server",
 			"dependsOrder": "sequence",
-			"dependsOn": ["Start Dart Server", "Set up adb reverse"],
+			"dependsOn": [
+				"Start Dart Server",
+				"Set up adb reverse"
+			],
 			"type": "shell",
 			"command": "cd flutter_app && flutter run",
 			"group": {
