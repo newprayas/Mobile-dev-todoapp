@@ -295,25 +295,63 @@ class TaskCard extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                // Controls
+                                // Controls: show dynamic Play/Pause when this task is the active one
                                 if (!todo.completed)
-                                  Hero(
-                                    tag: 'play_${todo.id}',
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      child: IconButton(
-                                        icon: const Icon(Icons.play_arrow),
-                                        color: AppColors.lightGray,
-                                        onPressed: () async {
-                                          if (kDebugMode) {
-                                            debugPrint(
-                                              'Play tapped for ${todo.id}',
-                                            );
-                                          }
-                                          await onPlay(todo);
-                                        },
-                                      ),
-                                    ),
+                                  Builder(
+                                    builder: (ctx) {
+                                      final svc = TimerService.instance;
+                                      final isSvcActive =
+                                          svc.activeTaskName == todo.text;
+                                      // If service has this task active, show pause/play that toggles running
+                                      if (isSvcActive) {
+                                        final isRunning = svc.isRunning;
+                                        return Hero(
+                                          tag: 'play_${todo.id}',
+                                          child: Material(
+                                            color: Colors.transparent,
+                                            child: IconButton(
+                                              icon: Icon(
+                                                isRunning
+                                                    ? Icons.pause
+                                                    : Icons.play_arrow,
+                                              ),
+                                              color: AppColors.lightGray,
+                                              onPressed: () {
+                                                if (kDebugMode) {
+                                                  debugPrint(
+                                                    'TASK_CARD: toggle running for ${todo.id} (svcActive=$isSvcActive isRunning=$isRunning)',
+                                                  );
+                                                }
+                                                // Toggle running on the central TimerService so UI stays in sync
+                                                try {
+                                                  svc.toggleRunning();
+                                                } catch (_) {}
+                                              },
+                                            ),
+                                          ),
+                                        );
+                                      }
+
+                                      // Otherwise, this task isn't active in the service -> open Pomodoro sheet
+                                      return Hero(
+                                        tag: 'play_${todo.id}',
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: IconButton(
+                                            icon: const Icon(Icons.play_arrow),
+                                            color: AppColors.lightGray,
+                                            onPressed: () async {
+                                              if (kDebugMode) {
+                                                debugPrint(
+                                                  'Play tapped for ${todo.id} (open sheet)',
+                                                );
+                                              }
+                                              await onPlay(todo);
+                                            },
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 const SizedBox(width: 6),
                                 IconButton(

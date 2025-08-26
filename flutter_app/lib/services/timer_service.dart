@@ -159,12 +159,11 @@ class TimerService extends ChangeNotifier {
                 totalFocusedTime >= plannedDurationSeconds!) {
               if (kDebugMode) {
                 debugPrint(
-                  'TIMER SERVICE: Task crossed planned duration (mini-bar). marking for prompt.',
+                  'TIMER SERVICE: Task crossed planned duration -> clearing service immediately to prevent auto-transition',
                 );
               }
-              // Mark the crossed task; don't toggle running here — let UI decide how to prompt.
-              overdueCrossedTaskName = taskName;
-              notifyListeners();
+              // Clear the service immediately to prevent auto-transition to break
+              clear();
               return;
             }
             if (kDebugMode) {
@@ -180,25 +179,7 @@ class TimerService extends ChangeNotifier {
           notifyListeners();
         } else {
           // timeRemaining == 0
-          // If we've crossed the planned duration and the UI has not yet
-          // handled the overdue prompt, pause the service so the UI can
-          // show the dialog and avoid auto-transitioning to break.
-          if (activeTaskName != null &&
-              overdueCrossedTaskName != null &&
-              overdueCrossedTaskName == activeTaskName &&
-              !_overdueContinued.contains(activeTaskName)) {
-            if (kDebugMode) {
-              debugPrint(
-                'TIMER SERVICE: overdue prompt pending for $activeTaskName - pausing instead of auto-transition',
-              );
-            }
-            // Pause running state so UI can take over and prompt the user
-            isRunning = false;
-            notifyListeners();
-            return;
-          }
-
-          // Handle automatic transition instead of clearing to avoid restart loop
+          // Handle automatic transition between focus and break modes
           if (currentMode == 'focus' && breakDurationSeconds != null) {
             // Transition to break
             currentMode = 'break';

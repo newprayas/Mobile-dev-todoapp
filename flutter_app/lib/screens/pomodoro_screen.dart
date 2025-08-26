@@ -324,6 +324,12 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         TimerService.instance.hasUserContinuedOverdue(widget.todo.text) &&
         TimerService.instance.activeTaskName != widget.todo.text;
 
+    // Force setup when the user previously chose to continue working on an overdue task.
+    // This ensures re-opening the Pomodoro screen always shows the setup UI even if
+    // the central TimerService still references this task.
+    bool forceSetupForContinuedOverdue = TimerService.instance
+        .hasUserContinuedOverdue(widget.todo.text);
+
     if (kDebugMode) {
       debugPrint(
         "LOAD STATE DEBUG: focusedTime=${widget.todo.focusedTime}, "
@@ -348,7 +354,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       if (shouldResetToSetup ||
           hasCorruptedState ||
           isNewTask ||
-          isOverdueTaskRestart) {
+          isOverdueTaskRestart ||
+          forceSetupForContinuedOverdue) {
         // Force reset to initial setup state
         if (kDebugMode) {
           String reason = shouldResetToSetup
@@ -357,6 +364,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
               ? "corrupted state detected"
               : isOverdueTaskRestart
               ? "overdue task restart after continue"
+              : forceSetupForContinuedOverdue
+              ? "user continued overdue - forcing setup"
               : "new task requiring setup";
           debugPrint("LOAD STATE: Resetting to setup screen - $reason");
         }
@@ -1014,13 +1023,11 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     // HARD RESET when progress bar full dialog appears
     _ticker?.cancel();
 
-    // Clear service state but do NOT call TimerService.clear() which causes overdue timer
-    TimerService.instance.update(
-      taskName: widget.todo.text,
-      running: false,
-      remaining: 1500, // Reset to default 25 minutes
-      active: false,
-    );
+    // Immediately clear central timer state and hide the minibar so UI doesn't linger.
+    // Use clear() to fully reset service (activeTaskName, running, isTimerActive).
+    try {
+      TimerService.instance.clear();
+    } catch (_) {}
 
     setState(() {
       _state = _createUpdatedState(
@@ -1048,6 +1055,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         actions: [
           TextButton(
             onPressed: () {
+              // Close dialog then handle continue working. Ensure minibar is hidden and
+              // state is cleared immediately so the mini-bar won't persist.
               Navigator.of(context).pop();
               _handleContinueWorking();
             },
@@ -1089,7 +1098,11 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     }
 
     // Clear timer state completely like pressing the X button
-    TimerService.instance.clear();
+    try {
+      // ensure the minibar is hidden and no active task remains
+      TimerService.instance.clear();
+      TimerService.instance.update(active: false);
+    } catch (_) {}
 
     // For overdue tasks, remove the saved state to force setup screen on next open
     _deleteTaskState();
@@ -1104,6 +1117,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     }
 
     // Navigate back to close pomodoro screen - this should trigger setup screen on next open
+    // Ensure we close the full-screen/sheet which will also call updateMinibar in showAsBottomSheet
     Navigator.of(context).pop();
   }
 
