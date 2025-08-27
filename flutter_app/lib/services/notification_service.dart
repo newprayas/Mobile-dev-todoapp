@@ -50,8 +50,16 @@ class NotificationService {
         );
       }
       await _audioPlayer.stop();
-      // The asset path is relative to the project root, as defined in pubspec.yaml
-      final assetPath = 'sounds/$soundFileName';
+
+      // Handle both cases: 'filename.wav' and 'sounds/filename.wav'
+      final assetPath = soundFileName.startsWith('sounds/')
+          ? soundFileName.substring(7) // Remove 'sounds/' prefix
+          : soundFileName;
+
+      if (kDebugMode) {
+        debugPrint('DEBUG: Processed asset path: $assetPath');
+      }
+
       await _audioPlayer.play(AssetSource(assetPath));
       if (kDebugMode) {
         debugPrint('DEBUG: Sound played successfully: $soundFileName');
@@ -68,8 +76,8 @@ class NotificationService {
   Future<void> testBreakSound() async {
     if (kDebugMode) {
       debugPrint('DEBUG: Testing BREAK TIMER sound specifically...');
-      debugPrint('DEBUG: Sound file path: sounds/break_timer_start.wav');
-      await playSound('sounds/break_timer_start.wav');
+      debugPrint('DEBUG: Sound file path: break_timer_start.wav');
+      await playSound('break_timer_start.wav');
       await Future.delayed(const Duration(seconds: 2));
       debugPrint('DEBUG: Break timer sound test completed');
     }
@@ -80,10 +88,8 @@ class NotificationService {
     if (kDebugMode) {
       debugPrint('DEBUG: IMMEDIATE break timer sound test...');
       try {
-        await _audioPlayer.stop();
-        await _audioPlayer.setVolume(1.0);
-        await _audioPlayer.play(AssetSource('sounds/break_timer_start.wav'));
-        debugPrint('DEBUG: IMMEDIATE break timer sound executed');
+        await playSound('break_timer_start.wav');
+        debugPrint('DEBUG: IMMEDIATE break timer sound succeeded');
       } catch (e) {
         debugPrint('DEBUG: IMMEDIATE break timer sound failed: $e');
       }
@@ -96,9 +102,9 @@ class NotificationService {
       debugPrint('DEBUG: Testing all sound files...');
 
       final sounds = [
-        'sounds/break_timer_start.wav',
-        'sounds/focus_timer_start.wav',
-        'sounds/progress_bar_full.wav',
+        'break_timer_start.wav',
+        'focus_timer_start.wav',
+        'progress_bar_full.wav',
       ];
 
       for (final sound in sounds) {

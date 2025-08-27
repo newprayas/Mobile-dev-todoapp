@@ -14,6 +14,54 @@ import '../widgets/mini_timer_bar.dart';
 import 'pomodoro_screen.dart';
 import 'dart:math';
 
+// Reusable styled dialog function for consistent appearance
+Future<bool?> _showStyledConfirmDialog({
+  required BuildContext context,
+  required String title,
+  required String content,
+  String confirmText = 'Confirm',
+  String cancelText = 'Cancel',
+  Color? confirmButtonColor,
+}) {
+  return showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: AppColors.cardBg,
+      title: Text(
+        title,
+        style: const TextStyle(
+          color: AppColors.lightGray,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      content: Text(
+        content,
+        style: TextStyle(color: AppColors.lightGray.withOpacity(0.8)),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(
+            cancelText,
+            style: TextStyle(color: AppColors.lightGray.withOpacity(0.7)),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: confirmButtonColor ?? AppColors.brightYellow,
+            foregroundColor: Colors.black,
+          ),
+          child: Text(
+            confirmText,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 class TodoListScreen extends ConsumerWidget {
   const TodoListScreen({super.key});
 
@@ -96,43 +144,12 @@ class TodoListScreen extends ConsumerWidget {
                     ],
                     onSelected: (value) async {
                       if (value == 'logout') {
-                        final shouldLogout = await showDialog<bool>(
+                        final shouldLogout = await _showStyledConfirmDialog(
                           context: context,
-                          builder: (context) => AlertDialog(
-                            backgroundColor: AppColors.cardBg,
-                            title: Text(
-                              'Sign Out',
-                              style: TextStyle(color: AppColors.lightGray),
-                            ),
-                            content: Text(
-                              'Are you sure you want to sign out?',
-                              style: TextStyle(
-                                color: AppColors.lightGray.withOpacity(0.8),
-                              ),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.of(context).pop(false),
-                                child: Text(
-                                  'Cancel',
-                                  style: TextStyle(
-                                    color: AppColors.lightGray.withOpacity(0.7),
-                                  ),
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.of(context).pop(true),
-                                child: Text(
-                                  'Sign Out',
-                                  style: TextStyle(
-                                    color: AppColors.brightYellow,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                          title: 'Sign Out',
+                          content: 'Are you sure you want to sign out?',
+                          confirmText: 'Sign Out',
+                          confirmButtonColor: AppColors.brightYellow,
                         );
 
                         if (shouldLogout == true && context.mounted) {
@@ -238,7 +255,7 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to add task. Please try again.'),
+            content: Text('Failed to add task. Please check your connection.'),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -251,6 +268,12 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
     final api = ref.watch(apiServiceProvider);
     final notificationService = ref.watch(notificationServiceProvider);
     final todosAsync = ref.watch(todosProvider);
+    final authState = ref.watch(authProvider);
+
+    // Get the dynamic user name
+    final userName = authState.hasValue && authState.value!.isAuthenticated
+        ? authState.value!.userName
+        : 'User';
 
     final activeTaskName = ref.watch(timerProvider).activeTaskName;
     Todo? activeTodo;
@@ -280,9 +303,9 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 14),
-            const Text(
-              'Welcome, prayas new!',
-              style: TextStyle(color: AppColors.lightGray, fontSize: 16),
+            Text(
+              'Welcome, $userName!',
+              style: const TextStyle(color: AppColors.lightGray, fontSize: 16),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 22),
@@ -493,22 +516,12 @@ class _TodoListState extends ConsumerState<_TodoList> {
         );
       },
       onDelete: () async {
-        final confirm = await showDialog<bool>(
+        final confirm = await _showStyledConfirmDialog(
           context: context,
-          builder: (dctx) => AlertDialog(
-            title: const Text('Delete task?'),
-            content: const Text('This will remove the task permanently.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dctx).pop(false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(dctx).pop(true),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
+          title: 'Delete task?',
+          content: 'This will remove the task permanently.',
+          confirmText: 'Delete',
+          confirmButtonColor: Colors.redAccent,
         );
         if (confirm == true && mounted) {
           if (kDebugMode)
@@ -525,7 +538,9 @@ class _TodoListState extends ConsumerState<_TodoList> {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Failed to delete task. Please try again.'),
+                  content: Text(
+                    'Failed to delete task. Please check your connection.',
+                  ),
                   backgroundColor: Colors.redAccent,
                 ),
               );
@@ -541,7 +556,9 @@ class _TodoListState extends ConsumerState<_TodoList> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Failed to toggle task. Please try again.'),
+                content: Text(
+                  'Failed to toggle task. Please check your connection.',
+                ),
                 backgroundColor: Colors.redAccent,
               ),
             );
@@ -641,25 +658,13 @@ class _TodoListState extends ConsumerState<_TodoList> {
                       message: 'Clear completed',
                       child: ElevatedButton(
                         onPressed: () async {
-                          final confirm = await showDialog<bool>(
+                          final confirm = await _showStyledConfirmDialog(
                             context: context,
-                            builder: (dctx) => AlertDialog(
-                              title: const Text('Clear completed?'),
-                              content: const Text(
+                            title: 'Clear completed?',
+                            content:
                                 'This will permanently delete all completed tasks.',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.of(dctx).pop(false),
-                                  child: const Text('Cancel'),
-                                ),
-                                ElevatedButton(
-                                  onPressed: () => Navigator.of(dctx).pop(true),
-                                  child: const Text('Clear'),
-                                ),
-                              ],
-                            ),
+                            confirmText: 'Clear',
+                            confirmButtonColor: Colors.redAccent,
                           );
                           if (confirm == true) {
                             await ref
