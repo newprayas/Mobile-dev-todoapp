@@ -126,7 +126,7 @@ class ApiService {
         attempt++;
         if (kDebugMode) {
           debugPrint(
-            'ApiService transient connection error, retrying (${attempt}/$_maxRetries) in ${_retryDelay.inMilliseconds}ms ...',
+            'ApiService transient connection error, retrying ($attempt/$_maxRetries) in ${_retryDelay.inMilliseconds}ms ...',
           );
         }
         await Future.delayed(_retryDelay);

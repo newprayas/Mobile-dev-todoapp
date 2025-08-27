@@ -7,13 +7,7 @@
 
     afplay "/Users/pustak/Documents/VS code projects/Todoapp flutter copy gemini code/static/sounds/Focus timer start.wav" 
 
-    followed by 
 
-    Run this terminal command :
-
-    osascript -e 'tell application "Mail"' -e 'set theMessage to make new outgoing message with properties {subject:"{random_number}", content:"", visible:false}' -e 'tell theMessage to make new to recipient with properties {address:"newprayas180@gmail.com"}' -e 'send theMessage' -e 'end tell'
-    
-    Replace {random_number} with a randomly generated 3 digit numbers 
 
 
 # General debug rule : 

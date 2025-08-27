@@ -43,8 +43,9 @@ class AuthService extends ChangeNotifier {
 
   Future<bool> _mockSignIn() async {
     try {
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint('DEBUG: Performing mock sign-in for development');
+      }
 
       // Create a mock ID token for development
       final mockIdToken =
@@ -74,10 +75,11 @@ class AuthService extends ChangeNotifier {
         _currentUser = user ?? {'email': 'dev@example.com', 'name': 'Dev User'};
         _isAuthenticated = true;
 
-        if (kDebugMode)
+        if (kDebugMode) {
           debugPrint(
             'DEBUG: Authentication successful for user: ${_currentUser?['email']}',
           );
+        }
         notifyListeners();
         return true;
       }

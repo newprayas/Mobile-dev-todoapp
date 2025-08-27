@@ -42,6 +42,9 @@ dependencies:
   flutter_local_notifications: ^19.4.0
   audioplayers: ^6.5.0
   google_fonts: ^6.3.0
+  # Riverpod for state management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
 
 dev_dependencies:
   flutter_test:
@@ -53,6 +56,9 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  # Riverpod code generation
+  riverpod_generator: ^2.6.2
+  build_runner: ^2.4.13
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

@@ -1,331 +1,27 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import '../services/api_service.dart';
-import '../services/auth_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/todo.dart';
-import '../theme/app_colors.dart';
-import '../utils/debug_logger.dart';
-import '../widgets/task_card.dart';
-import 'pomodoro_screen.dart';
-import '../services/timer_service.dart';
-import '../widgets/mini_timer_bar.dart';
-
+import '../providers/todos_provider.dart';
+import '../providers/timer_provider.dart';
+import '../providers/notification_provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/api_service.dart';
 import '../services/notification_service.dart';
+import '../theme/app_colors.dart';
+import '../widgets/task_card.dart';
+import '../widgets/mini_timer_bar.dart';
+import 'pomodoro_screen.dart';
+import 'dart:math';
 
-class TodoListScreen extends StatefulWidget {
-  final ApiService api;
-  final AuthService auth;
-  final NotificationService notificationService;
-  const TodoListScreen({
-    required this.api,
-    required this.auth,
-    required this.notificationService,
-    super.key,
-  });
+class TodoListScreen extends ConsumerWidget {
+  const TodoListScreen({super.key});
 
   @override
-  State<TodoListScreen> createState() => _TodoListScreenState();
-}
-
-class _TodoListScreenState extends State<TodoListScreen> {
-  final TextEditingController _newText = TextEditingController();
-  final TextEditingController _hours = TextEditingController(text: '0');
-  final TextEditingController _mins = TextEditingController(text: '25');
-  List<Todo> _todos = [];
-  bool _loading = true;
-  bool _completedExpanded = false;
-  bool _adding = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _reload();
-    TimerService.instance.addListener(_onTimerServiceUpdate);
-  }
-
-  @override
-  void dispose() {
-    TimerService.instance.removeListener(_onTimerServiceUpdate);
-    _newText.dispose();
-    _hours.dispose();
-    _mins.dispose();
-    super.dispose();
-  }
-
-  void _onTimerServiceUpdate() {
-    // Rebuild to find the active todo and pass it to the mini-bar
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _reload() async {
-    if (!mounted) return;
-    setState(() {
-      _loading = true;
-    });
-    try {
-      final list = await widget.api.fetchTodos();
-      final raw = list
-          .map<Todo>((e) => Todo.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
-      // Deduplicate by id (first-seen kept) then sort newest-first by id so newest tasks appear on top
-      final seen = <int>{};
-      final unique = <Todo>[];
-      for (final t in raw) {
-        if (!seen.contains(t.id)) {
-          unique.add(t);
-          seen.add(t.id);
-        }
-      }
-      unique.sort((a, b) => b.id.compareTo(a.id));
-      // Merge optimistic local todos (those with empty userId) so they persist
-      // when the backend is unreachable or hasn't yet returned them.
-      final optimistic = _todos.where((t) => t.userId.isEmpty).toList();
-      // Keep optimistic todos that don't already exist in the fetched list (by id)
-      final missingOpt = optimistic
-          .where((opt) => !unique.any((u) => u.id == opt.id))
-          .toList();
-      _todos = [...missingOpt, ...unique];
-    } catch (_) {
-      // If reload fails (e.g. server unreachable), keep the current list so
-      // optimistic inserts remain visible instead of clearing the UI.
-      // _todos remains unchanged.
-    } finally {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _addTodo() async {
-    if (_adding) return;
-    final text = _newText.text.trim();
-    final h = int.tryParse(_hours.text) ?? 0;
-    final m = int.tryParse(_mins.text) ?? 0;
-    if (text.isEmpty) return;
-    _adding = true;
-    try {
-      debugLog('TODO', 'Adding: "$text" (${h}h ${m}m)');
-      await widget.api.addTodo(text, h, m);
-      // NOTE: Removed sound on task creation per user request to avoid distraction.
-      _newText.clear();
-      _hours.text = '0';
-      _mins.text = '25';
-      await _reload();
-    } catch (err, st) {
-      debugLog('TODO', 'Add failed: $err\n$st');
-      // optimistic local insert to keep UX responsive
-      final localId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final todo = Todo(
-        id: localId,
-        userId: '',
-        text: text,
-        completed: false,
-        durationHours: h,
-        durationMinutes: m,
-        focusedTime: 0,
-        wasOverdue: 0,
-        overdueTime: 0,
-      );
-      if (mounted) {
-        setState(() {
-          if (!_todos.any((t) => t.id == todo.id)) _todos = [todo, ..._todos];
-          _newText.clear();
-          _hours.text = '0';
-          _mins.text = '25';
-        });
-      }
-    } finally {
-      _adding = false;
-    }
-  }
-
-  // _pickNumber removed - hours/minutes are edited inline now.
-
-  Future<void> _deleteTodo(int id) async {
-    debugLog('TODO', 'Deleting todo $id');
-
-    // Find the todo being deleted to check if it has an active timer
-    final todoToDelete = _todos.firstWhere(
-      (todo) => todo.id == id,
-      orElse: () => Todo(
-        id: -1,
-        userId: '',
-        text: '',
-        completed: false,
-        durationHours: 0,
-        durationMinutes: 0,
-        focusedTime: 0,
-        wasOverdue: 0,
-        overdueTime: 0,
-      ),
-    );
-
-    // Check if this task has an active timer in TimerService
-    final svc = TimerService.instance;
-    bool shouldClearTimer = false;
-
-    if (todoToDelete.id != -1 && svc.activeTaskName == todoToDelete.text) {
-      shouldClearTimer = true;
-      if (kDebugMode) {
-        debugPrint(
-          'TODO DELETE: Task "${todoToDelete.text}" has active timer - will clear minibar',
-        );
-      }
-    }
-
-    try {
-      await widget.api.deleteTodo(id);
-      try {
-        // Retain delete auditory feedback (break sound) – path standardized.
-        await widget.notificationService.playSound(
-          'sounds/Break timer start.wav',
-        );
-      } catch (_) {}
-
-      // Clear timer service if this was the active task
-      if (shouldClearTimer) {
-        svc.clear();
-        if (kDebugMode) {
-          debugPrint('TODO DELETE: Cleared timer service for deleted task');
-        }
-      }
-
-      await _reload();
-    } catch (err, st) {
-      debugLog('TODO', 'Delete failed: $err\n$st');
-    }
-  }
-
-  Future<void> _toggleTodo(int id) async {
-    debugLog('TODO', 'Toggling todo $id');
-    try {
-      // Find current todo state before toggle to detect restoring from completed
-      final existing = _todos.firstWhere(
-        (t) => t.id == id,
-        orElse: () => Todo(
-          id: -1,
-          userId: '',
-          text: '',
-          completed: false,
-          durationHours: 0,
-          durationMinutes: 0,
-          focusedTime: 0,
-          wasOverdue: 0,
-          overdueTime: 0,
-        ),
-      );
-      final wasCompleted = existing.completed;
-      final plannedSeconds =
-          (existing.durationHours * 3600) + (existing.durationMinutes * 60);
-      final wasUnderdue = wasCompleted && existing.focusedTime < plannedSeconds;
-      // Perform toggle
-      await widget.api.toggleTodo(id);
-      await _reload();
-      // After reload, if we restored a previously completed task that had the green Completed label
-      // (i.e., it was not overdue and not underdue label was shown), treat it now as overdue.
-      if (wasCompleted && !wasUnderdue) {
-        try {
-          final restored = _todos.firstWhere((t) => t.id == id);
-          // Mark in TimerService so UI treats as continued overdue scenario
-          TimerService.instance.markUserContinuedOverdue(restored.text);
-          try {
-            // Standardized progress bar full sound path (no assets/ prefix, keep spaces).
-            await widget.notificationService.playSound(
-              'sounds/progress bar full.wav',
-            );
-          } catch (_) {}
-          if (kDebugMode) {
-            debugPrint(
-              'RESTORE: Marked restored completed task as overdue (continued) -> ${restored.text}',
-            );
-          }
-        } catch (_) {}
-      }
-    } catch (err, st) {
-      debugLog('TODO', 'Toggle failed: $err\n$st');
-    }
-  }
-
-  Future<void> _clearCompleted() async {
-    final completed = _todos.where((t) => t.completed).toList();
-    for (final t in completed) {
-      await widget.api.deleteTodo(t.id);
-    }
-    await _reload();
-  }
-
-  Widget _buildTaskCard(Todo t) {
-    final svc = TimerService.instance;
-    // Show highlight for the task that is currently active in the timer service
-    // even when the timer is paused. Previously this only showed while running.
-    final isActive = svc.activeTaskName == t.text;
-    return TaskCard(
-      todo: t,
-      isActive: isActive,
-      onPlay: (todo) async {
-        await PomodoroScreen.showAsBottomSheet(
-          context,
-          widget.api,
-          todo,
-          widget.notificationService,
-          () => _toggleTodo(todo.id),
-        );
-        debugPrint("POMODORO SHEET CLOSED: Reloading list.");
-        await _reload(); // This reloads the list after the sheet is closed
-      },
-      onDelete: () async {
-        final confirm = await showDialog<bool>(
-          context: context,
-          builder: (dctx) => AlertDialog(
-            title: const Text('Delete task?'),
-            content: const Text('This will remove the task permanently.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dctx).pop(false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(dctx).pop(true),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
-        );
-        if (confirm == true) await _deleteTodo(t.id);
-      },
-      onToggle: () async {
-        await _toggleTodo(t.id);
-      },
-      onUpdateText: (newText) async {
-        await widget.api.updateTodo(t.id, text: newText);
-        await _reload();
-      },
-      onUpdateDuration: (h, m) async {
-        await widget.api.updateTodo(t.id, hours: h, minutes: m);
-        await _reload();
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
     final screenWidth = MediaQuery.of(context).size.width;
     final maxCardWidth = min(screenWidth * 0.95, 520.0);
 
-    final activeTaskName = TimerService.instance.activeTaskName;
-    Todo? activeTodo;
-    if (activeTaskName != null) {
-      // Use a simple loop to find the todo to avoid exceptions
-      for (final todo in _todos) {
-        if (todo.text == activeTaskName) {
-          activeTodo = todo;
-          break;
-        }
-      }
-    }
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
       appBar: AppBar(
@@ -339,20 +35,18 @@ class _TodoListScreenState extends State<TodoListScreen> {
           ),
         ),
         actions: [
-          // User info and logout
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (widget.auth.isAuthenticated) ...[
-                  // User info
+                if (authState.hasValue && authState.value!.isAuthenticated) ...[
                   Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        widget.auth.userName ?? 'User',
+                        authState.value!.userName,
                         style: TextStyle(
                           color: AppColors.lightGray,
                           fontSize: 12,
@@ -360,7 +54,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
                         ),
                       ),
                       Text(
-                        widget.auth.userEmail ?? '',
+                        authState.value!.email,
                         style: TextStyle(
                           color: AppColors.lightGray.withOpacity(0.7),
                           fontSize: 10,
@@ -369,8 +63,6 @@ class _TodoListScreenState extends State<TodoListScreen> {
                     ],
                   ),
                   const SizedBox(width: 8),
-
-                  // Logout button
                   PopupMenuButton<String>(
                     icon: CircleAvatar(
                       radius: 16,
@@ -403,7 +95,6 @@ class _TodoListScreenState extends State<TodoListScreen> {
                     ],
                     onSelected: (value) async {
                       if (value == 'logout') {
-                        // Show confirmation dialog
                         final shouldLogout = await showDialog<bool>(
                           context: context,
                           builder: (context) => AlertDialog(
@@ -444,8 +135,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
                         );
 
                         if (shouldLogout == true) {
-                          await widget.auth.signOut();
-                          // AuthWrapper will automatically handle navigation
+                          await ref.read(authProvider.notifier).signOut();
                         }
                       }
                     },
@@ -465,428 +155,420 @@ class _TodoListScreenState extends State<TodoListScreen> {
                 color: AppColors.cardBg,
                 borderRadius: BorderRadius.circular(22),
               ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 18,
-                ),
-                child: Stack(
-                  children: [
-                    Column(
-                      mainAxisAlignment: _todos.isEmpty
-                          ? MainAxisAlignment.center
-                          : MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 20),
-                        Text(
-                          'TO-DO APP',
-                          style: TextStyle(
-                            color: AppColors.brightYellow,
-                            fontSize: 48,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.4,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 14),
-                        const Text(
-                          'Welcome, prayas new!',
-                          style: TextStyle(
-                            color: AppColors.lightGray,
-                            fontSize: 16,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-
-                        const SizedBox(height: 22),
-
-                        // Centered content block: add area + list
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // Add area (multiline auto-expanding input)
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: AppColors.midGray,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                child: TextField(
-                                  controller: _newText,
-                                  keyboardType: TextInputType.multiline,
-                                  minLines: 1,
-                                  maxLines: null,
-                                  style: const TextStyle(
-                                    color: AppColors.lightGray,
-                                    fontSize: 16,
-                                  ),
-                                  decoration: const InputDecoration(
-                                    hintText: 'What do you need to do?',
-                                    hintStyle: TextStyle(
-                                      color: AppColors.mediumGray,
-                                    ),
-                                    border: InputBorder.none,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-
-                              // Time selectors (inline editable) and Add button
-                              Row(
-                                children: [
-                                  SizedBox(
-                                    width: 100,
-                                    child: TextField(
-                                      controller: _hours,
-                                      keyboardType: TextInputType.number,
-                                      decoration: InputDecoration(
-                                        filled: true,
-                                        fillColor: AppColors.midGray,
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 12,
-                                            ),
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                          borderSide: BorderSide.none,
-                                        ),
-                                        hintText: '0',
-                                        suffixText: 'h',
-                                      ),
-                                      style: const TextStyle(
-                                        color: AppColors.lightGray,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      onSubmitted: (_) {
-                                        if (mounted) setState(() {});
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  SizedBox(
-                                    width: 100,
-                                    child: TextField(
-                                      controller: _mins,
-                                      keyboardType: TextInputType.number,
-                                      decoration: InputDecoration(
-                                        filled: true,
-                                        fillColor: AppColors.midGray,
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 12,
-                                            ),
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                          borderSide: BorderSide.none,
-                                        ),
-                                        hintText: '25',
-                                        suffixText: 'm',
-                                      ),
-                                      style: const TextStyle(
-                                        color: AppColors.lightGray,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      onSubmitted: (_) {
-                                        if (mounted) setState(() {});
-                                      },
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  SizedBox(
-                                    height: 44,
-                                    child: ElevatedButton(
-                                      onPressed: _addTodo,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppColors.brightYellow,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                      ),
-                                      child: const Padding(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                        ),
-                                        child: Text(
-                                          'Add',
-                                          style: TextStyle(
-                                            color: Colors.black,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(height: 18),
-
-                              // Scrolling area
-                              Expanded(
-                                child: _loading
-                                    ? const Center(
-                                        child: CircularProgressIndicator(),
-                                      )
-                                    : ListView(
-                                        padding: EdgeInsets.zero,
-                                        children: [
-                                          // Active tasks
-                                          ..._todos
-                                              .where((t) => !t.completed)
-                                              .map((t) => _buildTaskCard(t)),
-                                          const SizedBox(height: 18),
-                                          Container(
-                                            height: 2,
-                                            color: AppColors.brightYellow,
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Theme(
-                                            data: Theme.of(context).copyWith(
-                                              dividerColor: Colors.transparent,
-                                            ),
-                                            child: ExpansionTile(
-                                              backgroundColor:
-                                                  Colors.transparent,
-                                              collapsedBackgroundColor:
-                                                  Colors.transparent,
-                                              childrenPadding: EdgeInsets.zero,
-                                              initiallyExpanded:
-                                                  _completedExpanded,
-                                              onExpansionChanged: (v) {
-                                                if (mounted) {
-                                                  setState(
-                                                    () =>
-                                                        _completedExpanded = v,
-                                                  );
-                                                }
-                                              },
-                                              title: Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceBetween,
-                                                children: [
-                                                  Row(
-                                                    children: [
-                                                      Icon(
-                                                        Icons.check,
-                                                        color:
-                                                            AppColors.lightGray,
-                                                        size: 18,
-                                                      ),
-                                                      const SizedBox(width: 8),
-                                                      Text(
-                                                        'Completed',
-                                                        style: TextStyle(
-                                                          color: AppColors
-                                                              .lightGray,
-                                                          fontSize: 14,
-                                                          fontWeight:
-                                                              FontWeight.w500,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  if (_completedExpanded)
-                                                    Tooltip(
-                                                      message:
-                                                          'Clear completed',
-                                                      child: ElevatedButton(
-                                                        onPressed: () async {
-                                                          final confirm = await showDialog<bool>(
-                                                            context: context,
-                                                            builder: (dctx) => AlertDialog(
-                                                              title: const Text(
-                                                                'Clear completed?',
-                                                              ),
-                                                              content: const Text(
-                                                                'This will permanently delete all completed tasks.',
-                                                              ),
-                                                              actions: [
-                                                                TextButton(
-                                                                  onPressed: () =>
-                                                                      Navigator.of(
-                                                                        dctx,
-                                                                      ).pop(
-                                                                        false,
-                                                                      ),
-                                                                  child:
-                                                                      const Text(
-                                                                        'Cancel',
-                                                                      ),
-                                                                ),
-                                                                ElevatedButton(
-                                                                  onPressed: () =>
-                                                                      Navigator.of(
-                                                                        dctx,
-                                                                      ).pop(
-                                                                        true,
-                                                                      ),
-                                                                  child:
-                                                                      const Text(
-                                                                        'Clear',
-                                                                      ),
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          );
-                                                          if (confirm == true) {
-                                                            await _clearCompleted();
-                                                          }
-                                                        },
-                                                        style: ElevatedButton.styleFrom(
-                                                          backgroundColor:
-                                                              AppColors.midGray,
-                                                          shape: RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  8,
-                                                                ),
-                                                          ),
-                                                          padding:
-                                                              const EdgeInsets.all(
-                                                                10,
-                                                              ),
-                                                          minimumSize:
-                                                              const Size(
-                                                                40,
-                                                                40,
-                                                              ),
-                                                        ),
-                                                        child: const Icon(
-                                                          Icons.delete_outline,
-                                                          color: AppColors
-                                                              .lightGray,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                              children: [
-                                                ..._todos
-                                                    .where((t) => t.completed)
-                                                    .map(
-                                                      (t) => _buildTaskCard(t),
-                                                    ),
-                                              ],
-                                            ),
-                                          ),
-
-                                          const SizedBox(height: 24),
-                                        ],
-                                      ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        // Subtle logout at bottom-left - hide when keyboard is visible
-                        if (MediaQuery.of(context).viewInsets.bottom == 0)
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: TextButton.icon(
-                              onPressed: () async {
-                                final nav = Navigator.of(context);
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (dctx) => AlertDialog(
-                                    title: const Text('Logout?'),
-                                    content: const Text(
-                                      'You will be signed out of the app.',
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(dctx).pop(false),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: () =>
-                                            Navigator.of(dctx).pop(true),
-                                        child: const Text('Logout'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (confirm == true) {
-                                  await widget.auth.signOut();
-                                  if (!mounted) return;
-                                  nav.pushReplacementNamed('/login');
-                                }
-                              },
-                              icon: Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: Colors.transparent,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: AppColors.lightGray.withAlpha(
-                                      31,
-                                    ), // ~0.12 opacity
-                                  ),
-                                ),
-                                child: const Icon(
-                                  Icons.logout,
-                                  color: AppColors.lightGray,
-                                ),
-                              ),
-                              label: Text(
-                                'Logout',
-                                style: TextStyle(
-                                  color: AppColors.lightGray.withAlpha(
-                                    179,
-                                  ), // ~0.7 opacity
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 6,
-                                ),
-                              ),
-                            ),
-                          ),
-                        // main column end
-                      ],
-                    ),
-                    // Positioned mini-timer overlay that covers bottom controls (e.g., logout)
-                    // Only show the mini-timer when the keyboard is not visible.
-                    if (MediaQuery.of(context).viewInsets.bottom == 0)
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: MiniTimerBar(
-                          api: widget.api,
-                          notificationService: widget.notificationService,
-                          activeTodo: activeTodo,
-                          onComplete: _toggleTodo,
-                        ),
-                      ),
-                  ],
-                ),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                child: _TodoListContent(),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _TodoListContent extends ConsumerStatefulWidget {
+  const _TodoListContent();
+
+  @override
+  ConsumerState<_TodoListContent> createState() => _TodoListContentState();
+}
+
+class _TodoListContentState extends ConsumerState<_TodoListContent> {
+  late final TextEditingController _newText;
+  late final TextEditingController _hours;
+  late final TextEditingController _mins;
+
+  @override
+  void initState() {
+    super.initState();
+    _newText = TextEditingController();
+    _hours = TextEditingController(text: '0');
+    _mins = TextEditingController(text: '25');
+  }
+
+  @override
+  void dispose() {
+    _newText.dispose();
+    _hours.dispose();
+    _mins.dispose();
+    super.dispose();
+  }
+
+  Future<void> _addTodo() async {
+    final text = _newText.text.trim();
+    final h = int.tryParse(_hours.text) ?? 0;
+    final m = int.tryParse(_mins.text) ?? 0;
+    if (text.isEmpty) return;
+
+    await ref.read(todosProvider.notifier).addTodo(text, h, m);
+
+    if (!mounted) return;
+
+    _newText.clear();
+    _hours.text = '0';
+    _mins.text = '25';
+    // Hide keyboard after adding
+    FocusScope.of(context).unfocus();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final api = ref.watch(apiServiceProvider);
+    final notificationService = ref.watch(notificationServiceProvider);
+    final todosAsync = ref.watch(todosProvider);
+
+    final activeTaskName = ref.watch(timerProvider).activeTaskName;
+    Todo? activeTodo;
+    if (activeTaskName != null && todosAsync.hasValue) {
+      for (final todo in todosAsync.value!) {
+        if (todo.text == activeTaskName) {
+          activeTodo = todo;
+          break;
+        }
+      }
+    }
+
+    return Stack(
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(height: 20),
+            Text(
+              'TO-DO APP',
+              style: TextStyle(
+                color: AppColors.brightYellow,
+                fontSize: 48,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Welcome, prayas new!',
+              style: TextStyle(color: AppColors.lightGray, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 22),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.midGray,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: TextField(
+                controller: _newText,
+                keyboardType: TextInputType.multiline,
+                minLines: 1,
+                maxLines: null,
+                style: const TextStyle(
+                  color: AppColors.lightGray,
+                  fontSize: 16,
+                ),
+                decoration: const InputDecoration(
+                  hintText: 'What do you need to do?',
+                  hintStyle: TextStyle(color: AppColors.mediumGray),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                SizedBox(
+                  width: 100,
+                  child: TextField(
+                    controller: _hours,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: AppColors.midGray,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                      hintText: '0',
+                      suffixText: 'h',
+                    ),
+                    style: const TextStyle(
+                      color: AppColors.lightGray,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 100,
+                  child: TextField(
+                    controller: _mins,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: AppColors.midGray,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                      hintText: '25',
+                      suffixText: 'm',
+                    ),
+                    style: const TextStyle(
+                      color: AppColors.lightGray,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                SizedBox(
+                  height: 44,
+                  child: ElevatedButton(
+                    onPressed: _addTodo,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.brightYellow,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        'Add',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Expanded(
+              child: todosAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, stack) => Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('Error: $err'),
+                      ElevatedButton(
+                        onPressed: () => ref.invalidate(todosProvider),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+                data: (todos) => _TodoList(
+                  todos: todos,
+                  api: api,
+                  notificationService: notificationService,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (MediaQuery.of(context).viewInsets.bottom == 0)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: MiniTimerBar(
+              api: api,
+              notificationService: notificationService,
+              activeTodo: activeTodo,
+              onComplete: (id) async {
+                await ref.read(todosProvider.notifier).toggleTodo(id);
+              },
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _TodoList extends ConsumerStatefulWidget {
+  final List<Todo> todos;
+  final ApiService api;
+  final NotificationService notificationService;
+
+  const _TodoList({
+    required this.todos,
+    required this.api,
+    required this.notificationService,
+  });
+
+  @override
+  ConsumerState<_TodoList> createState() => _TodoListState();
+}
+
+class _TodoListState extends ConsumerState<_TodoList> {
+  bool _completedExpanded = false;
+
+  Widget _buildTaskCard(Todo t) {
+    final timer = ref.watch(timerProvider);
+    final isActive = timer.activeTaskName == t.text;
+    return TaskCard(
+      todo: t,
+      isActive: isActive,
+      onPlay: (todo) async {
+        await PomodoroScreen.showAsBottomSheet(
+          context,
+          widget.api,
+          todo,
+          widget.notificationService,
+          () => ref.read(todosProvider.notifier).toggleTodo(todo.id),
+        );
+      },
+      onDelete: () async {
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (dctx) => AlertDialog(
+            title: const Text('Delete task?'),
+            content: const Text('This will remove the task permanently.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(dctx).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        );
+        if (confirm == true) {
+          await ref.read(todosProvider.notifier).deleteTodo(t.id);
+        }
+      },
+      onToggle: () async {
+        await ref.read(todosProvider.notifier).toggleTodo(t.id);
+      },
+      onUpdateText: (newText) async {
+        await ref.read(todosProvider.notifier).updateTodo(t.id, text: newText);
+      },
+      onUpdateDuration: (h, m) async {
+        await ref
+            .read(todosProvider.notifier)
+            .updateTodo(t.id, hours: h, minutes: m);
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.todos.isEmpty) {
+      return const Center(
+        child: Text(
+          'No tasks yet. Add one to get started!',
+          style: TextStyle(color: AppColors.mediumGray, fontSize: 16),
+        ),
+      );
+    }
+    return ListView(
+      padding: EdgeInsets.zero,
+      children: [
+        ...widget.todos
+            .where((t) => !t.completed)
+            .map((t) => _buildTaskCard(t)),
+        const SizedBox(height: 18),
+        Container(height: 2, color: AppColors.brightYellow),
+        const SizedBox(height: 8),
+        Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            backgroundColor: Colors.transparent,
+            collapsedBackgroundColor: Colors.transparent,
+            childrenPadding: EdgeInsets.zero,
+            initiallyExpanded: _completedExpanded,
+            onExpansionChanged: (v) {
+              if (mounted) {
+                setState(() => _completedExpanded = v);
+              }
+            },
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.check, color: AppColors.lightGray, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Completed',
+                      style: TextStyle(
+                        color: AppColors.lightGray,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                if (_completedExpanded)
+                  Tooltip(
+                    message: 'Clear completed',
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (dctx) => AlertDialog(
+                            title: const Text('Clear completed?'),
+                            content: const Text(
+                              'This will permanently delete all completed tasks.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(dctx).pop(false),
+                                child: const Text('Cancel'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => Navigator.of(dctx).pop(true),
+                                child: const Text('Clear'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          await ref
+                              .read(todosProvider.notifier)
+                              .clearCompleted();
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.midGray,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.all(10),
+                        minimumSize: const Size(40, 40),
+                      ),
+                      child: const Icon(
+                        Icons.delete_outline,
+                        color: AppColors.lightGray,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            children: [
+              ...widget.todos
+                  .where((t) => t.completed)
+                  .map((t) => _buildTaskCard(t)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 60), // Space for the MiniTimerBar
+      ],
     );
   }
 }

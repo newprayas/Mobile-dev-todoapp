@@ -68,4 +68,28 @@ class Todo {
       'overdue_time': overdueTime,
     };
   }
+
+  Todo copyWith({
+    int? id,
+    String? userId,
+    String? text,
+    bool? completed,
+    int? durationHours,
+    int? durationMinutes,
+    int? focusedTime,
+    int? wasOverdue,
+    int? overdueTime,
+  }) {
+    return Todo(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      text: text ?? this.text,
+      completed: completed ?? this.completed,
+      durationHours: durationHours ?? this.durationHours,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
+      focusedTime: focusedTime ?? this.focusedTime,
+      wasOverdue: wasOverdue ?? this.wasOverdue,
+      overdueTime: overdueTime ?? this.overdueTime,
+    );
+  }
 }

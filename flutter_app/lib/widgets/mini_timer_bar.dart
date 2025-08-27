@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import '../services/timer_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/timer_provider.dart';
 import '../theme/app_colors.dart';
 import '../services/api_service.dart';
 import '../services/notification_service.dart';
 import '../models/todo.dart';
 import '../screens/pomodoro_screen.dart';
 
-class MiniTimerBar extends StatefulWidget {
+class MiniTimerBar extends ConsumerWidget {
   final ApiService api;
   final NotificationService notificationService;
   final Todo? activeTodo;
@@ -21,11 +22,6 @@ class MiniTimerBar extends StatefulWidget {
     super.key,
   });
 
-  @override
-  State<MiniTimerBar> createState() => _MiniTimerBarState();
-}
-
-class _MiniTimerBarState extends State<MiniTimerBar> {
   String _format(int seconds) {
     final m = (seconds ~/ 60).toString().padLeft(2, '0');
     final s = (seconds % 60).toString().padLeft(2, '0');
@@ -33,193 +29,171 @@ class _MiniTimerBarState extends State<MiniTimerBar> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: TimerService.instance,
-      builder: (context, _) {
-        final svc = TimerService.instance;
-        if (!svc.isTimerActive || svc.activeTaskName == null) {
-          return const SizedBox.shrink();
-        }
-        // Hide the mini-timer when the keyboard is visible so it doesn't
-        // float on top of the keyboard and obstruct typing.
-        final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
-        if (keyboardVisible) {
-          if (kDebugMode) {
-            debugPrint('MINI BAR: hiding because keyboard is visible');
-          }
-          return const SizedBox.shrink();
-        }
-        final mode = svc.currentMode;
-        final borderColor = mode == 'focus'
-            ? Colors.redAccent
-            : Colors.greenAccent;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final timer = ref.watch(timerProvider);
+    final notifier = ref.read(timerProvider.notifier);
 
+    if (!timer.isTimerActive || timer.activeTaskName == null) {
+      return const SizedBox.shrink();
+    }
+
+    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    if (keyboardVisible) {
+      if (kDebugMode) debugPrint('MINI BAR: hiding because keyboard visible');
+      return const SizedBox.shrink();
+    }
+
+    if (kDebugMode) {
+      debugPrint(
+        'MINI BAR[build][provider]: task=${timer.activeTaskName} remaining=${timer.timeRemaining} running=${timer.isRunning} active=${timer.isTimerActive} mode=${timer.currentMode}',
+      );
+    }
+
+    // Overdue detection via provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!context.mounted) return;
+      final taskName = timer.overdueCrossedTaskName;
+      if (taskName != null &&
+          taskName == (timer.activeTaskName ?? '') &&
+          !timer.overduePromptShown.contains(taskName)) {
+        _showOverduePromptFromMiniBar(
+          context,
+          activeTodo ??
+              Todo(
+                id: 0,
+                userId: '',
+                text: timer.activeTaskName ?? '',
+                completed: false,
+                durationHours: 0,
+                durationMinutes: 0,
+                focusedTime: 0,
+                wasOverdue: 0,
+                overdueTime: 0,
+              ),
+          onComplete,
+          notificationService,
+          ref,
+        );
+      }
+    });
+
+    final borderColor = timer.currentMode == 'focus'
+        ? Colors.redAccent
+        : Colors.greenAccent;
+
+    return GestureDetector(
+      onTap: () async {
         if (kDebugMode) {
-          debugPrint(
-            'MINI BAR[build]: task=${svc.activeTaskName} remaining=${svc.timeRemaining} running=${svc.isRunning} active=${svc.isTimerActive} mode=${svc.currentMode}',
-          );
+          debugPrint('MINI BAR: opening full sheet (adapter stage)');
         }
-
-        // Schedule a post-frame prompt if the central service indicates the planned duration
-        // was crossed while running in the mini-bar. This ensures the dialog appears even
-        // when the full Pomodoro sheet is not open.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final svcAfter = TimerService.instance;
-          if (svcAfter.overdueCrossedTaskName != null &&
-              svcAfter.overdueCrossedTaskName ==
-                  (svcAfter.activeTaskName ?? '') &&
-              !svcAfter.hasOverduePromptBeenShown(
-                svcAfter.overdueCrossedTaskName!,
-              )) {
-            if (context.mounted) {
-              _showOverduePromptFromMiniBar(
-                context,
-                widget.activeTodo ??
-                    Todo(
-                      id: 0,
-                      userId: '',
-                      text: svcAfter.activeTaskName ?? '',
-                      completed: false,
-                      durationHours: 0,
-                      durationMinutes: 0,
-                      focusedTime: 0,
-                      wasOverdue: 0,
-                      overdueTime: 0,
-                    ),
-                widget.onComplete,
-                widget.notificationService,
-              );
+        notifier.update(active: false);
+        await PomodoroScreen.showAsBottomSheet(
+          context,
+          api,
+          activeTodo ??
+              Todo(
+                id: 0,
+                userId: '',
+                text: timer.activeTaskName ?? '',
+                completed: false,
+                durationHours: 0,
+                durationMinutes: 0,
+                focusedTime: 0,
+                wasOverdue: 0,
+                overdueTime: 0,
+              ),
+          notificationService,
+          () async {
+            if (activeTodo != null) {
+              await onComplete(activeTodo!.id);
             }
-          }
-        });
-
-        // (No-op) post-frame work already scheduled earlier in this builder.
-
-        return GestureDetector(
-          onTap: () async {
-            if (kDebugMode) {
-              debugPrint(
-                'MINI BAR: opening full Pomodoro sheet; deactivating mini-bar internal ticker first',
-              );
-            }
-            TimerService.instance.update(active: false);
-            await PomodoroScreen.showAsBottomSheet(
-              context,
-              widget.api,
-              widget.activeTodo ??
-                  Todo(
-                    id: 0,
-                    userId: '',
-                    text: svc.activeTaskName ?? '',
-                    completed: false,
-                    durationHours: 0,
-                    durationMinutes: 0,
-                    focusedTime: 0,
-                    wasOverdue: 0,
-                    overdueTime: 0,
-                  ),
-              widget.notificationService,
-              () async {
-                if (widget.activeTodo != null) {
-                  await widget.onComplete(widget.activeTodo!.id);
-                }
-              },
-            );
           },
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.cardBg,
-              // Revert from pill shape to a standard rounded rectangle
-              borderRadius: BorderRadius.circular(12.0),
-              border: Border.all(color: borderColor, width: 3),
-            ),
-            // Keep padding consistent but slightly reduced vertical padding
-            // so the bar sits comfortably when visible.
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.cardBg,
+          borderRadius: BorderRadius.circular(12.0),
+          border: Border.all(color: borderColor, width: 3),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _format(svc.timeRemaining),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    SizedBox(
-                      width: 200,
-                      child: Text(
-                        svc.activeTaskName ?? '',
-                        style: const TextStyle(
-                          color: Color(0xFFFFD54F), // yellow
-                          fontWeight: FontWeight.w700,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                IconButton(
-                  onPressed: () {
-                    if (kDebugMode) {
-                      debugPrint(
-                        'MINI BAR: play/pause pressed, delegating to TimerService.toggleRunning()',
-                      );
-                    }
-                    TimerService.instance.toggleRunning();
-                  },
-                  icon: Icon(
-                    TimerService.instance.isRunning
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                    color: AppColors.brightYellow,
+                Text(
+                  _format(timer.timeRemaining),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
                   ),
                 ),
-                IconButton(
-                  onPressed: () async {
-                    if (kDebugMode) {
-                      debugPrint('MINI BAR: expand pressed');
-                    }
-                    await PomodoroScreen.showAsBottomSheet(
-                      context,
-                      widget.api,
-                      widget.activeTodo ??
-                          Todo(
-                            id: 0,
-                            userId: '',
-                            text: svc.activeTaskName ?? '',
-                            completed: false,
-                            durationHours: 0,
-                            durationMinutes: 0,
-                            focusedTime: 0,
-                            wasOverdue: 0,
-                            overdueTime: 0,
-                          ),
-                      widget.notificationService,
-                      () async {
-                        if (widget.activeTodo != null) {
-                          await widget.onComplete(widget.activeTodo!.id);
-                        }
-                      },
-                    );
-                    TimerService.instance.update(active: false);
-                  },
-                  icon: const Icon(
-                    Icons.keyboard_arrow_up_rounded,
-                    color: Colors.white,
+                const SizedBox(height: 6),
+                SizedBox(
+                  width: 200,
+                  child: Text(
+                    timer.activeTaskName ?? '',
+                    style: const TextStyle(
+                      color: Color(0xFFFFD54F),
+                      fontWeight: FontWeight.w700,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
-          ),
-        );
-      },
+            const Spacer(),
+            IconButton(
+              onPressed: () {
+                if (kDebugMode) {
+                  debugPrint('MINI BAR: play/pause via legacy service');
+                }
+                notifier.toggleRunning();
+              },
+              icon: Icon(
+                timer.isRunning
+                    ? Icons.pause_rounded
+                    : Icons.play_arrow_rounded,
+                color: AppColors.brightYellow,
+              ),
+            ),
+            IconButton(
+              onPressed: () async {
+                if (kDebugMode) debugPrint('MINI BAR: expand pressed');
+                await PomodoroScreen.showAsBottomSheet(
+                  context,
+                  api,
+                  activeTodo ??
+                      Todo(
+                        id: 0,
+                        userId: '',
+                        text: timer.activeTaskName ?? '',
+                        completed: false,
+                        durationHours: 0,
+                        durationMinutes: 0,
+                        focusedTime: 0,
+                        wasOverdue: 0,
+                        overdueTime: 0,
+                      ),
+                  notificationService,
+                  () async {
+                    if (activeTodo != null) {
+                      await onComplete(activeTodo!.id);
+                    }
+                  },
+                );
+                notifier.update(active: false);
+              },
+              icon: const Icon(
+                Icons.keyboard_arrow_up_rounded,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -230,22 +204,22 @@ Future<void> _showOverduePromptFromMiniBar(
   Todo todo,
   Future<void> Function(int) onComplete,
   NotificationService notificationService,
+  WidgetRef ref,
 ) async {
-  final svc = TimerService.instance;
-  final taskName = svc.overdueCrossedTaskName;
-  if (taskName == null || taskName != (svc.activeTaskName ?? '')) return;
-  if (svc.hasOverduePromptBeenShown(taskName)) return;
+  final timer = ref.read(timerProvider);
+  final notifier = ref.read(timerProvider.notifier);
+  final taskName = timer.overdueCrossedTaskName;
+  if (taskName == null || taskName != (timer.activeTaskName ?? '')) return;
+  if (timer.overduePromptShown.contains(taskName)) return;
 
-  // mark as shown so it won't repeat
-  svc.markOverduePromptShown(taskName);
+  notifier.markOverduePromptShown(taskName);
 
   notificationService.showNotification(
     title: 'Task Overdue',
     body: 'Planned time for "${todo.text}" is complete.',
   );
   try {
-    // Use standardized asset path (directory declared in pubspec: assets/sounds/)
-    notificationService.playSound('sounds/progress bar full.wav');
+    notificationService.playSound('progress bar full.wav');
   } catch (_) {}
 
   final res = await showDialog<String>(
@@ -271,11 +245,8 @@ Future<void> _showOverduePromptFromMiniBar(
 
   if (res == 'complete') {
     await onComplete(todo.id);
-    TimerService.instance.clear();
+    notifier.clear();
   } else {
-    // keep running; record that the user chose to continue so UI can reflect it
-    try {
-      TimerService.instance.markUserContinuedOverdue(taskName);
-    } catch (_) {}
+    notifier.markOverdueContinued(taskName);
   }
 }

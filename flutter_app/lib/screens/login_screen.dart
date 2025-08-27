@@ -1,23 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import '../services/api_service.dart';
-import '../services/auth_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_colors.dart';
+import '../providers/auth_provider.dart';
 
-class LoginScreen extends StatefulWidget {
-  final ApiService api;
-  final AuthService auth;
-  const LoginScreen({required this.api, required this.auth, super.key});
+class LoginScreen extends ConsumerStatefulWidget {
+  const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  bool _isSigningIn = false;
-
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
       appBar: AppBar(
@@ -38,7 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppColors.brightYellow.withOpacity(0.1),
+                  color: AppColors.brightYellow.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Icon(
@@ -63,13 +61,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 'Sign in with Google to sync your tasks across devices',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.lightGray.withOpacity(0.7),
+                  color: AppColors.lightGray.withValues(alpha: 0.7),
                 ),
               ),
               const SizedBox(height: 48),
 
               // Sign In Button or Loading
-              _isSigningIn
+              authState.isLoading
                   ? Column(
                       children: [
                         CircularProgressIndicator(
@@ -79,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Text(
                           'Signing you in...',
                           style: TextStyle(
-                            color: AppColors.lightGray.withOpacity(0.7),
+                            color: AppColors.lightGray.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -105,41 +103,50 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         onPressed: () async {
-                          setState(() {
-                            _isSigningIn = true;
-                          });
-
-                          if (kDebugMode)
+                          if (kDebugMode) {
                             debugPrint('DEBUG: Login button pressed');
+                          }
 
-                          final success = await widget.auth.signInWithGoogle();
+                          await ref
+                              .read(authProvider.notifier)
+                              .signInWithGoogle();
+
                           if (!mounted) return;
 
-                          if (success) {
-                            if (kDebugMode)
-                              debugPrint(
-                                'DEBUG: Login successful, navigating to todos',
-                              );
-                            Navigator.of(
-                              context,
-                            ).pushReplacementNamed('/todos');
-                          } else {
-                            setState(() {
-                              _isSigningIn = false;
-                            });
+                          // Check if sign in was successful
+                          final currentAuthState = ref.read(authProvider);
+                          currentAuthState.whenData((authData) {
+                            if (authData.isAuthenticated) {
+                              if (kDebugMode) {
+                                debugPrint(
+                                  'DEBUG: Login successful, navigating to todos',
+                                );
+                              }
+                              Navigator.of(
+                                context,
+                              ).pushReplacementNamed('/todos');
+                            }
+                          });
 
-                            if (kDebugMode)
-                              debugPrint('DEBUG: Login failed, showing error');
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text(
-                                  'Google Sign-In failed. Please try again.',
+                          if (!mounted) return;
+
+                          // Handle errors
+                          currentAuthState.whenOrNull(
+                            error: (error, stackTrace) {
+                              if (kDebugMode) {
+                                debugPrint('DEBUG: Login failed: $error');
+                              }
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text(
+                                    'Google Sign-In failed. Please try again.',
+                                  ),
+                                  backgroundColor: Colors.red.shade600,
+                                  behavior: SnackBarBehavior.floating,
                                 ),
-                                backgroundColor: Colors.red.shade600,
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          }
+                              );
+                            },
+                          );
                         },
                       ),
                     ),
@@ -151,10 +158,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.brightYellow.withOpacity(0.1),
+                    color: AppColors.brightYellow.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: AppColors.brightYellow.withOpacity(0.3),
+                      color: AppColors.brightYellow.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Column(
@@ -178,7 +185,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         'Using mock authentication for development. In production, this will use real Google Sign-In.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: AppColors.lightGray.withOpacity(0.8),
+                          color: AppColors.lightGray.withValues(alpha: 0.8),
                           fontSize: 11,
                         ),
                       ),
