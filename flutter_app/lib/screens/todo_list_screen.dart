@@ -59,6 +59,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
   }
 
   Future<void> _reload() async {
+    if (!mounted) return;
     setState(() {
       _loading = true;
     });
@@ -90,9 +91,11 @@ class _TodoListScreenState extends State<TodoListScreen> {
       // optimistic inserts remain visible instead of clearing the UI.
       // _todos remains unchanged.
     } finally {
-      setState(() {
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -126,12 +129,14 @@ class _TodoListScreenState extends State<TodoListScreen> {
         wasOverdue: 0,
         overdueTime: 0,
       );
-      setState(() {
-        if (!_todos.any((t) => t.id == todo.id)) _todos = [todo, ..._todos];
-        _newText.clear();
-        _hours.text = '0';
-        _mins.text = '25';
-      });
+      if (mounted) {
+        setState(() {
+          if (!_todos.any((t) => t.id == todo.id)) _todos = [todo, ..._todos];
+          _newText.clear();
+          _hours.text = '0';
+          _mins.text = '25';
+        });
+      }
     } finally {
       _adding = false;
     }
@@ -561,7 +566,9 @@ class _TodoListScreenState extends State<TodoListScreen> {
                                         color: AppColors.lightGray,
                                         fontWeight: FontWeight.w600,
                                       ),
-                                      onSubmitted: (_) => setState(() {}),
+                                      onSubmitted: (_) {
+                                        if (mounted) setState(() {});
+                                      },
                                     ),
                                   ),
                                   const SizedBox(width: 10),
@@ -591,7 +598,9 @@ class _TodoListScreenState extends State<TodoListScreen> {
                                         color: AppColors.lightGray,
                                         fontWeight: FontWeight.w600,
                                       ),
-                                      onSubmitted: (_) => setState(() {}),
+                                      onSubmitted: (_) {
+                                        if (mounted) setState(() {});
+                                      },
                                     ),
                                   ),
                                   const Spacer(),
@@ -657,11 +666,14 @@ class _TodoListScreenState extends State<TodoListScreen> {
                                               childrenPadding: EdgeInsets.zero,
                                               initiallyExpanded:
                                                   _completedExpanded,
-                                              onExpansionChanged: (v) =>
+                                              onExpansionChanged: (v) {
+                                                if (mounted) {
                                                   setState(
                                                     () =>
                                                         _completedExpanded = v,
-                                                  ),
+                                                  );
+                                                }
+                                              },
                                               title: Row(
                                                 mainAxisAlignment:
                                                     MainAxisAlignment
