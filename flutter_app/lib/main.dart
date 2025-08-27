@@ -11,6 +11,7 @@ import 'screens/login_screen.dart';
 import 'screens/todo_list_screen.dart';
 import 'theme/app_colors.dart';
 import 'services/notification_service.dart';
+import 'widgets/auth_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -104,9 +105,12 @@ class MyApp extends StatelessWidget {
           ThemeData.dark().textTheme,
         ).apply(bodyColor: AppColors.lightGray),
       ),
-      initialRoute: '/todos',
+      home: AuthWrapper(
+        api: apiClient,
+        auth: authService,
+        notificationService: notificationManager,
+      ),
       routes: {
-        '/': (c) => HomeScreen(api: apiClient, auth: authService),
         '/login': (c) => LoginScreen(api: apiClient, auth: authService),
         '/todos': (c) => TodoListScreen(
           api: apiClient,

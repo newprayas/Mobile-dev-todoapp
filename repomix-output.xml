@@ -17,7 +17,7 @@ The content is organized as follows:
 4. Repository files (if enabled)
 5. Multiple file entries, each consisting of:
   - File path as an attribute
-  - Full contents of the sfile
+  - Full contents of the file
 </file_format>
 
 <usage_guidelines>
@@ -40,8 +40,6 @@ The content is organized as follows:
 </file_summary>
 
 <directory_structure>
-.github/
-  copilot-instructions.md
 backend/
   .dart_tool/
     extension_discovery/
@@ -145,7 +143,6 @@ flutter_app/
       auth_service.dart
       local_timer_store.dart
       notification_service.dart
-      pomodoro_controller.dart
       timer_service.dart
     theme/
       app_colors.dart
@@ -153,7 +150,6 @@ flutter_app/
       debug_logger.dart
     widgets/
       mini_timer_bar.dart
-      pomodoro_bottom_sheet.dart
       progress_bar.dart
       task_card.dart
     main.dart
@@ -207,7 +203,6 @@ flutter_app/
       RunnerTests.swift
     .gitignore
   test/
-    pomodoro_controller_test.dart
     timer_service_test.dart
     widget_test.dart
   web/
@@ -787,269 +782,6 @@ void main(List<String> args) {
 }
 </file>
 
-<file path="backend/bin/server.dart">
-import 'dart:convert';
-import 'dart:io';
-
-import 'package:shelf/shelf.dart';
-import 'package:shelf/shelf_io.dart' as io;
-import 'package:shelf_router/shelf_router.dart';
-import 'package:sqlite3/sqlite3.dart';
-
-final String databasePath = 'database.db';
-
-Database getDb() {
-  final db = sqlite3.open(databasePath);
-  return db;
-}
-
-Map<String, dynamic>? currentUser(Request request) {
-  // Simple development fallback: if header 'x-user-id' present use it.
-  final userId = request.headers['x-user-id'];
-  if (userId != null && userId.isNotEmpty) {
-    return {'sub': userId};
-  }
-  // If running in debug locally, allow a default dev user
-  if (Platform.environment['DEBUG'] == '1') {
-    return {'sub': 'dev'};
-  }
-  return null;
-}
-
-void ensureWasOverdueColumn(Database db) {
-  // Check if columns exist in 'todos' and add if missing
-  final result = db.select("PRAGMA table_info('todos');");
-  final cols = result.map((r) => r['name'] as String).toList();
-  if (!cols.contains('was_overdue')) {
-    db.execute(
-      "ALTER TABLE todos ADD COLUMN was_overdue INTEGER NOT NULL DEFAULT 0",
-    );
-  }
-  if (!cols.contains('overdue_time')) {
-    db.execute(
-      "ALTER TABLE todos ADD COLUMN overdue_time INTEGER NOT NULL DEFAULT 0",
-    );
-  }
-}
-
-int maxSessionSeconds = 24 * 3600;
-
-Response jsonResponse(Object? obj, {int status = 200}) {
-  return Response(
-    status,
-    body: json.encode(obj),
-    headers: {'content-type': 'application/json'},
-  );
-}
-
-Future<Response> apiTodos(Request request) async {
-  final user = currentUser(request);
-  if (user == null) return jsonResponse([], status: 200);
-
-  final db = getDb();
-  ensureWasOverdueColumn(db);
-  final rows = db.select('SELECT * FROM todos WHERE user_id = ?', [
-    user['sub'],
-  ]);
-  final result = rows.map((r) {
-    return {
-      'id': r['id'],
-      'user_id': r['user_id'],
-      'text': r['text'],
-      'completed': r['completed'],
-      'duration_hours': r['duration_hours'],
-      'duration_minutes': r['duration_minutes'],
-      'focused_time': r['focused_time'],
-      'was_overdue': r['was_overdue'] ?? 0,
-      'overdue_time': r['overdue_time'] ?? 0,
-    };
-  }).toList();
-  db.dispose();
-  return jsonResponse(result);
-}
-
-Future<Response> addTodo(Request request) async {
-  final user = currentUser(request);
-  if (user == null) return jsonResponse({'error': 'Unauthorized'}, status: 401);
-  final payload =
-      json.decode(await request.readAsString()) as Map<String, dynamic>;
-  final todoText = (payload['text'] as String?)?.trim() ?? '';
-  final durationHours =
-      int.tryParse((payload['duration_hours'] ?? '0').toString()) ?? 0;
-  final durationMinutes =
-      int.tryParse((payload['duration_minutes'] ?? '0').toString()) ?? 0;
-  if (todoText.isEmpty)
-    return jsonResponse({'error': 'Text is required'}, status: 400);
-
-  final db = getDb();
-  final stmt = db.prepare(
-    'INSERT INTO todos (user_id, text, duration_hours, duration_minutes, focused_time, was_overdue, overdue_time) VALUES (?, ?, ?, ?, 0, 0, 0)',
-  );
-  stmt.execute([user['sub'], todoText, durationHours, durationMinutes]);
-  final newId = db.lastInsertRowId;
-  stmt.dispose();
-  db.dispose();
-
-  return jsonResponse({
-    'id': newId,
-    'text': todoText,
-    'completed': 0,
-    'duration_hours': durationHours,
-    'duration_minutes': durationMinutes,
-    'focused_time': 0,
-    'was_overdue': 0,
-    'overdue_time': 0,
-  });
-}
-
-Future<Response> deleteTodo(Request request) async {
-  final user = currentUser(request);
-  if (user == null) return jsonResponse({'error': 'Unauthorized'}, status: 401);
-  final payload =
-      json.decode(await request.readAsString()) as Map<String, dynamic>;
-  final todoId = payload['id'];
-  final db = getDb();
-  final stmt = db.prepare('DELETE FROM todos WHERE id = ? AND user_id = ?');
-  stmt.execute([todoId, user['sub']]);
-  stmt.dispose();
-  db.dispose();
-  return jsonResponse({'result': 'success'});
-}
-
-Future<Response> toggleTodo(Request request) async {
-  final user = currentUser(request);
-  if (user == null) return jsonResponse({'error': 'Unauthorized'}, status: 401);
-  final payload =
-      json.decode(await request.readAsString()) as Map<String, dynamic>;
-  final todoId = payload['id'];
-  final db = getDb();
-  final row = db.select(
-    'SELECT completed FROM todos WHERE id = ? AND user_id = ?',
-    [todoId, user['sub']],
-  );
-  if (row.isNotEmpty) {
-    final current = row.first['completed'] as int;
-    final newVal = current == 0 ? 1 : 0;
-    final stmt = db.prepare(
-      'UPDATE todos SET completed = ? WHERE id = ? AND user_id = ?',
-    );
-    stmt.execute([newVal, todoId, user['sub']]);
-    stmt.dispose();
-  }
-  db.dispose();
-  return jsonResponse({'result': 'success'});
-}
-
-Future<Response> updateTodo(Request request) async {
-  final user = currentUser(request);
-  if (user == null) return jsonResponse({'error': 'Unauthorized'}, status: 401);
-  final payload =
-      json.decode(await request.readAsString()) as Map<String, dynamic>;
-  final todoId = payload['id'];
-  if (todoId == null) return jsonResponse({'error': 'Missing id'}, status: 400);
-  final db = getDb();
-  if (payload.containsKey('text')) {
-    final stmt = db.prepare(
-      'UPDATE todos SET text = ? WHERE id = ? AND user_id = ?',
-    );
-    stmt.execute([payload['text'], todoId, user['sub']]);
-    stmt.dispose();
-  }
-  if (payload.containsKey('duration_hours')) {
-    final stmt = db.prepare(
-      'UPDATE todos SET duration_hours = ? WHERE id = ? AND user_id = ?',
-    );
-    stmt.execute([payload['duration_hours'], todoId, user['sub']]);
-    stmt.dispose();
-  }
-  if (payload.containsKey('duration_minutes')) {
-    final stmt = db.prepare(
-      'UPDATE todos SET duration_minutes = ? WHERE id = ? AND user_id = ?',
-    );
-    stmt.execute([payload['duration_minutes'], todoId, user['sub']]);
-    stmt.dispose();
-  }
-  db.dispose();
-  return jsonResponse({'result': 'success'});
-}
-
-Future<Response> updateFocusTime(Request request) async {
-  final user = currentUser(request);
-  if (user == null) return jsonResponse({'error': 'Unauthorized'}, status: 401);
-  final payload =
-      json.decode(await request.readAsString()) as Map<String, dynamic>;
-  final todoId = payload['id'];
-  int ft = 0;
-  try {
-    ft = int.tryParse((payload['focused_time'] ?? '0').toString()) ?? 0;
-  } catch (_) {
-    ft = 0;
-  }
-  if (ft > 1000000) ft = ft ~/ 1000;
-  if (ft > maxSessionSeconds) ft = maxSessionSeconds;
-
-  final db = getDb();
-  final stmt = db.prepare(
-    'UPDATE todos SET focused_time = ? WHERE id = ? AND user_id = ?',
-  );
-  stmt.execute([ft, todoId, user['sub']]);
-  stmt.dispose();
-
-  final rows = db.select(
-    'SELECT duration_hours, duration_minutes FROM todos WHERE id = ? AND user_id = ?',
-    [todoId, user['sub']],
-  );
-  int wasOverdue = 0;
-  int overdueTime = 0;
-  if (rows.isNotEmpty) {
-    final row = rows.first;
-    final durationHours = row['duration_hours'] as int? ?? 0;
-    final durationMinutes = row['duration_minutes'] as int? ?? 0;
-    final totalSeconds = (durationHours * 3600) + (durationMinutes * 60);
-    if (totalSeconds > 0 && ft > totalSeconds) {
-      wasOverdue = 1;
-      overdueTime = ft - totalSeconds;
-    }
-  }
-  final stmt2 = db.prepare(
-    'UPDATE todos SET was_overdue = ?, overdue_time = ? WHERE id = ? AND user_id = ?',
-  );
-  stmt2.execute([wasOverdue, overdueTime, todoId, user['sub']]);
-  stmt2.dispose();
-  db.dispose();
-
-  return jsonResponse({
-    'result': 'success',
-    'was_overdue': wasOverdue,
-    'overdue_time': overdueTime,
-    'focused_time': ft,
-  });
-}
-
-void main(List<String> args) async {
-  final ip = InternetAddress.anyIPv4;
-  final port = int.tryParse(Platform.environment['PORT'] ?? '5000') ?? 5000;
-
-  final router = Router();
-
-  router.get('/api/todos', (Request request) => apiTodos(request));
-  router.post('/add', (Request request) => addTodo(request));
-  router.post('/delete', (Request request) => deleteTodo(request));
-  router.post('/toggle', (Request request) => toggleTodo(request));
-  router.post('/update', (Request request) => updateTodo(request));
-  router.post(
-    '/update_focus_time',
-    (Request request) => updateFocusTime(request),
-  );
-
-  final handler =
-      const Pipeline().addMiddleware(logRequests()).addHandler(router);
-
-  final server = await io.serve(handler, ip, port);
-  print('Server listening on http://${server.address.host}:${server.port}');
-}
-</file>
-
 <file path="backend/pubspec.lock">
 # Generated by pub
 # See https://dart.dev/tools/pub/glossary#lockfile
@@ -1275,10 +1007,6 @@ CREATE TABLE IF NOT EXISTS todos (
   overdue_time INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-</file>
-
-<file path="backend/server.pid">
-62122
 </file>
 
 <file path="flutter_app/android/app/src/debug/AndroidManifest.xml">
@@ -2745,60 +2473,6 @@ Runner/GeneratedPluginRegistrant.*
 !default.mode2v3
 !default.pbxuser
 !default.perspectivev3
-</file>
-
-<file path="flutter_app/lib/models/todo.dart">
-class Todo {
-  final int id;
-  final String userId;
-  final String text;
-  final bool completed;
-  final int durationHours;
-  final int durationMinutes;
-  final int focusedTime;
-  final int wasOverdue;
-  final int overdueTime;
-
-  Todo({
-    required this.id,
-    required this.userId,
-    required this.text,
-    required this.completed,
-    required this.durationHours,
-    required this.durationMinutes,
-    required this.focusedTime,
-    required this.wasOverdue,
-    required this.overdueTime,
-  });
-
-  factory Todo.fromJson(Map<String, dynamic> j) {
-    return Todo(
-      id: j['id'] is int ? j['id'] : int.parse('${j['id']}'),
-      userId: j['user_id'] ?? j['userId'] ?? '',
-      text: j['text'] ?? '',
-      completed: (j['completed'] == 1 || j['completed'] == true),
-      durationHours: j['duration_hours'] != null ? (j['duration_hours'] is int ? j['duration_hours'] : int.parse('${j['duration_hours']}')) : 0,
-      durationMinutes: j['duration_minutes'] != null ? (j['duration_minutes'] is int ? j['duration_minutes'] : int.parse('${j['duration_minutes']}')) : 0,
-      focusedTime: j['focused_time'] != null ? (j['focused_time'] is int ? j['focused_time'] : int.parse('${j['focused_time']}')) : 0,
-      wasOverdue: j['was_overdue'] != null ? (j['was_overdue'] is int ? j['was_overdue'] : int.parse('${j['was_overdue']}')) : 0,
-      overdueTime: j['overdue_time'] != null ? (j['overdue_time'] is int ? j['overdue_time'] : int.parse('${j['overdue_time']}')) : 0,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'user_id': userId,
-      'text': text,
-      'completed': completed ? 1 : 0,
-      'duration_hours': durationHours,
-      'duration_minutes': durationMinutes,
-      'focused_time': focusedTime,
-      'was_overdue': wasOverdue,
-      'overdue_time': overdueTime,
-    };
-  }
-}
 </file>
 
 <file path="flutter_app/lib/services/local_timer_store.dart">
@@ -4880,46 +4554,6 @@ class RunnerTests: XCTestCase {
 # Xcode-related
 **/dgph
 **/xcuserdata/
-</file>
-
-<file path="flutter_app/test/pomodoro_controller_test.dart">
-import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_app/services/pomodoro_controller.dart';
-
-void main() {
-  test('start, pause and overdue detection', () async {
-    final c = PomodoroController();
-    int added = 0;
-    bool overdueCalled = false;
-    c.onFocusSegmentComplete = (taskId, seconds) {
-      added += seconds;
-    };
-    c.onOverdue = (taskId) {
-      overdueCalled = true;
-    };
-
-    // start with short durations to exercise quickly
-    c.start(
-      1,
-      focusSec: 2,
-      breakSec: 1,
-      cycles: 1,
-      plannedDurationSec: 3,
-      initialFocusedSeconds: 1,
-    );
-    expect(c.activeTaskId, 1);
-    expect(c.isRunning, true);
-
-    // wait 3 seconds for focus to end
-    await Future.delayed(const Duration(seconds: 3));
-
-    // after auto-transition, the controller should have called onFocusSegmentComplete
-    expect(added > 0, true);
-    // plannedDurationSec was 3 and initialFocusedSeconds was 1 so after 2 seconds it should be >=3 -> overdue called
-    expect(overdueCalled, true);
-    c.dispose();
-  });
-}
 </file>
 
 <file path="flutter_app/test/timer_service_test.dart">
@@ -10698,6 +10332,270 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </file>
 
+<file path="backend/bin/server.dart">
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:shelf/shelf.dart';
+import 'package:shelf/shelf_io.dart' as io;
+import 'package:shelf_router/shelf_router.dart';
+import 'package:sqlite3/sqlite3.dart';
+
+final String databasePath = 'database.db';
+
+Database getDb() {
+  final db = sqlite3.open(databasePath);
+  return db;
+}
+
+Map<String, dynamic>? currentUser(Request request) {
+  // Simple development fallback: if header 'x-user-id' present use it.
+  final userId = request.headers['x-user-id'];
+  if (userId != null && userId.isNotEmpty) {
+    return {'sub': userId};
+  }
+  // If running in debug locally, allow a default dev user
+  if (Platform.environment['DEBUG'] == '1') {
+    return {'sub': 'dev'};
+  }
+  return null;
+}
+
+void ensureWasOverdueColumn(Database db) {
+  // Check if columns exist in 'todos' and add if missing
+  final result = db.select("PRAGMA table_info('todos');");
+  final cols = result.map((r) => r['name'] as String).toList();
+  if (!cols.contains('was_overdue')) {
+    db.execute(
+      "ALTER TABLE todos ADD COLUMN was_overdue INTEGER NOT NULL DEFAULT 0",
+    );
+  }
+  if (!cols.contains('overdue_time')) {
+    db.execute(
+      "ALTER TABLE todos ADD COLUMN overdue_time INTEGER NOT NULL DEFAULT 0",
+    );
+  }
+}
+
+int maxSessionSeconds = 24 * 3600;
+
+Response jsonResponse(Object? obj, {int status = 200}) {
+  return Response(
+    status,
+    body: json.encode(obj),
+    headers: {'content-type': 'application/json'},
+  );
+}
+
+Future<Response> apiTodos(Request request) async {
+  final user = currentUser(request);
+  if (user == null) return jsonResponse([], status: 200);
+
+  final db = getDb();
+  ensureWasOverdueColumn(db);
+  final rows = db.select('SELECT * FROM todos WHERE user_id = ?', [
+    user['sub'],
+  ]);
+  final result = rows.map((r) {
+    return {
+      'id': r['id'],
+      'user_id': r['user_id'],
+      'text': r['text'],
+      'completed': r['completed'],
+      'duration_hours': r['duration_hours'],
+      'duration_minutes': r['duration_minutes'],
+      'focused_time': r['focused_time'],
+      'was_overdue': r['was_overdue'] ?? 0,
+      'overdue_time': r['overdue_time'] ?? 0,
+    };
+  }).toList();
+  db.dispose();
+  return jsonResponse(result);
+}
+
+Future<Response> addTodo(Request request) async {
+  final user = currentUser(request);
+  if (user == null) return jsonResponse({'error': 'Unauthorized'}, status: 401);
+  final payload =
+      json.decode(await request.readAsString()) as Map<String, dynamic>;
+  final todoText = (payload['text'] as String?)?.trim() ?? '';
+  final durationHours =
+      int.tryParse((payload['duration_hours'] ?? '0').toString()) ?? 0;
+  final durationMinutes =
+      int.tryParse((payload['duration_minutes'] ?? '0').toString()) ?? 0;
+  if (todoText.isEmpty)
+    return jsonResponse({'error': 'Text is required'}, status: 400);
+
+  final db = getDb();
+  final stmt = db.prepare(
+    'INSERT INTO todos (user_id, text, duration_hours, duration_minutes, focused_time, was_overdue, overdue_time) VALUES (?, ?, ?, ?, 0, 0, 0)',
+  );
+  stmt.execute([user['sub'], todoText, durationHours, durationMinutes]);
+  final newId = db.lastInsertRowId;
+  stmt.dispose();
+  db.dispose();
+
+  return jsonResponse({
+    'id': newId,
+    'text': todoText,
+    'completed': 0,
+    'duration_hours': durationHours,
+    'duration_minutes': durationMinutes,
+    'focused_time': 0,
+    'was_overdue': 0,
+    'overdue_time': 0,
+  });
+}
+
+Future<Response> deleteTodo(Request request) async {
+  final user = currentUser(request);
+  if (user == null) return jsonResponse({'error': 'Unauthorized'}, status: 401);
+  final payload =
+      json.decode(await request.readAsString()) as Map<String, dynamic>;
+  final todoId = payload['id'];
+  final db = getDb();
+  final stmt = db.prepare('DELETE FROM todos WHERE id = ? AND user_id = ?');
+  stmt.execute([todoId, user['sub']]);
+  stmt.dispose();
+  db.dispose();
+  return jsonResponse({'result': 'success'});
+}
+
+Future<Response> toggleTodo(Request request) async {
+  final user = currentUser(request);
+  if (user == null) return jsonResponse({'error': 'Unauthorized'}, status: 401);
+  final payload =
+      json.decode(await request.readAsString()) as Map<String, dynamic>;
+  final todoId = payload['id'];
+  final db = getDb();
+  final row = db.select(
+    'SELECT completed FROM todos WHERE id = ? AND user_id = ?',
+    [todoId, user['sub']],
+  );
+  if (row.isNotEmpty) {
+    final current = row.first['completed'] as int;
+    final newVal = current == 0 ? 1 : 0;
+    final stmt = db.prepare(
+      'UPDATE todos SET completed = ? WHERE id = ? AND user_id = ?',
+    );
+    stmt.execute([newVal, todoId, user['sub']]);
+    stmt.dispose();
+  }
+  db.dispose();
+  return jsonResponse({'result': 'success'});
+}
+
+Future<Response> updateTodo(Request request) async {
+  final user = currentUser(request);
+  if (user == null) return jsonResponse({'error': 'Unauthorized'}, status: 401);
+  final payload =
+      json.decode(await request.readAsString()) as Map<String, dynamic>;
+  final todoId = payload['id'];
+  if (todoId == null) return jsonResponse({'error': 'Missing id'}, status: 400);
+  final db = getDb();
+  if (payload.containsKey('text')) {
+    final stmt = db.prepare(
+      'UPDATE todos SET text = ? WHERE id = ? AND user_id = ?',
+    );
+    stmt.execute([payload['text'], todoId, user['sub']]);
+    stmt.dispose();
+  }
+  if (payload.containsKey('duration_hours')) {
+    final stmt = db.prepare(
+      'UPDATE todos SET duration_hours = ? WHERE id = ? AND user_id = ?',
+    );
+    stmt.execute([payload['duration_hours'], todoId, user['sub']]);
+    stmt.dispose();
+  }
+  if (payload.containsKey('duration_minutes')) {
+    final stmt = db.prepare(
+      'UPDATE todos SET duration_minutes = ? WHERE id = ? AND user_id = ?',
+    );
+    stmt.execute([payload['duration_minutes'], todoId, user['sub']]);
+    stmt.dispose();
+  }
+  db.dispose();
+  return jsonResponse({'result': 'success'});
+}
+
+Future<Response> updateFocusTime(Request request) async {
+  final user = currentUser(request);
+  if (user == null) return jsonResponse({'error': 'Unauthorized'}, status: 401);
+  final payload =
+      json.decode(await request.readAsString()) as Map<String, dynamic>;
+  final todoId = payload['id'];
+  int ft = 0;
+  try {
+    ft = int.tryParse((payload['focused_time'] ?? '0').toString()) ?? 0;
+  } catch (_) {
+    ft = 0;
+  }
+  if (ft > 1000000) ft = ft ~/ 1000;
+  if (ft > maxSessionSeconds) ft = maxSessionSeconds;
+
+  final db = getDb();
+  final stmt = db.prepare(
+    'UPDATE todos SET focused_time = ? WHERE id = ? AND user_id = ?',
+  );
+  stmt.execute([ft, todoId, user['sub']]);
+  stmt.dispose();
+
+  final rows = db.select(
+    'SELECT duration_hours, duration_minutes FROM todos WHERE id = ? AND user_id = ?',
+    [todoId, user['sub']],
+  );
+  int wasOverdue = 0;
+  int overdueTime = 0;
+  if (rows.isNotEmpty) {
+    final row = rows.first;
+    final durationHours = row['duration_hours'] as int? ?? 0;
+    final durationMinutes = row['duration_minutes'] as int? ?? 0;
+    final totalSeconds = (durationHours * 3600) + (durationMinutes * 60);
+    if (totalSeconds > 0 && ft > totalSeconds) {
+      wasOverdue = 1;
+      overdueTime = ft - totalSeconds;
+    }
+  }
+  final stmt2 = db.prepare(
+    'UPDATE todos SET was_overdue = ?, overdue_time = ? WHERE id = ? AND user_id = ?',
+  );
+  stmt2.execute([wasOverdue, overdueTime, todoId, user['sub']]);
+  stmt2.dispose();
+  db.dispose();
+
+  return jsonResponse({
+    'result': 'success',
+    'was_overdue': wasOverdue,
+    'overdue_time': overdueTime,
+    'focused_time': ft,
+  });
+}
+
+void main(List<String> args) async {
+  final ip = InternetAddress.anyIPv4;
+  final port = int.tryParse(Platform.environment['PORT'] ?? '5000') ?? 5000;
+
+  final router = Router();
+
+  router.get('/api/todos', (Request request) => apiTodos(request));
+  router.post('/add', (Request request) => addTodo(request));
+  router.post('/delete', (Request request) => deleteTodo(request));
+  router.post('/toggle', (Request request) => toggleTodo(request));
+  router.post('/update', (Request request) => updateTodo(request));
+  router.post(
+    '/update_focus_time',
+    (Request request) => updateFocusTime(request),
+  );
+  router.get('/health', (Request request) => jsonResponse({'status': 'ok'}));
+
+  final handler =
+      const Pipeline().addMiddleware(logRequests()).addHandler(router);
+
+  final server = await io.serve(handler, ip, port);
+  print('Server listening on http://${server.address.host}:${server.port}');
+}
+</file>
+
 <file path="flutter_app/lib/models/task_timer_state.dart">
 class TaskTimerState {
   final String? taskId;
@@ -10761,6 +10659,80 @@ class TaskTimerState {
       isProgressBarFull: j['isProgressBarFull'] ?? false,
       allSessionsComplete: j['allSessionsComplete'] ?? false,
     );
+  }
+}
+</file>
+
+<file path="flutter_app/lib/models/todo.dart">
+class Todo {
+  final int id;
+  final String userId;
+  final String text;
+  final bool completed;
+  final int durationHours;
+  final int durationMinutes;
+  final int focusedTime;
+  final int wasOverdue;
+  final int overdueTime;
+
+  Todo({
+    required this.id,
+    required this.userId,
+    required this.text,
+    required this.completed,
+    required this.durationHours,
+    required this.durationMinutes,
+    required this.focusedTime,
+    required this.wasOverdue,
+    required this.overdueTime,
+  });
+
+  factory Todo.fromJson(Map<String, dynamic> j) {
+    return Todo(
+      id: j['id'] is int ? j['id'] : int.parse('${j['id']}'),
+      userId: j['user_id'] ?? j['userId'] ?? '',
+      text: j['text'] ?? '',
+      completed: (j['completed'] == 1 || j['completed'] == true),
+      durationHours: j['duration_hours'] != null
+          ? (j['duration_hours'] is int
+                ? j['duration_hours']
+                : int.parse('${j['duration_hours']}'))
+          : 0,
+      durationMinutes: j['duration_minutes'] != null
+          ? (j['duration_minutes'] is int
+                ? j['duration_minutes']
+                : int.parse('${j['duration_minutes']}'))
+          : 0,
+      focusedTime: j['focused_time'] != null
+          ? (j['focused_time'] is int
+                ? j['focused_time']
+                : int.parse('${j['focused_time']}'))
+          : 0,
+      wasOverdue: j['was_overdue'] != null
+          ? (j['was_overdue'] is int
+                ? j['was_overdue']
+                : int.parse('${j['was_overdue']}'))
+          : 0,
+      overdueTime: j['overdue_time'] != null
+          ? (j['overdue_time'] is int
+                ? j['overdue_time']
+                : int.parse('${j['overdue_time']}'))
+          : 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'text': text,
+      'completed': completed ? 1 : 0,
+      'duration_hours': durationHours,
+      'duration_minutes': durationMinutes,
+      'focused_time': focusedTime,
+      'was_overdue': wasOverdue,
+      'overdue_time': overdueTime,
+    };
   }
 }
 </file>
@@ -10869,238 +10841,6 @@ class AuthService {
     await _googleSignIn.initialize();
     final t = await _secure.read(key: 'server_token');
     if (t != null) api.setAuthToken(t);
-  }
-}
-</file>
-
-<file path="flutter_app/lib/services/pomodoro_controller.dart">
-import 'dart:async';
-
-import 'package:flutter/foundation.dart';
-
-enum PomodoroMode { focus, breakMode }
-
-/// A lightweight Pomodoro controller. Designed to be UI-agnostic and testable.
-class PomodoroController extends ChangeNotifier {
-  // Public state
-  int activeTaskId = -1;
-  PomodoroMode mode = PomodoroMode.focus;
-  bool isRunning = false;
-  int timeRemaining = 0; // seconds
-  int currentCycle = 1;
-  int totalCycles = 4;
-
-  // Durations (seconds)
-  int focusDuration = 25 * 60;
-  int breakDuration = 5 * 60;
-
-  // Planned duration and server-known focused time (seconds)
-  int plannedDurationSeconds = 0;
-  int _serverKnownFocusedSeconds = 0;
-
-  // Callbacks consumers can attach
-  /// Called when a focus segment completes (or is paused) with number of seconds to add.
-  void Function(int taskId, int addedSeconds)? onFocusSegmentComplete;
-
-  /// Called when a task becomes overdue (total focused >= plannedDurationSeconds)
-  void Function(int taskId)? onOverdue;
-
-  /// Called on session transitions (focus->break, break->focus)
-  void Function(PomodoroMode newMode)? onSessionTransition;
-
-  Timer? _ticker;
-  DateTime? _focusStart;
-  // previously used for run-accumulation; removed to satisfy analyzer
-
-  PomodoroController();
-
-  @override
-  void dispose() {
-    _stopTicker();
-    super.dispose();
-  }
-
-  void _startTicker() {
-    if (_ticker != null) return;
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
-  }
-
-  void _stopTicker() {
-    _ticker?.cancel();
-    _ticker = null;
-  }
-
-  void _tick() {
-    if (!isRunning) return;
-    timeRemaining = (timeRemaining - 1).clamp(0, 24 * 3600);
-    notifyListeners();
-    if (timeRemaining <= 0) {
-      // session ended
-      if (mode == PomodoroMode.focus) {
-        _handleFocusEnd(fullSession: true);
-      } else {
-        _handleBreakEnd();
-      }
-    }
-  }
-
-  /// Start or resume a Pomodoro session for a task.
-  /// [initialFocusedSeconds] is the current focused_time known on server so we can detect overdue correctly.
-  void start(
-    int taskId, {
-    int? focusSec,
-    int? breakSec,
-    int? cycles,
-    int plannedDurationSec = 0,
-    int initialFocusedSeconds = 0,
-  }) {
-    // If switching tasks, reset run-accumulators
-    if (activeTaskId != taskId) {
-      currentCycle = 1;
-      mode = PomodoroMode.focus;
-    }
-    activeTaskId = taskId;
-    focusDuration = focusSec ?? focusDuration;
-    breakDuration = breakSec ?? breakDuration;
-    totalCycles = cycles ?? totalCycles;
-    plannedDurationSeconds = plannedDurationSec;
-    _serverKnownFocusedSeconds = initialFocusedSeconds;
-
-    if (mode == PomodoroMode.focus) {
-      timeRemaining = timeRemaining > 0 ? timeRemaining : focusDuration;
-      _focusStart ??= DateTime.now();
-    } else {
-      timeRemaining = timeRemaining > 0 ? timeRemaining : breakDuration;
-    }
-
-    isRunning = true;
-    _startTicker();
-    notifyListeners();
-  }
-
-  /// Pause the timer and flush any partial focus seconds
-  Future<void> pause() async {
-    if (!isRunning) return;
-    isRunning = false;
-    _stopTicker();
-    // If we were in focus mode, compute elapsed since _focusStart
-    if (mode == PomodoroMode.focus && _focusStart != null) {
-      final elapsed = DateTime.now().difference(_focusStart!).inSeconds;
-      final added = elapsed.clamp(0, focusDuration - (timeRemaining));
-      if (added > 0) {
-        _serverKnownFocusedSeconds += added;
-        onFocusSegmentComplete?.call(activeTaskId, added);
-        // Overdue detection
-        if (plannedDurationSeconds > 0 &&
-            _serverKnownFocusedSeconds >= plannedDurationSeconds) {
-          onOverdue?.call(activeTaskId);
-        }
-      }
-    }
-    _focusStart = null;
-    notifyListeners();
-  }
-
-  void _handleFocusEnd({bool fullSession = false}) {
-    // compute added seconds: if fullSession true we add the remaining focusDuration,
-    // else compute from _focusStart
-    int added = 0;
-    if (fullSession) {
-      added = focusDuration - (timeRemaining < 0 ? 0 : 0);
-      // safer: assume full focusDuration elapsed
-      added = focusDuration;
-    } else if (_focusStart != null) {
-      added = DateTime.now().difference(_focusStart!).inSeconds;
-    }
-    added = added.clamp(0, focusDuration);
-    _serverKnownFocusedSeconds += added;
-    onFocusSegmentComplete?.call(activeTaskId, added);
-
-    // Check overdue
-    if (plannedDurationSeconds > 0 &&
-        _serverKnownFocusedSeconds >= plannedDurationSeconds) {
-      onOverdue?.call(activeTaskId);
-    }
-
-    // move to break
-    mode = PomodoroMode.breakMode;
-    timeRemaining = breakDuration;
-    _focusStart = null;
-    notifyListeners();
-    onSessionTransition?.call(mode);
-  }
-
-  void _handleBreakEnd() {
-    // finished a break, move to next cycle
-    currentCycle = (currentCycle + 1).clamp(1, totalCycles);
-    mode = PomodoroMode.focus;
-    timeRemaining = focusDuration;
-    _focusStart = DateTime.now();
-    notifyListeners();
-    onSessionTransition?.call(mode);
-    // If we've reached total cycles, stop
-    if (currentCycle > totalCycles) {
-      // finalize
-      isRunning = false;
-      _stopTicker();
-      notifyListeners();
-    }
-  }
-
-  /// Skip the current session and start the next
-  Future<void> skip() async {
-    if (mode == PomodoroMode.focus) {
-      // flush partial focus seconds (computed by elapsed)
-      if (_focusStart != null) {
-        final elapsed = DateTime.now().difference(_focusStart!).inSeconds;
-        final added = elapsed.clamp(0, focusDuration - (timeRemaining));
-        if (added > 0) {
-          _serverKnownFocusedSeconds += added;
-          onFocusSegmentComplete?.call(activeTaskId, added);
-          if (plannedDurationSeconds > 0 &&
-              _serverKnownFocusedSeconds >= plannedDurationSeconds) {
-            onOverdue?.call(activeTaskId);
-          }
-        }
-      }
-      // switch to break
-      mode = PomodoroMode.breakMode;
-      timeRemaining = breakDuration;
-      _focusStart = null;
-      // Auto-start next session
-      isRunning = true;
-      _startTicker();
-      notifyListeners();
-      onSessionTransition?.call(mode);
-    } else {
-      // skip break -> focus
-      mode = PomodoroMode.focus;
-      timeRemaining = focusDuration;
-      _focusStart = DateTime.now();
-      // Auto-start next session
-      isRunning = true;
-      _startTicker();
-      notifyListeners();
-      onSessionTransition?.call(mode);
-    }
-  }
-
-  /// Reset the current run: stop timer and set timeRemaining back to focus duration.
-  /// Returns the number of seconds that were part of the partial focus (if any) — caller may subtract this from server value.
-  int reset() {
-    int partial = 0;
-    if (mode == PomodoroMode.focus && _focusStart != null) {
-      partial = DateTime.now().difference(_focusStart!).inSeconds;
-      partial = partial.clamp(0, focusDuration);
-    }
-    isRunning = false;
-    _stopTicker();
-    mode = PomodoroMode.focus;
-    timeRemaining = focusDuration;
-    _focusStart = null;
-    // reset any partial-run accumulation (no-op without accumulator)
-    notifyListeners();
-    return partial;
   }
 }
 </file>
@@ -15303,456 +15043,6 @@ I/flutter (18177): PROGRESS_BAR: focused=3 planned=60 progress=0.05
 I/flutter (18177): PROGRESS_BAR_UI: maxWidth=334.85714285714283, progress=0.05, calculatedWidth=16.742857142857144, maxHeight=12.0
 </file>
 
-<file path=".github/copilot-instructions.md">
-# Follow these suggestions always 
-
-# MAIN RULE - MUST FOLLOW - always run the temrinal command 
-    afplay "/Users/pustak/Documents/VS code projects/Todoapp flutter copy gemini code/static/sounds/Focus timer start.wav" 
-    When you FINISH your response. RUN THIS IN THE PROJECT'S TERMINAL WIHTOUT ASKING USER FOR PERMISSION  
-
-# General debug rule : 
-    Whenever you are building a new feature in the app always add debugging code that shows up in the DEBUG CONSOLE in the IDE (VS CODE) [it should NOT show in my app GUI though] - which will give you good information of how the features are working or not (for debugging purpose) 
-
-
-
-# SEELCTIVE FIXING OF ERRORS
-Only fix the most importnat errors after running flutter analzye - only the ones that are marked as ERROR - not the ones marked as WARNING - those can be fixed later and only the ERROS that won't let the app run (I donot want the error - there are still errors in your file while I run the app)
-</file>
-
-<file path="flutter_app/lib/widgets/pomodoro_bottom_sheet.dart">
-import 'package:flutter/material.dart';
-import '../models/todo.dart';
-import '../services/pomodoro_controller.dart';
-import '../theme/app_colors.dart';
-
-class PomodoroBottomSheet extends StatelessWidget {
-  final Todo todo;
-  final PomodoroController controller;
-  final Future<void> Function(int taskId, int addedSeconds) onFlushToServer;
-
-  const PomodoroBottomSheet({
-    required this.todo,
-    required this.controller,
-    required this.onFlushToServer,
-    super.key,
-  });
-
-  String _format(int seconds) {
-    final m = (seconds ~/ 60).toString().padLeft(2, '0');
-    final s = (seconds % 60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (ctx, _) {
-        final ctl = controller;
-        return Container(
-          padding: const EdgeInsets.all(8),
-          decoration: const BoxDecoration(
-            color: AppColors.cardBg,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 48,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.midGray,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Styled task title with yellow outline
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.brightYellow, width: 1.5),
-                  borderRadius: BorderRadius.circular(12.0),
-                ),
-                child: Text(
-                  todo.text,
-                  style: const TextStyle(
-                    color: AppColors.brightYellow,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                ctl.mode == PomodoroMode.focus ? 'Focus' : 'Break',
-                style: const TextStyle(color: AppColors.lightGray),
-              ),
-              const SizedBox(height: 8),
-              IntrinsicWidth(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: ctl.isRunning
-                          ? (ctl.mode == PomodoroMode.focus
-                                ? Colors.redAccent
-                                : Colors.greenAccent)
-                          : Colors.transparent,
-                      width: 3.0,
-                    ),
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  child: Padding(
-                    // a small breathing room on all sides
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10.0,
-                      vertical: 6.0,
-                    ),
-                    child: Transform.translate(
-                      offset: const Offset(0, -3),
-                      child: Text(
-                        _format(ctl.timeRemaining),
-                        style: const TextStyle(
-                          color: AppColors.lightGray,
-                          fontSize: 48,
-                          fontWeight: FontWeight.w800,
-                          height: 1.0,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton(
-                    onPressed: ctl.isRunning
-                        ? () async {
-                            await ctl.pause();
-                          }
-                        : () async {
-                            ctl.start(
-                              todo.id,
-                              focusSec: ctl.focusDuration,
-                              breakSec: ctl.breakDuration,
-                              cycles: ctl.totalCycles,
-                              plannedDurationSec:
-                                  (todo.durationHours * 3600) +
-                                  (todo.durationMinutes * 60),
-                              initialFocusedSeconds: todo.focusedTime,
-                            );
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.brightYellow,
-                      elevation: 6,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 14,
-                      ),
-                    ),
-                    child: Text(
-                      ctl.isRunning ? 'Pause' : 'Start',
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  OutlinedButton(
-                    onPressed: () async {
-                      await ctl.skip();
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(
-                        color: AppColors.brightYellow,
-                        width: 1.5,
-                      ),
-                      foregroundColor: AppColors.brightYellow,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
-                    child: const Text('Skip'),
-                  ),
-                  const SizedBox(width: 12),
-                  OutlinedButton(
-                    onPressed: () async {
-                      final partial = ctl.reset();
-                      if (partial > 0) {
-                        await onFlushToServer(todo.id, partial);
-                      }
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(
-                        color: AppColors.brightYellow,
-                        width: 1.5,
-                      ),
-                      foregroundColor: AppColors.brightYellow,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
-                    child: const Text('Reset'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-</file>
-
-<file path="flutter_app/lib/services/api_service.dart">
-import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
-
-// For local development the Dart backend accepts a simple header 'x-user-id'
-// to simulate a logged-in user (the original Flask app used OAuth). When the
-// ApiService is constructed with a local baseUrl we add that header so the
-// client can talk to the Dart server without an OAuth flow.
-
-class ApiService {
-  final Dio _dio;
-
-  ApiService(String baseUrl)
-    : _dio = Dio(
-        BaseOptions(
-          baseUrl: baseUrl,
-          connectTimeout: const Duration(seconds: 5),
-        ),
-      ) {
-    final lower = baseUrl.toLowerCase();
-    if (lower.contains('127.0.0.1') ||
-        lower.contains('localhost') ||
-        lower.contains('10.0.2.2')) {
-      // default dev user id
-      _dio.options.headers['x-user-id'] = 'dev';
-    }
-  }
-
-  void setAuthToken(String? token) {
-    if (token != null) {
-      _dio.options.headers['Authorization'] = 'Bearer $token';
-    } else {
-      _dio.options.headers.remove('Authorization');
-    }
-  }
-
-  Future<Map<String, dynamic>> authWithIdToken(String idToken) async {
-    final resp = await _dio.post('/api/auth', data: {'id_token': idToken});
-    return resp.data as Map<String, dynamic>;
-  }
-
-  Future<List<dynamic>> fetchTodos() async {
-    final resp = await _dio.get('/api/todos');
-    return resp.data as List<dynamic>;
-  }
-
-  Future<dynamic> addTodo(String text, int hours, int minutes) async {
-    final resp = await _dio.post(
-      '/add',
-      data: {
-        'text': text,
-        'duration_hours': hours,
-        'duration_minutes': minutes,
-      },
-    );
-    // log server response for debugging duplicate issues
-    try {
-      if (kDebugMode) debugPrint('ApiService.addTodo response: ${resp.data}');
-    } catch (_) {}
-    return resp.data;
-  }
-
-  Future<dynamic> deleteTodo(int id) async {
-    final resp = await _dio.post('/delete', data: {'id': id});
-    return resp.data;
-  }
-
-  Future<dynamic> updateTodo(
-    int id, {
-    String? text,
-    int? hours,
-    int? minutes,
-  }) async {
-    final Map<String, dynamic> data = {'id': id};
-    if (text != null) data['text'] = text;
-    if (hours != null) data['duration_hours'] = hours;
-    if (minutes != null) data['duration_minutes'] = minutes;
-    final resp = await _dio.post('/update', data: data);
-    return resp.data;
-  }
-
-  Future<dynamic> toggleTodo(int id) async {
-    final resp = await _dio.post('/toggle', data: {'id': id});
-    return resp.data;
-  }
-
-  Future<dynamic> updateFocusTime(int id, int focusedTime) async {
-    final resp = await _dio.post(
-      '/update_focus_time',
-      data: {'id': id, 'focused_time': focusedTime},
-    );
-    return resp.data;
-  }
-}
-</file>
-
-<file path="flutter_app/lib/main.dart">
-import 'package:flutter/material.dart';
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'models/todo.dart';
-import 'services/api_service.dart';
-import 'services/auth_service.dart';
-import 'services/local_timer_store.dart';
-import 'screens/login_screen.dart';
-import 'screens/todo_list_screen.dart';
-import 'theme/app_colors.dart';
-import 'services/notification_service.dart';
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  final notificationService = NotificationService();
-  await notificationService.init();
-  // Allow overriding the API host at build/run time with --dart-define=API_BASE_URL
-  const envBase = String.fromEnvironment('API_BASE_URL', defaultValue: '');
-  String chooseBaseUrl() {
-    if (envBase.isNotEmpty) return envBase;
-    // Android emulator -> host machine is reachable at 10.0.2.2
-    if (Platform.isAndroid) return 'http://10.0.2.2:5000';
-    // iOS simulator and other platforms can use localhost
-    return 'http://127.0.0.1:5000';
-  }
-
-  final baseUrl = chooseBaseUrl();
-  // show chosen base for easier debugging during development
-  if (kDebugMode) debugPrint('Using API baseUrl: $baseUrl');
-  final api = ApiService(baseUrl);
-  final auth = AuthService(api);
-  await auth.loadSavedToken();
-  runApp(MyApp(api: api, auth: auth, notificationService: notificationService));
-}
-
-class MyApp extends StatelessWidget {
-  final ApiService? api;
-  final AuthService? auth;
-  final NotificationService? notificationService;
-  const MyApp({this.api, this.auth, this.notificationService, super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final ApiService apiClient = api ?? ApiService('http://127.0.0.1:5000');
-    final AuthService authService = auth ?? AuthService(apiClient);
-    final NotificationService notificationManager =
-        notificationService ?? NotificationService();
-    return MaterialApp(
-      title: 'Todo Flutter',
-      theme: ThemeData.dark().copyWith(
-        primaryColor: AppColors.brightYellow,
-        scaffoldBackgroundColor: AppColors.scaffoldBg,
-        textTheme: GoogleFonts.interTextTheme(
-          ThemeData.dark().textTheme,
-        ).apply(bodyColor: AppColors.lightGray),
-      ),
-      initialRoute: '/todos',
-      routes: {
-        '/': (c) => HomeScreen(api: apiClient, auth: authService),
-        '/login': (c) => LoginScreen(api: apiClient, auth: authService),
-        '/todos': (c) => TodoListScreen(
-          api: apiClient,
-          auth: authService,
-          notificationService: notificationManager,
-        ),
-      },
-    );
-  }
-}
-
-class HomeScreen extends StatefulWidget {
-  final ApiService api;
-  final AuthService auth;
-  const HomeScreen({required this.api, required this.auth, super.key});
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  final LocalTimerStore _store = LocalTimerStore();
-  List<Todo> todos = [];
-
-  @override
-  void initState() {
-    super.initState();
-    // Load persisted task timer states (keeps _store referenced so analyzer won't warn).
-    _store.loadAll().then(
-      (m) => debugPrint('Loaded \${m.length} timer states'),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('To-Do App (Flutter)'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.login),
-            onPressed: () async {
-              // Sign-in flow to be implemented: Google Sign-In + backend exchange.
-              showDialog(
-                context: context,
-                builder: (_) => AlertDialog(
-                  title: const Text('Sign-in'),
-                  content: const Text(
-                    'Sign-in flow not implemented in scaffold yet.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('OK'),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: const Center(
-        child: Text('Flutter skeleton created — next: implement UI & logic'),
-      ),
-    );
-  }
-}
-</file>
-
 <file path="app.py">
 from flask import Flask, render_template, session, redirect, url_for, request, jsonify
 from authlib.integrations.flask_client import OAuth
@@ -16077,274 +15367,6 @@ if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
 </file>
 
-<file path="flutter_app/lib/services/timer_service.dart">
-import 'package:flutter/foundation.dart';
-import 'dart:async';
-
-class TimerService extends ChangeNotifier {
-  TimerService._();
-  static final TimerService instance = TimerService._();
-
-  String? activeTaskName;
-  int timeRemaining = 0; // seconds
-  bool isRunning = false;
-  bool isTimerActive = false; // whether mini-bar should show
-  String currentMode = 'focus';
-  int? plannedDurationSeconds;
-  // Session (focus/break) durations so mini-bar ticker can handle transitions
-  int? focusDurationSeconds;
-  int? breakDurationSeconds;
-  int currentCycle = 1;
-  int totalCycles = 1;
-  // Name of a task that just crossed its planned duration and requires prompting
-  String? overdueCrossedTaskName;
-  // Track which tasks have already had the overdue prompt shown so we don't spam the user
-  final Set<String> _overduePromptShown = {};
-  // Track tasks for which the user chose to continue working when overdue
-  final Set<String> _overdueContinued = {};
-  Timer? _ticker;
-  // cache of latest focused time per task (seconds) for UI sync
-  final Map<String, int> _focusedTimeCache = {};
-
-  void update({
-    String? taskName,
-    int? remaining,
-    bool? running,
-    bool? active,
-    int? plannedDuration,
-    String? mode,
-    int? focusDuration,
-    int? breakDuration,
-    int? setTotalCycles,
-    int? setCurrentCycle,
-  }) {
-    if (kDebugMode) {
-      debugPrint(
-        'TIMER SERVICE: update() called with -> taskName:$taskName remaining:$remaining running:$running active:$active mode:$mode planned:$plannedDuration',
-      );
-      debugPrint(
-        'TIMER SERVICE: before -> activeTaskName:$activeTaskName timeRemaining:$timeRemaining isRunning:$isRunning isTimerActive:$isTimerActive currentMode:$currentMode',
-      );
-    }
-    var changed = false;
-    if (taskName != null && taskName != activeTaskName) {
-      activeTaskName = taskName;
-      changed = true;
-    }
-    if (remaining != null && remaining != timeRemaining) {
-      timeRemaining = remaining;
-      changed = true;
-    }
-    // Only update running state if explicitly set (not during view transitions)
-    if (running != null && running != isRunning) {
-      isRunning = running;
-      changed = true;
-    }
-    if (active != null && active != isTimerActive) {
-      isTimerActive = active;
-      // Do not affect the running state when just toggling active state
-      changed = true;
-    }
-    if (mode != null && mode != currentMode) {
-      currentMode = mode;
-      changed = true;
-    }
-    if (plannedDuration != null && plannedDuration != plannedDurationSeconds) {
-      plannedDurationSeconds = plannedDuration;
-      changed = true;
-    }
-    if (focusDuration != null && focusDuration != focusDurationSeconds) {
-      focusDurationSeconds = focusDuration;
-      changed = true;
-    }
-    if (breakDuration != null && breakDuration != breakDurationSeconds) {
-      breakDurationSeconds = breakDuration;
-      changed = true;
-    }
-    if (setTotalCycles != null && setTotalCycles != totalCycles) {
-      totalCycles = setTotalCycles;
-      changed = true;
-    }
-    if (setCurrentCycle != null && setCurrentCycle != currentCycle) {
-      currentCycle = setCurrentCycle;
-      changed = true;
-    }
-    if (changed) {
-      notifyListeners();
-    }
-    if (changed && kDebugMode) {
-      debugPrint(
-        'TIMER SERVICE: state changed -> activeTaskName:$activeTaskName timeRemaining:$timeRemaining isRunning:$isRunning isTimerActive:$isTimerActive currentMode:$currentMode',
-      );
-    }
-    // Only manage ticker when running state explicitly changes
-    if (running != null) {
-      _manageTicker();
-    }
-  }
-
-  bool hasOverduePromptBeenShown(String taskName) {
-    return _overduePromptShown.contains(taskName);
-  }
-
-  void markOverduePromptShown(String taskName) {
-    if (taskName.isEmpty) return;
-    _overduePromptShown.add(taskName);
-    // clear the crossed marker if it matches
-    if (overdueCrossedTaskName == taskName) overdueCrossedTaskName = null;
-    notifyListeners();
-  }
-
-  bool hasUserContinuedOverdue(String taskName) {
-    return _overdueContinued.contains(taskName);
-  }
-
-  void markUserContinuedOverdue(String taskName) {
-    if (taskName.isEmpty) return;
-    _overdueContinued.add(taskName);
-    // also mark prompt shown so we won't show it again
-    _overduePromptShown.add(taskName);
-    notifyListeners();
-  }
-
-  void toggleRunning() {
-    isRunning = !isRunning;
-    if (kDebugMode) {
-      debugPrint('TIMER SERVICE: toggleRunning -> isRunning=$isRunning');
-    }
-    notifyListeners();
-    _manageTicker();
-  }
-
-  void _manageTicker() {
-    // If the mini-bar should be active and running, start a local ticker.
-    if (isTimerActive && isRunning) {
-      _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) {
-        if (_ticker != null && kDebugMode) {
-          // This debug print confirms the ticker is running
-          debugPrint('TIMER SERVICE: starting internal ticker (mini-bar mode)');
-        }
-        if (timeRemaining > 0) {
-          timeRemaining -= 1;
-          // Also increment focused time if in focus mode
-          if (currentMode == 'focus' && activeTaskName != null) {
-            final taskName = activeTaskName!;
-            final currentFocus = _focusedTimeCache[taskName] ?? 0;
-            _focusedTimeCache[taskName] = currentFocus + 1;
-            final totalFocusedTime = _focusedTimeCache[taskName] ?? 0;
-
-            // Check for overdue condition while running in mini-bar
-            if (plannedDurationSeconds != null &&
-                plannedDurationSeconds! > 0 &&
-                totalFocusedTime >= plannedDurationSeconds!) {
-              if (kDebugMode) {
-                debugPrint(
-                  'TIMER SERVICE: Task crossed planned duration (mini-bar). marking for prompt.',
-                );
-              }
-              // Mark the crossed task; don't toggle running here — let UI decide how to prompt.
-              overdueCrossedTaskName = taskName;
-              notifyListeners();
-              return;
-            }
-            if (kDebugMode) {
-              debugPrint(
-                'TIMER SERVICE: internal tick -> timeRemaining=$timeRemaining, focused=${_focusedTimeCache[taskName]}',
-              );
-            }
-          } else if (kDebugMode) {
-            debugPrint(
-              'TIMER SERVICE: internal tick -> timeRemaining=$timeRemaining',
-            );
-          }
-          notifyListeners();
-        } else {
-          // timeRemaining == 0
-          // Handle automatic transition instead of clearing to avoid restart loop
-          if (currentMode == 'focus' && breakDurationSeconds != null) {
-            // Transition to break
-            currentMode = 'break';
-            timeRemaining = breakDurationSeconds!;
-            currentCycle +=
-                1; // increment cycle after a focus session completes
-            if (kDebugMode) {
-              debugPrint(
-                'TIMER SERVICE: focus session complete -> switching to BREAK (cycle=$currentCycle/$totalCycles)',
-              );
-            }
-            notifyListeners();
-            return; // next tick will count down break
-          } else if (currentMode == 'break' && focusDurationSeconds != null) {
-            // Transition back to focus
-            currentMode = 'focus';
-            timeRemaining = focusDurationSeconds!;
-            if (kDebugMode) {
-              debugPrint(
-                'TIMER SERVICE: break complete -> switching to FOCUS (cycle=$currentCycle/$totalCycles)',
-              );
-            }
-            notifyListeners();
-            return;
-          } else {
-            if (kDebugMode) {
-              debugPrint(
-                'TIMER SERVICE: no durations to transition, clearing.',
-              );
-            }
-            clear();
-          }
-        }
-      });
-    } else {
-      if (_ticker != null && kDebugMode) {
-        debugPrint(
-          'TIMER SERVICE: stopping internal ticker (mini-bar inactive or paused)',
-        );
-      }
-      _ticker?.cancel();
-      _ticker = null;
-    }
-  }
-
-  void clear() {
-    if (kDebugMode) {
-      debugPrint(
-        'TIMER SERVICE: clear() called - resetting central timer state',
-      );
-    }
-    activeTaskName = null;
-    timeRemaining = 0;
-    isRunning = false;
-    isTimerActive = false;
-    currentMode = 'focus';
-    plannedDurationSeconds = null;
-    notifyListeners();
-  }
-
-  // Focused time cache helpers - used to sync progress across UI without
-  // requiring immediate backend refresh.
-  void setFocusedTime(String taskName, int seconds) {
-    if (taskName.isEmpty) return;
-    final prev = _focusedTimeCache[taskName];
-    _focusedTimeCache[taskName] = seconds;
-    if (kDebugMode) {
-      debugPrint(
-        'TIMER SERVICE: setFocusedTime -> $taskName : $prev -> $seconds',
-      );
-    }
-    notifyListeners();
-  }
-
-  int? getFocusedTime(String taskName) {
-    final v = _focusedTimeCache[taskName];
-    if (kDebugMode) {
-      debugPrint('TIMER SERVICE: getFocusedTime($taskName) -> $v');
-    }
-    return v;
-  }
-}
-</file>
-
 <file path="flutter_app/lib/widgets/mini_timer_bar.dart">
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -16625,6 +15647,744 @@ Future<void> _showOverduePromptFromMiniBar(
     try {
       TimerService.instance.markUserContinuedOverdue(taskName);
     } catch (_) {}
+  }
+}
+</file>
+
+<file path="backend/server.pid">
+34523
+</file>
+
+<file path="flutter_app/lib/services/api_service.dart">
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+
+// For local development the Dart backend accepts a simple header 'x-user-id'
+// to simulate a logged-in user (the original Flask app used OAuth). When the
+// ApiService is constructed with a local baseUrl we add that header so the
+// client can talk to the Dart server without an OAuth flow.
+
+class ApiService {
+  final Dio _dio;
+  // configurable retry attempts for transient connection errors (e.g. server
+  // not up yet). Keep small to avoid long UI stalls.
+  final int _maxRetries = 3;
+  final Duration _retryDelay = const Duration(milliseconds: 500);
+
+  ApiService(String baseUrl)
+    : _dio = Dio(
+        BaseOptions(
+          baseUrl: baseUrl,
+          connectTimeout: const Duration(seconds: 5),
+        ),
+      ) {
+    final lower = baseUrl.toLowerCase();
+    if (lower.contains('127.0.0.1') ||
+        lower.contains('localhost') ||
+        lower.contains('10.0.2.2')) {
+      // default dev user id
+      _dio.options.headers['x-user-id'] = 'dev';
+    }
+  }
+
+  void setAuthToken(String? token) {
+    if (token != null) {
+      _dio.options.headers['Authorization'] = 'Bearer $token';
+    } else {
+      _dio.options.headers.remove('Authorization');
+    }
+  }
+
+  Future<Map<String, dynamic>> authWithIdToken(String idToken) async {
+    final resp = await _dio.post('/api/auth', data: {'id_token': idToken});
+    return resp.data as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> fetchTodos() async {
+    final resp = await _withRetry(() => _dio.get('/api/todos'));
+    return resp.data as List<dynamic>;
+  }
+
+  Future<dynamic> addTodo(String text, int hours, int minutes) async {
+    final resp = await _withRetry(
+      () => _dio.post(
+        '/add',
+        data: {
+          'text': text,
+          'duration_hours': hours,
+          'duration_minutes': minutes,
+        },
+      ),
+    );
+    // log server response for debugging duplicate issues
+    try {
+      if (kDebugMode) debugPrint('ApiService.addTodo response: ${resp.data}');
+    } catch (_) {}
+    return resp.data;
+  }
+
+  Future<dynamic> deleteTodo(int id) async {
+    final resp = await _withRetry(() => _dio.post('/delete', data: {'id': id}));
+    return resp.data;
+  }
+
+  Future<dynamic> updateTodo(
+    int id, {
+    String? text,
+    int? hours,
+    int? minutes,
+  }) async {
+    final Map<String, dynamic> data = {'id': id};
+    if (text != null) data['text'] = text;
+    if (hours != null) data['duration_hours'] = hours;
+    if (minutes != null) data['duration_minutes'] = minutes;
+    final resp = await _dio.post('/update', data: data);
+    return resp.data;
+  }
+
+  Future<dynamic> toggleTodo(int id) async {
+    final resp = await _withRetry(() => _dio.post('/toggle', data: {'id': id}));
+    return resp.data;
+  }
+
+  Future<dynamic> updateFocusTime(int id, int focusedTime) async {
+    final resp = await _withRetry(
+      () => _dio.post(
+        '/update_focus_time',
+        data: {'id': id, 'focused_time': focusedTime},
+      ),
+    );
+    return resp.data;
+  }
+
+  // Generic retry wrapper to soften initial startup race where the backend
+  // server process might not yet be listening and Dio throws a connection
+  // error (SocketException: Connection refused). Only retries for connection
+  // level errors, not for HTTP status codes.
+  Future<Response<dynamic>> _withRetry(
+    Future<Response<dynamic>> Function() fn,
+  ) async {
+    int attempt = 0;
+    while (true) {
+      try {
+        return await fn();
+      } on DioException catch (e) {
+        final isConnError =
+            e.type == DioExceptionType.connectionError ||
+            e.error is Error ||
+            (e.message?.toLowerCase().contains('connection refused') ?? false);
+        if (!isConnError || attempt >= _maxRetries - 1) {
+          if (kDebugMode) {
+            debugPrint(
+              'ApiService retry aborted (attempt ${attempt + 1}/$_maxRetries). Error: $e',
+            );
+          }
+          rethrow;
+        }
+        attempt++;
+        if (kDebugMode) {
+          debugPrint(
+            'ApiService transient connection error, retrying ($attempt/$_maxRetries) in ${_retryDelay.inMilliseconds}ms ...',
+          );
+        }
+        await Future.delayed(_retryDelay);
+      }
+    }
+  }
+}
+</file>
+
+<file path="flutter_app/lib/main.dart">
+import 'package:flutter/material.dart';
+import 'dart:io'
+    show Platform, HttpClient; // Added HttpClient for backend readiness check
+import 'package:flutter/foundation.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'models/todo.dart';
+import 'services/api_service.dart';
+import 'services/auth_service.dart';
+import 'services/local_timer_store.dart';
+import 'screens/login_screen.dart';
+import 'screens/todo_list_screen.dart';
+import 'theme/app_colors.dart';
+import 'services/notification_service.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final notificationService = NotificationService();
+  await notificationService.init();
+  // Allow overriding the API host at build/run time with --dart-define=API_BASE_URL
+  const envBase = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+  String chooseBaseUrl() {
+    if (envBase.isNotEmpty) return envBase;
+    // Android emulator -> host machine is reachable at 10.0.2.2
+    if (Platform.isAndroid) return 'http://10.0.2.2:5000';
+    // iOS simulator and other platforms can use localhost
+    return 'http://127.0.0.1:5000';
+  }
+
+  final baseUrl = chooseBaseUrl();
+  // show chosen base for easier debugging during development
+  if (kDebugMode) debugPrint('Using API baseUrl: $baseUrl');
+  // Dev-only: wait briefly for backend readiness (helps avoid connection refused race)
+  await _waitForBackend(baseUrl, attempts: 8, delayMs: 400);
+  final api = ApiService(baseUrl);
+  final auth = AuthService(api);
+  await auth.loadSavedToken();
+  runApp(MyApp(api: api, auth: auth, notificationService: notificationService));
+}
+
+// Simple readiness / liveness wait loop for local backend. Will not throw;
+// it only logs status to avoid blocking app start indefinitely.
+Future<void> _waitForBackend(
+  String baseUrl, {
+  int attempts = 5,
+  int delayMs = 500,
+}) async {
+  final lower = baseUrl.toLowerCase();
+  final isLocal =
+      lower.contains('127.0.0.1') ||
+      lower.contains('localhost') ||
+      lower.contains('10.0.2.2');
+  if (!isLocal) return; // Only applicable for local dev
+  if (kDebugMode) {
+    debugPrint('BACKEND WAIT: Checking backend readiness at $baseUrl');
+  }
+  final uri = Uri.parse('$baseUrl/health');
+  for (var i = 1; i <= attempts; i++) {
+    try {
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 2);
+      final req = await client.getUrl(uri);
+      final resp = await req.close();
+      if (resp.statusCode == 200) {
+        if (kDebugMode) {
+          debugPrint('BACKEND WAIT: Backend healthy (attempt $i/$attempts).');
+        }
+        client.close(force: true);
+        return;
+      } else {
+        if (kDebugMode) {
+          debugPrint(
+            'BACKEND WAIT: Unexpected status ${resp.statusCode} (attempt $i/$attempts)',
+          );
+        }
+      }
+      client.close(force: true);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('BACKEND WAIT: attempt $i/$attempts failed: $e');
+      }
+    }
+    await Future.delayed(Duration(milliseconds: delayMs));
+  }
+  if (kDebugMode) {
+    debugPrint(
+      'BACKEND WAIT: Proceeding without positive health confirmation.',
+    );
+  }
+}
+
+class MyApp extends StatelessWidget {
+  final ApiService? api;
+  final AuthService? auth;
+  final NotificationService? notificationService;
+  const MyApp({this.api, this.auth, this.notificationService, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final ApiService apiClient = api ?? ApiService('http://127.0.0.1:5000');
+    final AuthService authService = auth ?? AuthService(apiClient);
+    final NotificationService notificationManager =
+        notificationService ?? NotificationService();
+    return MaterialApp(
+      title: 'Todo Flutter',
+      theme: ThemeData.dark().copyWith(
+        primaryColor: AppColors.brightYellow,
+        scaffoldBackgroundColor: AppColors.scaffoldBg,
+        textTheme: GoogleFonts.interTextTheme(
+          ThemeData.dark().textTheme,
+        ).apply(bodyColor: AppColors.lightGray),
+      ),
+      initialRoute: '/todos',
+      routes: {
+        '/': (c) => HomeScreen(api: apiClient, auth: authService),
+        '/login': (c) => LoginScreen(api: apiClient, auth: authService),
+        '/todos': (c) => TodoListScreen(
+          api: apiClient,
+          auth: authService,
+          notificationService: notificationManager,
+        ),
+      },
+    );
+  }
+}
+
+class HomeScreen extends StatefulWidget {
+  final ApiService api;
+  final AuthService auth;
+  const HomeScreen({required this.api, required this.auth, super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final LocalTimerStore _store = LocalTimerStore();
+  List<Todo> todos = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Load persisted task timer states (keeps _store referenced so analyzer won't warn).
+    _store.loadAll().then(
+      (m) => debugPrint('Loaded \${m.length} timer states'),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('To-Do App (Flutter)'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.login),
+            onPressed: () async {
+              // Sign-in flow to be implemented: Google Sign-In + backend exchange.
+              showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('Sign-in'),
+                  content: const Text(
+                    'Sign-in flow not implemented in scaffold yet.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('OK'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      body: const Center(
+        child: Text('Flutter skeleton created — next: implement UI & logic'),
+      ),
+    );
+  }
+}
+</file>
+
+<file path="flutter_app/lib/services/timer_service.dart">
+import 'package:flutter/foundation.dart';
+import 'dart:async';
+
+class TimerService extends ChangeNotifier {
+  TimerService._();
+  static final TimerService instance = TimerService._();
+
+  String? activeTaskName;
+  int timeRemaining = 0; // seconds
+  bool isRunning = false;
+  bool isTimerActive = false; // whether mini-bar should show
+  String currentMode = 'focus';
+  int? plannedDurationSeconds;
+  // Session (focus/break) durations so mini-bar ticker can handle transitions
+  int? focusDurationSeconds;
+  int? breakDurationSeconds;
+  int currentCycle = 1;
+  int totalCycles = 1;
+  // Name of a task that just crossed its planned duration and requires prompting
+  String? overdueCrossedTaskName;
+  // Track which tasks have already had the overdue prompt shown so we don't spam the user
+  final Set<String> _overduePromptShown = {};
+  // Track tasks for which the user chose to continue working when overdue
+  final Set<String> _overdueContinued = {};
+  Timer? _ticker;
+  // cache of latest focused time per task (seconds) for UI sync
+  final Map<String, int> _focusedTimeCache = {};
+  // When true, the next attempt to auto-activate the mini-bar (after closing
+  // the full screen) will be suppressed. Used e.g. after progress bar full.
+  bool suppressNextActivation = false;
+
+  void update({
+    String? taskName,
+    int? remaining,
+    bool? running,
+    bool? active,
+    int? plannedDuration,
+    String? mode,
+    int? focusDuration,
+    int? breakDuration,
+    int? setTotalCycles,
+    int? setCurrentCycle,
+  }) {
+    if (kDebugMode) {
+      debugPrint(
+        'TIMER SERVICE: update() called with -> taskName:$taskName remaining:$remaining running:$running active:$active mode:$mode planned:$plannedDuration',
+      );
+      debugPrint(
+        'TIMER SERVICE: before -> activeTaskName:$activeTaskName timeRemaining:$timeRemaining isRunning:$isRunning isTimerActive:$isTimerActive currentMode:$currentMode',
+      );
+      logStateSnapshot('SNAPSHOT BEFORE MUTATIONS');
+    }
+    var changed = false;
+    if (taskName != null && taskName != activeTaskName) {
+      activeTaskName = taskName;
+      changed = true;
+    }
+    if (remaining != null && remaining != timeRemaining) {
+      timeRemaining = remaining;
+      changed = true;
+    }
+    // Only update running state if explicitly set (not during view transitions)
+    if (running != null && running != isRunning) {
+      isRunning = running;
+      changed = true;
+    }
+    if (active != null && active != isTimerActive) {
+      isTimerActive = active;
+      // Do not affect the running state when just toggling active state
+      changed = true;
+    }
+    if (mode != null && mode != currentMode) {
+      currentMode = mode;
+      changed = true;
+    }
+    if (plannedDuration != null && plannedDuration != plannedDurationSeconds) {
+      plannedDurationSeconds = plannedDuration;
+      changed = true;
+    }
+    if (focusDuration != null && focusDuration != focusDurationSeconds) {
+      focusDurationSeconds = focusDuration;
+      changed = true;
+    }
+    if (breakDuration != null && breakDuration != breakDurationSeconds) {
+      breakDurationSeconds = breakDuration;
+      changed = true;
+    }
+    if (setTotalCycles != null && setTotalCycles != totalCycles) {
+      totalCycles = setTotalCycles;
+      changed = true;
+    }
+    if (setCurrentCycle != null && setCurrentCycle != currentCycle) {
+      currentCycle = setCurrentCycle;
+      changed = true;
+    }
+    if (changed) {
+      notifyListeners();
+    }
+    if (changed && kDebugMode) {
+      debugPrint(
+        'TIMER SERVICE: state changed -> activeTaskName:$activeTaskName timeRemaining:$timeRemaining isRunning:$isRunning isTimerActive:$isTimerActive currentMode:$currentMode',
+      );
+      logStateSnapshot('SNAPSHOT AFTER MUTATIONS');
+    }
+    // Only manage ticker when running state explicitly changes
+    if (running != null) {
+      _manageTicker();
+    }
+  }
+
+  bool hasOverduePromptBeenShown(String taskName) {
+    return _overduePromptShown.contains(taskName);
+  }
+
+  void markOverduePromptShown(String taskName) {
+    if (taskName.isEmpty) return;
+    _overduePromptShown.add(taskName);
+    // clear the crossed marker if it matches
+    if (overdueCrossedTaskName == taskName) overdueCrossedTaskName = null;
+    notifyListeners();
+  }
+
+  bool hasUserContinuedOverdue(String taskName) {
+    return _overdueContinued.contains(taskName);
+  }
+
+  void markUserContinuedOverdue(String taskName) {
+    if (taskName.isEmpty) return;
+    _overdueContinued.add(taskName);
+    // also mark prompt shown so we won't show it again
+    _overduePromptShown.add(taskName);
+    notifyListeners();
+  }
+
+  void toggleRunning() {
+    isRunning = !isRunning;
+    if (kDebugMode) {
+      debugPrint('TIMER SERVICE: toggleRunning -> isRunning=$isRunning');
+    }
+    notifyListeners();
+    _manageTicker();
+  }
+
+  void _manageTicker() {
+    // If the mini-bar should be active and running, start a local ticker.
+    if (isTimerActive && isRunning) {
+      _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) {
+        if (_ticker != null && kDebugMode) {
+          // This debug print confirms the ticker is running
+          debugPrint('TIMER SERVICE: starting internal ticker (mini-bar mode)');
+        }
+        if (timeRemaining > 0) {
+          timeRemaining -= 1;
+          // Also increment focused time if in focus mode
+          if (currentMode == 'focus' && activeTaskName != null) {
+            final taskName = activeTaskName!;
+            final currentFocus = _focusedTimeCache[taskName] ?? 0;
+            _focusedTimeCache[taskName] = currentFocus + 1;
+            final totalFocusedTime = _focusedTimeCache[taskName] ?? 0;
+
+            // Check for overdue condition while running in mini-bar
+            if (plannedDurationSeconds != null &&
+                plannedDurationSeconds! > 0 &&
+                totalFocusedTime >= plannedDurationSeconds! &&
+                // Do NOT trigger overdue clearing if user already chose to continue.
+                !_overdueContinued.contains(taskName) &&
+                // Also skip if prompt already shown (prevents repeated clears).
+                !_overduePromptShown.contains(taskName)) {
+              if (kDebugMode) {
+                debugPrint(
+                  'TIMER SERVICE: Task crossed planned duration -> setting overdueCrossedTaskName and clearing service',
+                );
+                logStateSnapshot('BEFORE CLEAR FOR OVERDUE (TICK PATH)');
+              }
+              // Set the overdue crossed marker so the mini-bar can detect and show the dialog
+              overdueCrossedTaskName = taskName;
+              // Clear most state but preserve the overdue marker
+              _clearButPreserveOverdue();
+              return;
+            }
+            if (kDebugMode) {
+              debugPrint(
+                'TIMER SERVICE: internal tick -> timeRemaining=$timeRemaining, focused=${_focusedTimeCache[taskName]}',
+              );
+            }
+          } else if (kDebugMode) {
+            debugPrint(
+              'TIMER SERVICE: internal tick -> timeRemaining=$timeRemaining',
+            );
+          }
+          notifyListeners();
+        } else {
+          // timeRemaining == 0
+          // CRITICAL: Check for overdue condition BEFORE transitioning to break
+          // This prevents the race condition where a task becomes overdue but
+          // immediately transitions to break instead of clearing
+          if (currentMode == 'focus' && activeTaskName != null) {
+            final taskName = activeTaskName!;
+            final totalFocusedTime = _focusedTimeCache[taskName] ?? 0;
+
+            // Check if task is now overdue (focused time >= planned duration)
+            if (plannedDurationSeconds != null &&
+                plannedDurationSeconds! > 0 &&
+                totalFocusedTime >= plannedDurationSeconds! &&
+                !_overdueContinued.contains(taskName) &&
+                !_overduePromptShown.contains(taskName)) {
+              if (kDebugMode) {
+                debugPrint(
+                  'TIMER SERVICE: Task $taskName became overdue at completion -> setting overdue marker and clearing service',
+                );
+                logStateSnapshot('BEFORE CLEAR FOR OVERDUE (SESSION END PATH)');
+              }
+              overdueCrossedTaskName = taskName;
+              _clearButPreserveOverdue(); // Preserve overdue marker for dialog detection
+              return;
+            }
+          }
+
+          // If not overdue, then handle automatic transition between focus and break modes
+          if (currentMode == 'focus' && breakDurationSeconds != null) {
+            // Transition to break
+            currentMode = 'break';
+            timeRemaining = breakDurationSeconds!;
+            currentCycle +=
+                1; // increment cycle after a focus session completes
+            if (kDebugMode) {
+              debugPrint(
+                'TIMER SERVICE: focus session complete -> switching to BREAK (cycle=$currentCycle/$totalCycles)',
+              );
+            }
+            notifyListeners();
+            return; // next tick will count down break
+          } else if (currentMode == 'break' && focusDurationSeconds != null) {
+            // Transition back to focus
+            currentMode = 'focus';
+            timeRemaining = focusDurationSeconds!;
+            if (kDebugMode) {
+              debugPrint(
+                'TIMER SERVICE: break complete -> switching to FOCUS (cycle=$currentCycle/$totalCycles)',
+              );
+            }
+            notifyListeners();
+            return;
+          } else {
+            if (kDebugMode) {
+              debugPrint(
+                'TIMER SERVICE: no durations to transition, clearing.',
+              );
+            }
+            clear();
+          }
+        }
+      });
+    } else {
+      if (_ticker != null && kDebugMode) {
+        debugPrint(
+          'TIMER SERVICE: stopping internal ticker (mini-bar inactive or paused)',
+        );
+      }
+      _ticker?.cancel();
+      _ticker = null;
+    }
+  }
+
+  void clear() {
+    if (kDebugMode) {
+      debugPrint(
+        'TIMER SERVICE: clear() called - resetting central timer state',
+      );
+      logStateSnapshot('BEFORE CLEAR');
+    }
+    // Stop internal ticker first to prevent race conditions
+    _ticker?.cancel();
+    _ticker = null;
+
+    // Clear all state
+    activeTaskName = null;
+    timeRemaining = 0;
+    isRunning = false;
+    isTimerActive = false;
+    currentMode = 'focus';
+    plannedDurationSeconds = null;
+    focusDurationSeconds = null;
+    breakDurationSeconds = null;
+    totalCycles = 1; // Reset to default
+    currentCycle = 1; // Reset to default
+    overdueCrossedTaskName = null;
+
+    // Notify listeners that everything is cleared
+    notifyListeners();
+
+    if (kDebugMode) {
+      logStateSnapshot('AFTER CLEAR');
+    }
+  }
+
+  // Clear most state but preserve overdue marker for mini-bar dialog detection
+  void _clearButPreserveOverdue() {
+    if (kDebugMode) {
+      debugPrint(
+        'TIMER SERVICE: _clearButPreserveOverdue() called - preserving overdueCrossedTaskName',
+      );
+      logStateSnapshot('BEFORE CLEAR BUT PRESERVE OVERDUE');
+    }
+    // Stop internal ticker first to prevent race conditions
+    _ticker?.cancel();
+    _ticker = null;
+
+    // NOTE: Previously we nulled activeTaskName & set isTimerActive=false which
+    // prevented the mini-bar builder from scheduling the overdue/progress-full
+    // dialog (it early-returned when !isTimerActive || activeTaskName == null).
+    // To ensure the popup appears, we now PRESERVE activeTaskName and keep
+    // isTimerActive true but freeze the timer (isRunning=false, timeRemaining=0).
+    // This allows a final build frame where the dialog logic can run.
+    final preservedOverdueTask = overdueCrossedTaskName;
+    // Keep activeTaskName as-is
+    isRunning = false; // pause
+    // Keep isTimerActive so mini bar stays mounted for one more frame
+    timeRemaining = 0; // nothing left to count
+    currentMode = 'focus'; // normalize
+    // Clear adjustable durations (not needed after completion)
+    plannedDurationSeconds = null;
+    focusDurationSeconds = null;
+    breakDurationSeconds = null;
+    totalCycles = 1;
+    currentCycle = 1;
+    overdueCrossedTaskName = preservedOverdueTask; // explicit clarity
+
+    notifyListeners(); // trigger mini bar rebuild & dialog scheduling
+
+    if (kDebugMode) {
+      logStateSnapshot('AFTER CLEAR BUT PRESERVE OVERDUE');
+    }
+  }
+
+  // Focused time cache helpers - used to sync progress across UI without
+  // requiring immediate backend refresh.
+  void setFocusedTime(String taskName, int seconds) {
+    if (taskName.isEmpty) return;
+    final prev = _focusedTimeCache[taskName];
+    _focusedTimeCache[taskName] = seconds;
+    if (kDebugMode) {
+      debugPrint(
+        'TIMER SERVICE: setFocusedTime -> $taskName : $prev -> $seconds',
+      );
+    }
+    notifyListeners();
+  }
+
+  int? getFocusedTime(String taskName) {
+    final v = _focusedTimeCache[taskName];
+    if (kDebugMode) {
+      debugPrint('TIMER SERVICE: getFocusedTime($taskName) -> $v');
+    }
+    return v;
+  }
+
+  // State management helpers for better debugging and maintenance
+  String getStateSnapshot() {
+    return 'TimerService State: '
+        'activeTask=$activeTaskName, '
+        'remaining=${timeRemaining}s, '
+        'running=$isRunning, '
+        'active=$isTimerActive, '
+        'mode=$currentMode, '
+        'planned=${plannedDurationSeconds}s, '
+        'cycle=$currentCycle/$totalCycles, '
+        'overdueCrossed=$overdueCrossedTaskName';
+  }
+
+  void logStateSnapshot([String context = '']) {
+    if (kDebugMode) {
+      debugPrint(
+        'TIMER SERVICE STATE${context.isNotEmpty ? ' ($context)' : ''}: ${getStateSnapshot()}',
+      );
+    }
+  }
+
+  // Validate internal state consistency for debugging
+  bool validateState() {
+    final issues = <String>[];
+
+    if (isTimerActive && activeTaskName == null) {
+      issues.add('Timer active but no active task');
+    }
+
+    if (isRunning && !isTimerActive && activeTaskName != null) {
+      issues.add('Running but not active with task set');
+    }
+
+    if (timeRemaining < 0) {
+      issues.add('Negative time remaining');
+    }
+
+    if (currentCycle > totalCycles) {
+      issues.add('Current cycle exceeds total cycles');
+    }
+
+    if (issues.isNotEmpty && kDebugMode) {
+      debugPrint('TIMER SERVICE STATE ISSUES: ${issues.join(', ')}');
+      logStateSnapshot('VALIDATION FAILED');
+      return false;
+    }
+
+    return true;
   }
 }
 </file>
@@ -16927,25 +16687,63 @@ class TaskCard extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                // Controls
+                                // Controls: show dynamic Play/Pause when this task is the active one
                                 if (!todo.completed)
-                                  Hero(
-                                    tag: 'play_${todo.id}',
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      child: IconButton(
-                                        icon: const Icon(Icons.play_arrow),
-                                        color: AppColors.lightGray,
-                                        onPressed: () async {
-                                          if (kDebugMode) {
-                                            debugPrint(
-                                              'Play tapped for ${todo.id}',
-                                            );
-                                          }
-                                          await onPlay(todo);
-                                        },
-                                      ),
-                                    ),
+                                  Builder(
+                                    builder: (ctx) {
+                                      final svc = TimerService.instance;
+                                      final isSvcActive =
+                                          svc.activeTaskName == todo.text;
+                                      // If service has this task active, show pause/play that toggles running
+                                      if (isSvcActive) {
+                                        final isRunning = svc.isRunning;
+                                        return Hero(
+                                          tag: 'play_${todo.id}',
+                                          child: Material(
+                                            color: Colors.transparent,
+                                            child: IconButton(
+                                              icon: Icon(
+                                                isRunning
+                                                    ? Icons.pause
+                                                    : Icons.play_arrow,
+                                              ),
+                                              color: AppColors.lightGray,
+                                              onPressed: () {
+                                                if (kDebugMode) {
+                                                  debugPrint(
+                                                    'TASK_CARD: toggle running for ${todo.id} (svcActive=$isSvcActive isRunning=$isRunning)',
+                                                  );
+                                                }
+                                                // Toggle running on the central TimerService so UI stays in sync
+                                                try {
+                                                  svc.toggleRunning();
+                                                } catch (_) {}
+                                              },
+                                            ),
+                                          ),
+                                        );
+                                      }
+
+                                      // Otherwise, this task isn't active in the service -> open Pomodoro sheet
+                                      return Hero(
+                                        tag: 'play_${todo.id}',
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: IconButton(
+                                            icon: const Icon(Icons.play_arrow),
+                                            color: AppColors.lightGray,
+                                            onPressed: () async {
+                                              if (kDebugMode) {
+                                                debugPrint(
+                                                  'Play tapped for ${todo.id} (open sheet)',
+                                                );
+                                              }
+                                              await onPlay(todo);
+                                            },
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 const SizedBox(width: 6),
                                 IconButton(
@@ -17176,9 +16974,18 @@ class _TodoListScreenState extends State<TodoListScreen> {
         }
       }
       unique.sort((a, b) => b.id.compareTo(a.id));
-      _todos = unique;
+      // Merge optimistic local todos (those with empty userId) so they persist
+      // when the backend is unreachable or hasn't yet returned them.
+      final optimistic = _todos.where((t) => t.userId.isEmpty).toList();
+      // Keep optimistic todos that don't already exist in the fetched list (by id)
+      final missingOpt = optimistic
+          .where((opt) => !unique.any((u) => u.id == opt.id))
+          .toList();
+      _todos = [...missingOpt, ...unique];
     } catch (_) {
-      _todos = [];
+      // If reload fails (e.g. server unreachable), keep the current list so
+      // optimistic inserts remain visible instead of clearing the UI.
+      // _todos remains unchanged.
     } finally {
       setState(() {
         _loading = false;
@@ -17844,7 +17651,6 @@ class _TodoListScreenState extends State<TodoListScreen> {
 
 <file path="flutter_app/lib/screens/pomodoro_screen.dart">
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
@@ -18170,12 +17976,32 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         TimerService.instance.hasUserContinuedOverdue(widget.todo.text) &&
         TimerService.instance.activeTaskName != widget.todo.text;
 
+    // Check if this task has become overdue but user hasn't made a choice yet
+    // This happens when: task exceeded planned duration, TimerService called clear(),
+    // but user hasn't clicked "Continue Working" or "Mark Complete" yet
+    bool taskJustBecameOverdue =
+        widget.todo.focusedTime > 0 && // Task has some progress
+        TimerService.instance.activeTaskName !=
+            widget.todo.text && // Service is cleared
+        !TimerService.instance.hasUserContinuedOverdue(
+          widget.todo.text,
+        ) && // User hasn't chosen to continue
+        !TimerService.instance.hasOverduePromptBeenShown(
+          widget.todo.text,
+        ); // Prompt hasn't been shown yet
+
+    // Force setup ONLY when the user previously chose to continue working on an overdue task.
+    // Do NOT force setup for tasks that just became overdue - those should show the overdue prompt
+    bool forceSetupForContinuedOverdue = TimerService.instance
+        .hasUserContinuedOverdue(widget.todo.text);
+
     if (kDebugMode) {
       debugPrint(
         "LOAD STATE DEBUG: focusedTime=${widget.todo.focusedTime}, "
         "hasStoredState=${s != null}, "
         "isNewTask=$isNewTask, "
         "isOverdueTaskRestart=$isOverdueTaskRestart, "
+        "taskJustBecameOverdue=$taskJustBecameOverdue, "
         "hasUserContinuedOverdue=${TimerService.instance.hasUserContinuedOverdue(widget.todo.text)}",
       );
     }
@@ -18194,7 +18020,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       if (shouldResetToSetup ||
           hasCorruptedState ||
           isNewTask ||
-          isOverdueTaskRestart) {
+          isOverdueTaskRestart ||
+          forceSetupForContinuedOverdue) {
         // Force reset to initial setup state
         if (kDebugMode) {
           String reason = shouldResetToSetup
@@ -18203,17 +18030,34 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
               ? "corrupted state detected"
               : isOverdueTaskRestart
               ? "overdue task restart after continue"
+              : forceSetupForContinuedOverdue
+              ? "user continued overdue - forcing setup"
               : "new task requiring setup";
           debugPrint("LOAD STATE: Resetting to setup screen - $reason");
         }
+
+        // Calculate proper cycles based on task duration, not hardcoded 25 minutes
+        final defaultFocusMinutes = 25;
+        // Clamp default focus duration to planned task duration if smaller (avoid 25m session on 1m task)
+        final plannedSecondsForClamp =
+            (widget.todo.durationHours * 3600) +
+            (widget.todo.durationMinutes * 60);
+        final clampedFocusSeconds = plannedSecondsForClamp > 0
+            ? (plannedSecondsForClamp < defaultFocusMinutes * 60
+                  ? plannedSecondsForClamp
+                  : defaultFocusMinutes * 60)
+            : defaultFocusMinutes * 60;
+        final calculatedCycles = _calculateCycles(clampedFocusSeconds ~/ 60);
+
         _state = TaskTimerState(
           taskId: widget.todo.id.toString(),
           timerState: 'idle', // Use 'idle' for setup screen
           currentMode: 'focus',
-          timeRemaining: 25 * 60, // Default 25 minutes
-          focusDuration: 25 * 60,
+          timeRemaining: clampedFocusSeconds,
+          focusDuration: clampedFocusSeconds,
           breakDuration: 5 * 60,
-          totalCycles: _calculateCycles(25),
+          totalCycles:
+              calculatedCycles, // Use calculated cycles based on task duration
           completedSessions: 0,
           isProgressBarFull: false,
           allSessionsComplete: false,
@@ -18221,9 +18065,55 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         );
         if (kDebugMode) {
           debugPrint(
-            "LOAD STATE: Created fresh setup state with timerState='idle' for new task",
+            "LOAD STATE: Created fresh setup state (clampedFocus=${clampedFocusSeconds}s planned=${plannedSecondsForClamp}s) with timerState='idle'",
           );
         }
+      } else if (taskJustBecameOverdue) {
+        // Task just became overdue - create a state that will trigger the overdue prompt
+        if (kDebugMode) {
+          debugPrint(
+            "LOAD STATE: Task just became overdue - preparing to show overdue prompt",
+          );
+        }
+        _state =
+            s ??
+            TaskTimerState(
+              taskId: widget.todo.id.toString(),
+              timerState: 'paused', // Use paused state to trigger overdue check
+              currentMode: 'focus',
+              timeRemaining: 0, // No time remaining since it's overdue
+              focusDuration: 25 * 60,
+              breakDuration: 5 * 60,
+              totalCycles: _calculateCycles(
+                25,
+              ), // This is correct - calculating based on task duration
+              completedSessions: 0,
+              isProgressBarFull: false,
+              allSessionsComplete: false,
+              lastFocusedTime:
+                  widget.todo.focusedTime, // Use actual focused time
+            );
+
+        // Trigger overdue prompt immediately in the next frame
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && !_overduePromptShown) {
+            final plannedSeconds =
+                (widget.todo.durationHours * 3600) +
+                (widget.todo.durationMinutes * 60);
+            if (plannedSeconds > 0 &&
+                widget.todo.focusedTime >= plannedSeconds &&
+                !TimerService.instance.hasOverduePromptBeenShown(
+                  widget.todo.text,
+                )) {
+              if (kDebugMode) {
+                debugPrint(
+                  "LOAD STATE: Triggering overdue prompt for task that just became overdue",
+                );
+              }
+              _showOverduePrompt();
+            }
+          }
+        });
       } else {
         _state =
             s ??
@@ -18731,6 +18621,9 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   Future<void> _showOverduePrompt() async {
     if (kDebugMode) {
       debugPrint('POMODORO: Task is now overdue. Showing prompt.');
+      try {
+        TimerService.instance.logStateSnapshot('ON OVERDUE PROMPT ENTRY');
+      } catch (_) {}
     }
     _overduePromptShown = true; // Prevent showing it again
     // Also inform the central TimerService that this task's overdue prompt has been shown
@@ -18738,6 +18631,22 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       TimerService.instance.markOverduePromptShown(widget.todo.text);
     } catch (_) {}
     _stopTicker(); // Pause the timer
+
+    // HARD SUPPRESSION: Clear the central service so the mini-bar hides immediately when overdue dialog shows.
+    // This aligns overdue path with progress-bar-full path (auto-hide screen + minibar while user decides).
+    try {
+      if (kDebugMode) {
+        debugPrint(
+          'POMODORO: Clearing TimerService for overdue prompt (hide minibar).',
+        );
+      }
+      TimerService.instance.clear();
+      try {
+        TimerService.instance.logStateSnapshot(
+          'AFTER CLEAR FOR OVERDUE PROMPT',
+        );
+      } catch (_) {}
+    } catch (_) {}
 
     widget.notificationService.showNotification(
       title: 'Task Overdue',
@@ -18785,6 +18694,11 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     } else {
       if (kDebugMode) {
         debugPrint('POMODORO: User chose to continue overdue task.');
+        try {
+          TimerService.instance.logStateSnapshot(
+            'USER CONTINUE OVERDUE (BEFORE RESET)',
+          );
+        } catch (_) {}
       }
       // Mark centrally that the user chose to continue working on this overdue task
       try {
@@ -18817,6 +18731,18 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
             'POMODORO: Reset to setup after continue-overdue selection. Showing setup screen.',
           );
         }
+        // CRITICAL: Clear central service AGAIN to ensure minibar stays hidden after dialog dismissal.
+        try {
+          if (kDebugMode) {
+            debugPrint(
+              'POMODORO: Clearing TimerService after continue to suppress minibar until user restarts.',
+            );
+          }
+          TimerService.instance.clear();
+          try {
+            TimerService.instance.logStateSnapshot('AFTER CLEAR ON CONTINUE');
+          } catch (_) {}
+        } catch (_) {}
       }
     }
   }
@@ -18854,61 +18780,78 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   // Show progress bar full dialog
   void _showProgressBarFullDialog() {
     if (kDebugMode) {
-      debugPrint('POMODORO: Progress bar full - implementing HARD RESET');
+      debugPrint(
+        'POMODORO: Progress bar full - implementing IMMEDIATE HARD RESET',
+      );
     }
 
-    // HARD RESET when progress bar full dialog appears
+    // IMMEDIATE HARD RESET when progress bar full dialog appears
     _ticker?.cancel();
+    // Suppress automatic mini-bar reactivation after closing.
+    TimerService.instance.suppressNextActivation = true;
+    try {
+      TimerService.instance.clear();
+    } catch (_) {}
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
 
-    // Clear service state but do NOT call TimerService.clear() which causes overdue timer
-    TimerService.instance.update(
-      taskName: widget.todo.text,
-      running: false,
-      remaining: 1500, // Reset to default 25 minutes
-      active: false,
-    );
-
-    setState(() {
-      _state = _createUpdatedState(
-        timerState: 'idle', // Back to initial idle state
-        currentMode: 'focus', // Reset to focus mode
-        timeRemaining: 1500, // Fresh focus duration (25 minutes)
-        focusDuration: 1500, // Default 25 minutes
-        breakDuration: 300, // Default 5 minutes
-        currentCycle: 1, // Reset to first cycle
-        totalCycles: 4,
-        lastFocusedTime: 0, // Reset focused time for fresh start
-        isProgressBarFull: true, // Show dialog state
-        allSessionsComplete: false, // Reset completion state
+    // Show dialog after closing the screen
+    Future.microtask(() {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Progress Bar Full!'),
+          content: const Text(
+            'You have completed your planned time for this task. The timer has been reset. What would you like to do?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _handleContinueWorking();
+              },
+              child: const Text('Continue Working'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _handleMarkComplete();
+              },
+              child: const Text('Mark Complete'),
+            ),
+          ],
+        ),
       );
     });
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Progress Bar Full!'),
-        content: const Text(
-          'You have completed your planned time for this task. The timer has been reset. What would you like to do?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _handleContinueWorking();
-            },
-            child: const Text('Continue Working'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _handleMarkComplete();
-            },
-            child: const Text('Mark Complete'),
-          ),
-        ],
-      ),
-    );
+    setState(() {
+      final plannedSecondsForClamp =
+          (widget.todo.durationHours * 3600) +
+          (widget.todo.durationMinutes * 60);
+      final defaultFocusSeconds = 25 * 60;
+      final clampedFocusSeconds = plannedSecondsForClamp > 0
+          ? (plannedSecondsForClamp < defaultFocusSeconds
+                ? plannedSecondsForClamp
+                : defaultFocusSeconds)
+          : defaultFocusSeconds;
+      _state = _createUpdatedState(
+        timerState: 'idle',
+        currentMode: 'focus',
+        timeRemaining: clampedFocusSeconds,
+        focusDuration: clampedFocusSeconds,
+        breakDuration: 300,
+        currentCycle: 0, // not started yet
+        totalCycles:
+            _state?.totalCycles ??
+            4, // preserve manual value if user changed it
+        lastFocusedTime: 0,
+        isProgressBarFull: true,
+        allSessionsComplete: false,
+      );
+    });
+
     // Notify user and play sound for progress bar full
     try {
       if (kDebugMode) {
@@ -18930,33 +18873,54 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   void _handleContinueWorking() {
     if (kDebugMode) {
       debugPrint(
-        'POMODORO: _handleContinueWorking - clearing timer state and navigating back',
+        'POMODORO: _handleContinueWorking - setting up overdue timer with minibar',
       );
     }
+    // User wants to continue: return to SETUP (idle) screen so they can adjust
+    // durations & cycles again. Respect any manual cycles input already present.
+    final plannedSecondsForClamp =
+        (widget.todo.durationHours * 3600) + (widget.todo.durationMinutes * 60);
+    final preservedFocusRaw = _state?.focusDuration ?? 25 * 60;
+    final preservedFocus = plannedSecondsForClamp > 0
+        ? (preservedFocusRaw > plannedSecondsForClamp
+              ? plannedSecondsForClamp
+              : preservedFocusRaw)
+        : preservedFocusRaw;
+    final preservedBreak = _state?.breakDuration ?? 5 * 60;
+    // If user manually changed cycles text, use it; else keep existing or recalc.
+    int manualCycles = int.tryParse(_cyclesController.text.trim()) ?? 0;
+    if (manualCycles <= 0) {
+      manualCycles =
+          _state?.totalCycles ?? _calculateCycles(preservedFocus ~/ 60);
+    }
 
-    // Clear timer state completely like pressing the X button
+    setState(() {
+      _state = TaskTimerState(
+        taskId: widget.todo.id.toString(),
+        timerState: 'idle', // show setup UI
+        currentMode: 'focus',
+        timeRemaining: preservedFocus,
+        focusDuration: preservedFocus,
+        breakDuration: preservedBreak,
+        totalCycles: manualCycles,
+        currentCycle: 0,
+        completedSessions: 0,
+        isProgressBarFull: false,
+        allSessionsComplete: false,
+      );
+    });
+    // Persist setup state so re-opening reflects idle configuration.
+    _store.save(widget.todo.id.toString(), _state!);
+    // Ensure central timer is fully cleared & minibar hidden until user presses start.
+    TimerService.instance.suppressNextActivation = true;
     TimerService.instance.clear();
-
-    // For overdue tasks, remove the saved state to force setup screen on next open
-    _deleteTaskState();
-
     if (kDebugMode) {
-      debugPrint(
-        'POMODORO: Continue working - cleared local state for task: ${widget.todo.text}',
-      );
-      debugPrint(
-        'POMODORO: Task is marked as hasUserContinuedOverdue: ${TimerService.instance.hasUserContinuedOverdue(widget.todo.text)}',
-      );
+      debugPrint('POMODORO: Continue working -> returned to setup (idle)');
     }
-
-    // Navigate back to close pomodoro screen - this should trigger setup screen on next open
-    Navigator.of(context).pop();
-  }
-
-  Future<void> _deleteTaskState() async {
-    final all = await _store.loadAll();
-    all.remove(widget.todo.id.toString());
-    await _store.saveAll(all);
+    // Close dialog only (pomodoro sheet already closed earlier when progress bar full) if still mounted.
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
   }
 
   Widget _buildOverdueTimeDisplay(int focusedSeconds, int plannedSeconds) {
@@ -19191,23 +19155,26 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                           _stopTicker();
                         }
 
-                        // Reset timer to initial state - this ensures next opening goes to setup
+                        // Reset timer to idle setup preserving any manual cycles entered earlier
+                        final preservedCycles =
+                            _state?.totalCycles ?? _calculateCycles(25);
                         setState(() {
                           _state = TaskTimerState(
                             taskId: widget.todo.id.toString(),
                             timerState: 'paused',
                             currentMode: 'focus',
-                            timeRemaining: 25 * 60, // Default 25 minutes
-                            focusDuration: 25 * 60,
-                            breakDuration: 5 * 60,
-                            totalCycles: _calculateCycles(25),
+                            timeRemaining: _state?.focusDuration ?? 25 * 60,
+                            focusDuration: _state?.focusDuration ?? 25 * 60,
+                            breakDuration: _state?.breakDuration ?? 5 * 60,
+                            totalCycles: preservedCycles,
                             completedSessions: 0,
                             isProgressBarFull: false,
                             allSessionsComplete: false,
                           );
                         });
 
-                        // Clear both the service state and mini-bar before closing
+                        // Clear both the service state and minibar, and suppress reactivation
+                        TimerService.instance.suppressNextActivation = true;
                         TimerService.instance.clear();
 
                         // Persist the reset state so reopening shows initial UI
@@ -19610,24 +19577,28 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                             _ticker
                                 ?.cancel(); // Stop timer without saving progress
 
-                            // Calculate the session progress that will be lost
+                            // Calculate the session progress that will be lost — prefer
+                            // the service's cached total focused time when available.
                             final sessionProgress = _state!.lastFocusedTime;
-                            final currentFocusedTime =
+                            final serviceTotalFocused =
                                 TimerService.instance.getFocusedTime(
                                   widget.todo.text,
                                 ) ??
                                 widget.todo.focusedTime;
-                            final revertedFocusedTime = max(
-                              0,
-                              currentFocusedTime - sessionProgress,
-                            );
+                            // The reverted focused time should only remove the current
+                            // session progress, never drop below the server-known base.
+                            final baseFocused = widget.todo.focusedTime;
+                            final revertedFocusedTime =
+                                (serviceTotalFocused - sessionProgress)
+                                    .clamp(baseFocused, serviceTotalFocused)
+                                    .toInt();
 
                             if (kDebugMode) {
                               debugPrint(
                                 "RESET: Session progress to revert: ${sessionProgress}s",
                               );
                               debugPrint(
-                                "RESET: Current total focused: ${currentFocusedTime}s -> ${revertedFocusedTime}s",
+                                "RESET: Service total focused: ${serviceTotalFocused}s -> ${revertedFocusedTime}s (base ${baseFocused}s)",
                               );
                             }
 
@@ -19791,6 +19762,30 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                               debugPrint("Skipping to next phase.");
                             }
                             final bool isFocus = s.currentMode == 'focus';
+
+                            // ENFORCE SESSION LIMITS: Prevent user from going beyond designated sessions
+                            if (isFocus) {
+                              final newCompletedSessions =
+                                  s.completedSessions + 1;
+                              if (newCompletedSessions >=
+                                  (s.totalCycles ?? 0)) {
+                                // User has completed all their designated sessions
+                                if (kDebugMode) {
+                                  debugPrint(
+                                    'SESSION LIMIT: User attempted to skip beyond designated sessions ($newCompletedSessions >= ${s.totalCycles})',
+                                  );
+                                }
+                                // Show dialog instead of allowing skip
+                                widget.notificationService.showNotification(
+                                  title: 'All Sessions Completed!',
+                                  body:
+                                      'You have completed all ${s.totalCycles} focus sessions for "${widget.todo.text}".',
+                                );
+                                _showSessionCompletionDialog();
+                                return; // Don't allow skip
+                              }
+                            }
+
                             // Persist progress from the focus session being skipped
                             if (isFocus) {
                               final totalFocusedTime =
@@ -19814,6 +19809,10 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                                 currentCycle: isFocus
                                     ? s.currentCycle + 1
                                     : s.currentCycle,
+                                // When skipping focus to break, increment completed sessions
+                                completedSessions: isFocus
+                                    ? s.completedSessions + 1
+                                    : s.completedSessions,
                                 // When starting break, reset lastFocusedTime for break tracking
                                 // When starting focus, keep current lastFocusedTime to preserve session progress
                                 lastFocusedTime: isFocus

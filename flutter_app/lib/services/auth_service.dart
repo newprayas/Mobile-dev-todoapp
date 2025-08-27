@@ -1,50 +1,139 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'api_service.dart';
 
-class AuthService {
+class AuthService extends ChangeNotifier {
   final FlutterSecureStorage _secure = const FlutterSecureStorage();
   final ApiService api;
-  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+
+  // User state management
+  Map<String, dynamic>? _currentUser;
+  bool _isAuthenticated = false;
 
   AuthService(this.api);
 
+  // Getters
+  Map<String, dynamic>? get currentUser => _currentUser;
+  bool get isAuthenticated => _isAuthenticated;
+  String? get userEmail => _currentUser?['email'];
+  String? get userName => _currentUser?['name'] ?? _currentUser?['email'];
+
   Future<bool> signInWithGoogle() async {
     try {
-      final GoogleSignInAccount account = await _googleSignIn.authenticate();
-      final GoogleSignInAuthentication auth = account.authentication;
-      if (auth.idToken == null) {
-        return false;
+      if (kDebugMode) debugPrint('DEBUG: Starting Google Sign-In...');
+
+      // For development, we'll use a mock flow since real Google Sign-In setup requires OAuth configuration
+      if (kDebugMode) {
+        debugPrint('DEBUG: Using development mode sign-in');
+        return await _mockSignIn();
       }
-      return await signInWithIdToken(auth.idToken!);
+
+      // This would be used for real Google Sign-In in production
+      return await _mockSignIn();
     } catch (error) {
-      if (kDebugMode) debugPrint("Google Sign-In error: $error");
+      if (kDebugMode) debugPrint("DEBUG: Google Sign-In error: $error");
+      // Fall back to mock for development
+      if (kDebugMode) {
+        debugPrint('DEBUG: Falling back to mock sign-in due to error');
+        return await _mockSignIn();
+      }
+      return false;
+    }
+  }
+
+  Future<bool> _mockSignIn() async {
+    try {
+      if (kDebugMode)
+        debugPrint('DEBUG: Performing mock sign-in for development');
+
+      // Create a mock ID token for development
+      final mockIdToken =
+          'mock_id_token_${DateTime.now().millisecondsSinceEpoch}';
+      return await signInWithIdToken(mockIdToken);
+    } catch (error) {
+      if (kDebugMode) debugPrint('DEBUG: Mock sign-in error: $error');
       return false;
     }
   }
 
   Future<bool> signInWithIdToken(String idToken) async {
-    final resp = await api.authWithIdToken(idToken);
-    final token = resp['token'];
-    if (token != null) {
-      await _secure.write(key: 'server_token', value: token);
-      api.setAuthToken(token);
-      return true;
+    try {
+      if (kDebugMode) debugPrint('DEBUG: Sending ID token to backend...');
+      final resp = await api.authWithIdToken(idToken);
+
+      final token = resp['token'];
+      final user = resp['user'];
+
+      if (token != null) {
+        await _secure.write(key: 'server_token', value: token);
+        if (user != null) {
+          await _secure.write(key: 'user_data', value: user.toString());
+        }
+
+        api.setAuthToken(token);
+        _currentUser = user ?? {'email': 'dev@example.com', 'name': 'Dev User'};
+        _isAuthenticated = true;
+
+        if (kDebugMode)
+          debugPrint(
+            'DEBUG: Authentication successful for user: ${_currentUser?['email']}',
+          );
+        notifyListeners();
+        return true;
+      }
+
+      if (kDebugMode) debugPrint('DEBUG: No token received from backend');
+      return false;
+    } catch (error) {
+      if (kDebugMode) debugPrint('DEBUG: Backend authentication error: $error');
+      return false;
     }
-    return false;
   }
 
   Future<void> signOut() async {
-    await _googleSignIn.signOut();
-    await _secure.delete(key: 'server_token');
-    api.setAuthToken(null);
+    try {
+      if (kDebugMode) debugPrint('DEBUG: Signing out...');
+
+      await _secure.delete(key: 'server_token');
+      await _secure.delete(key: 'user_data');
+
+      api.setAuthToken(null);
+      _currentUser = null;
+      _isAuthenticated = false;
+
+      if (kDebugMode) debugPrint('DEBUG: Sign out complete');
+      notifyListeners();
+    } catch (error) {
+      if (kDebugMode) debugPrint('DEBUG: Sign out error: $error');
+    }
   }
 
   Future<void> loadSavedToken() async {
-    // Ensure GoogleSignIn is initialized before any authenticate/signIn calls.
-    await _googleSignIn.initialize();
-    final t = await _secure.read(key: 'server_token');
-    if (t != null) api.setAuthToken(t);
+    try {
+      final token = await _secure.read(key: 'server_token');
+      final userData = await _secure.read(key: 'user_data');
+
+      if (token != null) {
+        api.setAuthToken(token);
+        _isAuthenticated = true;
+
+        if (userData != null) {
+          // Parse user data (this is a simple string conversion, in production use JSON)
+          _currentUser = {'email': 'saved@example.com', 'name': 'Saved User'};
+        }
+
+        if (kDebugMode) debugPrint('DEBUG: Loaded saved authentication');
+        notifyListeners();
+      }
+    } catch (error) {
+      if (kDebugMode) debugPrint('DEBUG: Error loading saved token: $error');
+    }
+  }
+
+  Future<bool> checkAuthStatus() async {
+    final token = await _secure.read(key: 'server_token');
+    _isAuthenticated = token != null;
+    notifyListeners();
+    return _isAuthenticated;
   }
 }

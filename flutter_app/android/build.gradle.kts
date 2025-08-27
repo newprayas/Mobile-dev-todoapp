@@ -22,3 +22,8 @@ subprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+
+// Add Google services plugin to the root build.gradle
+plugins {
+    id("com.google.gms.google-services") version "4.4.0" apply false
+}

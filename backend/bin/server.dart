@@ -14,6 +14,16 @@ Database getDb() {
 }
 
 Map<String, dynamic>? currentUser(Request request) {
+  // First check for Bearer token authorization (for real Google auth)
+  final authHeader = request.headers['authorization'];
+  if (authHeader != null && authHeader.startsWith('Bearer ')) {
+    final token = authHeader.substring(7);
+    // In development, accept any bearer token as valid
+    // In production, this would verify the JWT token
+    print('DEBUG: Auth with bearer token: ${token.substring(0, 10)}...');
+    return {'sub': 'google_user_$token', 'email': 'user@example.com'};
+  }
+
   // Simple development fallback: if header 'x-user-id' present use it.
   final userId = request.headers['x-user-id'];
   if (userId != null && userId.isNotEmpty) {
@@ -76,6 +86,41 @@ Future<Response> apiTodos(Request request) async {
   }).toList();
   db.dispose();
   return jsonResponse(result);
+}
+
+Future<Response> authWithIdToken(Request request) async {
+  print('DEBUG: Auth endpoint called');
+  try {
+    final payload =
+        json.decode(await request.readAsString()) as Map<String, dynamic>;
+    final idToken = payload['id_token'] as String?;
+
+    if (idToken == null || idToken.isEmpty) {
+      return jsonResponse({'error': 'Missing id_token'}, status: 400);
+    }
+
+    print(
+        'DEBUG: Received ID token: ${idToken.length > 20 ? idToken.substring(0, 20) : idToken}...');
+
+    // In development mode, accept any ID token and generate a simple server token
+    // In production, you would verify the Google ID token here
+    final serverToken = 'server_token_${DateTime.now().millisecondsSinceEpoch}';
+
+    print('DEBUG: Generated server token: $serverToken');
+
+    // Return the server token for the client to store and use
+    return jsonResponse({
+      'token': serverToken,
+      'user': {
+        'id': 'google_user_dev',
+        'email': 'dev@example.com',
+        'name': 'Dev User'
+      }
+    });
+  } catch (e) {
+    print('DEBUG: Auth error: $e');
+    return jsonResponse({'error': 'Invalid request'}, status: 400);
+  }
 }
 
 Future<Response> addTodo(Request request) async {
@@ -242,6 +287,7 @@ void main(List<String> args) async {
 
   final router = Router();
 
+  router.post('/api/auth', (Request request) => authWithIdToken(request));
   router.get('/api/todos', (Request request) => apiTodos(request));
   router.post('/add', (Request request) => addTodo(request));
   router.post('/delete', (Request request) => deleteTodo(request));

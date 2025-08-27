@@ -323,6 +323,134 @@ class _TodoListScreenState extends State<TodoListScreen> {
     }
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
+      appBar: AppBar(
+        backgroundColor: AppColors.scaffoldBg,
+        elevation: 0,
+        title: Text(
+          'Todo List',
+          style: TextStyle(
+            color: AppColors.lightGray,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        actions: [
+          // User info and logout
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.auth.isAuthenticated) ...[
+                  // User info
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        widget.auth.userName ?? 'User',
+                        style: TextStyle(
+                          color: AppColors.lightGray,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        widget.auth.userEmail ?? '',
+                        style: TextStyle(
+                          color: AppColors.lightGray.withOpacity(0.7),
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 8),
+
+                  // Logout button
+                  PopupMenuButton<String>(
+                    icon: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: AppColors.brightYellow.withOpacity(0.2),
+                      child: Icon(
+                        Icons.person,
+                        size: 18,
+                        color: AppColors.brightYellow,
+                      ),
+                    ),
+                    color: AppColors.cardBg,
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'logout',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.logout,
+                              color: AppColors.lightGray,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Sign Out',
+                              style: TextStyle(color: AppColors.lightGray),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    onSelected: (value) async {
+                      if (value == 'logout') {
+                        // Show confirmation dialog
+                        final shouldLogout = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            backgroundColor: AppColors.cardBg,
+                            title: Text(
+                              'Sign Out',
+                              style: TextStyle(color: AppColors.lightGray),
+                            ),
+                            content: Text(
+                              'Are you sure you want to sign out?',
+                              style: TextStyle(
+                                color: AppColors.lightGray.withOpacity(0.8),
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop(false),
+                                child: Text(
+                                  'Cancel',
+                                  style: TextStyle(
+                                    color: AppColors.lightGray.withOpacity(0.7),
+                                  ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop(true),
+                                child: Text(
+                                  'Sign Out',
+                                  style: TextStyle(
+                                    color: AppColors.brightYellow,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (shouldLogout == true) {
+                          await widget.auth.signOut();
+                          // AuthWrapper will automatically handle navigation
+                        }
+                      }
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
