@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/todo.dart';
 import '../providers/todos_provider.dart';
@@ -134,8 +135,21 @@ class TodoListScreen extends ConsumerWidget {
                           ),
                         );
 
-                        if (shouldLogout == true) {
-                          await ref.read(authProvider.notifier).signOut();
+                        if (shouldLogout == true && context.mounted) {
+                          try {
+                            await ref.read(authProvider.notifier).signOut();
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Failed to sign out. Please try again.',
+                                  ),
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                              );
+                            }
+                          }
                         }
                       }
                     },
@@ -196,24 +210,36 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
   }
 
   Future<void> _addTodo() async {
+    if (!mounted) return;
+
     final text = _newText.text.trim();
     final h = int.tryParse(_hours.text) ?? 0;
     final m = int.tryParse(_mins.text) ?? 0;
     if (text.isEmpty) return;
 
+    if (kDebugMode)
+      debugPrint(
+        'DEBUG: _addTodo attempting to add task: "$text" with duration $h:$m',
+      );
+
     try {
       await ref.read(todosProvider.notifier).addTodo(text, h, m);
       if (!mounted) return;
+
+      if (kDebugMode)
+        debugPrint('DEBUG: _addTodo success - clearing form fields');
       _newText.clear();
       _hours.text = '0';
       _mins.text = '25';
       // Hide keyboard after adding
       FocusScope.of(context).unfocus();
     } catch (e) {
+      if (kDebugMode) debugPrint('DEBUG: _addTodo failed with error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Failed to add task. Please try again.'),
+            backgroundColor: Colors.redAccent,
           ),
         );
       }
@@ -396,7 +422,21 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
               notificationService: notificationService,
               activeTodo: activeTodo,
               onComplete: (id) async {
-                await ref.read(todosProvider.notifier).toggleTodo(id);
+                if (!mounted) return;
+                try {
+                  await ref.read(todosProvider.notifier).toggleTodo(id);
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Failed to complete task. Please try again.',
+                        ),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                  }
+                }
               },
             ),
           ),
@@ -435,7 +475,21 @@ class _TodoListState extends ConsumerState<_TodoList> {
           widget.api,
           todo,
           widget.notificationService,
-          () => ref.read(todosProvider.notifier).toggleTodo(todo.id),
+          () async {
+            if (!mounted) return;
+            try {
+              await ref.read(todosProvider.notifier).toggleTodo(todo.id);
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Failed to toggle task. Please try again.'),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
+              }
+            }
+          },
         );
       },
       onDelete: () async {
@@ -456,20 +510,79 @@ class _TodoListState extends ConsumerState<_TodoList> {
             ],
           ),
         );
-        if (confirm == true) {
-          await ref.read(todosProvider.notifier).deleteTodo(t.id);
+        if (confirm == true && mounted) {
+          if (kDebugMode)
+            debugPrint('DEBUG: Attempting to delete task with id: ${t.id}');
+          try {
+            await ref.read(todosProvider.notifier).deleteTodo(t.id);
+            if (kDebugMode)
+              debugPrint('DEBUG: Successfully deleted task with id: ${t.id}');
+          } catch (e) {
+            if (kDebugMode)
+              debugPrint(
+                'DEBUG: Failed to delete task with id: ${t.id}, error: $e',
+              );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Failed to delete task. Please try again.'),
+                  backgroundColor: Colors.redAccent,
+                ),
+              );
+            }
+          }
         }
       },
       onToggle: () async {
-        await ref.read(todosProvider.notifier).toggleTodo(t.id);
+        if (!mounted) return;
+        try {
+          await ref.read(todosProvider.notifier).toggleTodo(t.id);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to toggle task. Please try again.'),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
+        }
       },
       onUpdateText: (newText) async {
-        await ref.read(todosProvider.notifier).updateTodo(t.id, text: newText);
+        if (!mounted) return;
+        try {
+          await ref
+              .read(todosProvider.notifier)
+              .updateTodo(t.id, text: newText);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to update task text. Please try again.'),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
+        }
       },
       onUpdateDuration: (h, m) async {
-        await ref
-            .read(todosProvider.notifier)
-            .updateTodo(t.id, hours: h, minutes: m);
+        if (!mounted) return;
+        try {
+          await ref
+              .read(todosProvider.notifier)
+              .updateTodo(t.id, hours: h, minutes: m);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Failed to update task duration. Please try again.',
+                ),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
+        }
       },
     );
   }
