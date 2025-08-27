@@ -60,8 +60,8 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
       // Refresh to get the real todo from server
       await refresh();
     } catch (e) {
-      // Keep optimistic update on error
-      // User will see the todo and can retry sync later
+      state = AsyncValue.data(currentTodos); // Revert state
+      rethrow; // Rethrow to notify the UI
     }
   }
 

@@ -219,7 +219,7 @@ Future<void> _showOverduePromptFromMiniBar(
     body: 'Planned time for "${todo.text}" is complete.',
   );
   try {
-    notificationService.playSound('progress bar full.wav');
+    notificationService.playSound('progress_bar_full.wav');
   } catch (_) {}
 
   final res = await showDialog<String>(

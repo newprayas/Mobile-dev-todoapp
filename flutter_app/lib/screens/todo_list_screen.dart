@@ -201,15 +201,23 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
     final m = int.tryParse(_mins.text) ?? 0;
     if (text.isEmpty) return;
 
-    await ref.read(todosProvider.notifier).addTodo(text, h, m);
-
-    if (!mounted) return;
-
-    _newText.clear();
-    _hours.text = '0';
-    _mins.text = '25';
-    // Hide keyboard after adding
-    FocusScope.of(context).unfocus();
+    try {
+      await ref.read(todosProvider.notifier).addTodo(text, h, m);
+      if (!mounted) return;
+      _newText.clear();
+      _hours.text = '0';
+      _mins.text = '25';
+      // Hide keyboard after adding
+      FocusScope.of(context).unfocus();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to add task. Please try again.'),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -482,91 +490,94 @@ class _TodoListState extends ConsumerState<_TodoList> {
         ...widget.todos
             .where((t) => !t.completed)
             .map((t) => _buildTaskCard(t)),
-        const SizedBox(height: 18),
-        Container(height: 2, color: AppColors.brightYellow),
-        const SizedBox(height: 8),
-        Theme(
-          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            backgroundColor: Colors.transparent,
-            collapsedBackgroundColor: Colors.transparent,
-            childrenPadding: EdgeInsets.zero,
-            initiallyExpanded: _completedExpanded,
-            onExpansionChanged: (v) {
-              if (mounted) {
-                setState(() => _completedExpanded = v);
-              }
-            },
-            title: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.check, color: AppColors.lightGray, size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Completed',
-                      style: TextStyle(
-                        color: AppColors.lightGray,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                if (_completedExpanded)
-                  Tooltip(
-                    message: 'Clear completed',
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (dctx) => AlertDialog(
-                            title: const Text('Clear completed?'),
-                            content: const Text(
-                              'This will permanently delete all completed tasks.',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.of(dctx).pop(false),
-                                child: const Text('Cancel'),
-                              ),
-                              ElevatedButton(
-                                onPressed: () => Navigator.of(dctx).pop(true),
-                                child: const Text('Clear'),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (confirm == true) {
-                          await ref
-                              .read(todosProvider.notifier)
-                              .clearCompleted();
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.midGray,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+        if (widget.todos.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          Container(height: 2, color: AppColors.brightYellow),
+          const SizedBox(height: 8),
+          Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              backgroundColor: Colors.transparent,
+              collapsedBackgroundColor: Colors.transparent,
+              childrenPadding: EdgeInsets.zero,
+              initiallyExpanded: _completedExpanded,
+              onExpansionChanged: (v) {
+                if (mounted) {
+                  setState(() => _completedExpanded = v);
+                }
+              },
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.check, color: AppColors.lightGray, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Completed',
+                        style: TextStyle(
+                          color: AppColors.lightGray,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
-                        padding: const EdgeInsets.all(10),
-                        minimumSize: const Size(40, 40),
                       ),
-                      child: const Icon(
-                        Icons.delete_outline,
-                        color: AppColors.lightGray,
+                    ],
+                  ),
+                  if (_completedExpanded)
+                    Tooltip(
+                      message: 'Clear completed',
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (dctx) => AlertDialog(
+                              title: const Text('Clear completed?'),
+                              content: const Text(
+                                'This will permanently delete all completed tasks.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(dctx).pop(false),
+                                  child: const Text('Cancel'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () => Navigator.of(dctx).pop(true),
+                                  child: const Text('Clear'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            await ref
+                                .read(todosProvider.notifier)
+                                .clearCompleted();
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.midGray,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.all(10),
+                          minimumSize: const Size(40, 40),
+                        ),
+                        child: const Icon(
+                          Icons.delete_outline,
+                          color: AppColors.lightGray,
+                        ),
                       ),
                     ),
-                  ),
+                ],
+              ),
+              children: [
+                ...widget.todos
+                    .where((t) => t.completed)
+                    .map((t) => _buildTaskCard(t)),
               ],
             ),
-            children: [
-              ...widget.todos
-                  .where((t) => t.completed)
-                  .map((t) => _buildTaskCard(t)),
-            ],
           ),
-        ),
+        ],
         const SizedBox(height: 60), // Space for the MiniTimerBar
       ],
     );

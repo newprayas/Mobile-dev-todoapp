@@ -68,8 +68,8 @@ class NotificationService {
   Future<void> testBreakSound() async {
     if (kDebugMode) {
       debugPrint('DEBUG: Testing BREAK TIMER sound specifically...');
-      debugPrint('DEBUG: Sound file path: sounds/Break timer start.wav');
-      await playSound('sounds/Break timer start.wav');
+      debugPrint('DEBUG: Sound file path: sounds/break_timer_start.wav');
+      await playSound('sounds/break_timer_start.wav');
       await Future.delayed(const Duration(seconds: 2));
       debugPrint('DEBUG: Break timer sound test completed');
     }
@@ -82,7 +82,7 @@ class NotificationService {
       try {
         await _audioPlayer.stop();
         await _audioPlayer.setVolume(1.0);
-        await _audioPlayer.play(AssetSource('sounds/Break timer start.wav'));
+        await _audioPlayer.play(AssetSource('sounds/break_timer_start.wav'));
         debugPrint('DEBUG: IMMEDIATE break timer sound executed');
       } catch (e) {
         debugPrint('DEBUG: IMMEDIATE break timer sound failed: $e');
@@ -96,9 +96,9 @@ class NotificationService {
       debugPrint('DEBUG: Testing all sound files...');
 
       final sounds = [
-        'sounds/Break timer start.wav',
-        'sounds/Focus timer start.wav',
-        'sounds/progress bar full.wav',
+        'sounds/break_timer_start.wav',
+        'sounds/focus_timer_start.wav',
+        'sounds/progress_bar_full.wav',
       ];
 
       for (final sound in sounds) {

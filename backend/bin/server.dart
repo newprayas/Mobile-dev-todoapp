@@ -240,7 +240,6 @@ Future<Response> updateFocusTime(Request request) async {
   } catch (_) {
     ft = 0;
   }
-  if (ft > maxSessionSeconds) ft = maxSessionSeconds;
 
   final db = getDb();
   final stmt = db.prepare(

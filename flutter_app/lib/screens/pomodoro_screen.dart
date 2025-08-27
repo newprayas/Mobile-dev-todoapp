@@ -593,7 +593,7 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
                             body: 'Stay on task: "${widget.todo.text}"',
                           );
                           widget.notificationService.playSound(
-                            'Focus timer start.wav',
+                            'focus_timer_start.wav',
                           );
                         } catch (e) {
                           if (kDebugMode) debugPrint('SOUND ERROR: $e');
@@ -723,7 +723,7 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
     );
 
     try {
-      widget.notificationService.playSound('progress bar full.wav');
+      widget.notificationService.playSound('progress_bar_full.wav');
     } catch (e) {
       if (kDebugMode) debugPrint('SOUND ERROR: $e');
     }
