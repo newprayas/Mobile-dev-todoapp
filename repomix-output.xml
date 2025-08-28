@@ -166,7 +166,6 @@ flutter_app/
           pomodoro_overdue_display.dart
           pomodoro_setup_view.dart
           pomodoro_timer_view.dart
-        pomodoro_router.dart
       todo/
         models/
           todo.dart
@@ -354,6 +353,2112 @@ public final class GeneratedPluginRegistrant {
     <orderEntry type="library" name="KotlinJavaRuntime" level="project" />
   </component>
 </module>
+</file>
+
+<file path="backend/.dart_tool/extension_discovery/devtools.json">
+{"version":2,"entries":[{"package":"todoapp_backend","rootUri":"../","packageUri":"lib/"}]}
+</file>
+
+<file path="backend/.dart_tool/extension_discovery/README.md">
+Extension Discovery Cache
+=========================
+
+This folder is used by `package:extension_discovery` to cache lists of
+packages that contains extensions for other packages.
+
+DO NOT USE THIS FOLDER
+----------------------
+
+ * Do not read (or rely) the contents of this folder.
+ * Do write to this folder.
+
+If you're interested in the lists of extensions stored in this folder use the
+API offered by package `extension_discovery` to get this information.
+
+If this package doesn't work for your use-case, then don't try to read the
+contents of this folder. It may change, and will not remain stable.
+
+Use package `extension_discovery`
+---------------------------------
+
+If you want to access information from this folder.
+
+Feel free to delete this folder
+-------------------------------
+
+Files in this folder act as a cache, and the cache is discarded if the files
+are older than the modification time of `.dart_tool/package_config.json`.
+
+Hence, it should never be necessary to clear this cache manually, if you find a
+need to do please file a bug.
+</file>
+
+<file path="backend/.dart_tool/extension_discovery/vs_code.json">
+{"version":2,"entries":[{"package":"todoapp_backend","rootUri":"../","packageUri":"lib/"}]}
+</file>
+
+<file path="backend/.dart_tool/package_config.json">
+{
+  "configVersion": 2,
+  "packages": [
+    {
+      "name": "args",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/args-2.7.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.3"
+    },
+    {
+      "name": "async",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/async-2.13.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
+      "name": "collection",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/collection-1.19.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
+      "name": "crypto",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/crypto-3.0.6",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
+      "name": "dotenv",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/dotenv-4.2.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.16"
+    },
+    {
+      "name": "ffi",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/ffi-2.1.4",
+      "packageUri": "lib/",
+      "languageVersion": "3.7"
+    },
+    {
+      "name": "http_methods",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/http_methods-1.1.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
+      "name": "http_parser",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/http_parser-4.1.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
+      "name": "js",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/js-0.6.7",
+      "packageUri": "lib/",
+      "languageVersion": "2.19"
+    },
+    {
+      "name": "meta",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/meta-1.17.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.5"
+    },
+    {
+      "name": "path",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/path-1.9.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
+      "name": "shelf",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/shelf-1.4.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
+      "name": "shelf_router",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/shelf_router-1.1.4",
+      "packageUri": "lib/",
+      "languageVersion": "2.17"
+    },
+    {
+      "name": "source_span",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/source_span-1.10.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.1"
+    },
+    {
+      "name": "sqlite3",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/sqlite3-1.11.2",
+      "packageUri": "lib/",
+      "languageVersion": "2.18"
+    },
+    {
+      "name": "stack_trace",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/stack_trace-1.12.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
+      "name": "stream_channel",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/stream_channel-2.1.4",
+      "packageUri": "lib/",
+      "languageVersion": "3.3"
+    },
+    {
+      "name": "string_scanner",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/string_scanner-1.4.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.1"
+    },
+    {
+      "name": "term_glyph",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/term_glyph-1.2.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.1"
+    },
+    {
+      "name": "typed_data",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/typed_data-1.4.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.5"
+    },
+    {
+      "name": "uuid",
+      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/uuid-3.0.7",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
+      "name": "todoapp_backend",
+      "rootUri": "../",
+      "packageUri": "lib/",
+      "languageVersion": "2.18"
+    }
+  ],
+  "generator": "pub",
+  "generatorVersion": "3.9.0",
+  "flutterRoot": "file:///opt/homebrew/share/flutter",
+  "flutterVersion": "3.35.1",
+  "pubCache": "file:///Users/pustak/.pub-cache"
+}
+</file>
+
+<file path="backend/.dart_tool/package_graph.json">
+{
+  "roots": [
+    "todoapp_backend"
+  ],
+  "packages": [
+    {
+      "name": "todoapp_backend",
+      "version": "0.0.1",
+      "dependencies": [
+        "dotenv",
+        "shelf",
+        "shelf_router",
+        "sqlite3",
+        "uuid"
+      ],
+      "devDependencies": []
+    },
+    {
+      "name": "uuid",
+      "version": "3.0.7",
+      "dependencies": [
+        "crypto"
+      ]
+    },
+    {
+      "name": "dotenv",
+      "version": "4.2.0",
+      "dependencies": [
+        "args",
+        "meta"
+      ]
+    },
+    {
+      "name": "sqlite3",
+      "version": "1.11.2",
+      "dependencies": [
+        "collection",
+        "ffi",
+        "js",
+        "meta",
+        "path"
+      ]
+    },
+    {
+      "name": "shelf_router",
+      "version": "1.1.4",
+      "dependencies": [
+        "http_methods",
+        "meta",
+        "shelf"
+      ]
+    },
+    {
+      "name": "shelf",
+      "version": "1.4.2",
+      "dependencies": [
+        "async",
+        "collection",
+        "http_parser",
+        "path",
+        "stack_trace",
+        "stream_channel"
+      ]
+    },
+    {
+      "name": "crypto",
+      "version": "3.0.6",
+      "dependencies": [
+        "typed_data"
+      ]
+    },
+    {
+      "name": "meta",
+      "version": "1.17.0",
+      "dependencies": []
+    },
+    {
+      "name": "args",
+      "version": "2.7.0",
+      "dependencies": []
+    },
+    {
+      "name": "path",
+      "version": "1.9.1",
+      "dependencies": []
+    },
+    {
+      "name": "js",
+      "version": "0.6.7",
+      "dependencies": [
+        "meta"
+      ]
+    },
+    {
+      "name": "ffi",
+      "version": "2.1.4",
+      "dependencies": []
+    },
+    {
+      "name": "collection",
+      "version": "1.19.1",
+      "dependencies": []
+    },
+    {
+      "name": "http_methods",
+      "version": "1.1.1",
+      "dependencies": []
+    },
+    {
+      "name": "stream_channel",
+      "version": "2.1.4",
+      "dependencies": [
+        "async"
+      ]
+    },
+    {
+      "name": "stack_trace",
+      "version": "1.12.1",
+      "dependencies": [
+        "path"
+      ]
+    },
+    {
+      "name": "http_parser",
+      "version": "4.1.2",
+      "dependencies": [
+        "collection",
+        "source_span",
+        "string_scanner",
+        "typed_data"
+      ]
+    },
+    {
+      "name": "async",
+      "version": "2.13.0",
+      "dependencies": [
+        "collection",
+        "meta"
+      ]
+    },
+    {
+      "name": "typed_data",
+      "version": "1.4.0",
+      "dependencies": [
+        "collection"
+      ]
+    },
+    {
+      "name": "string_scanner",
+      "version": "1.4.1",
+      "dependencies": [
+        "source_span"
+      ]
+    },
+    {
+      "name": "source_span",
+      "version": "1.10.1",
+      "dependencies": [
+        "collection",
+        "path",
+        "term_glyph"
+      ]
+    },
+    {
+      "name": "term_glyph",
+      "version": "1.2.2",
+      "dependencies": []
+    }
+  ],
+  "configVersion": 1
+}
+</file>
+
+<file path="backend/bin/cli.dart">
+import 'dart:io';
+import 'package:sqlite3/sqlite3.dart';
+
+final String databasePath = 'database.db';
+
+Database getDb() => sqlite3.open(databasePath);
+
+void initDb() {
+  final dbFile = File('../schema.sql');
+  if (!dbFile.existsSync()) {
+    print('schema.sql not found at ../schema.sql');
+    exit(1);
+  }
+  final sql = dbFile.readAsStringSync();
+  final db = getDb();
+  db.execute(sql);
+  db.dispose();
+  print('Initialized the database.');
+}
+
+void fixFocusedTimes() {
+  final db = getDb();
+  final rows = db.select('SELECT id, focused_time, overdue_time FROM todos');
+  var fixed = 0;
+  for (final r in rows) {
+    final tid = r['id'] as int;
+    var ft = (r['focused_time'] as int?) ?? 0;
+    var ot = (r['overdue_time'] as int?) ?? 0;
+    if (ft > 1000000) {
+      final newFt = ft ~/ 1000;
+      final newOt = (ot != 0 && ot > 1000000) ? (ot ~/ 1000) : ot;
+      final meta = db.select(
+        'SELECT duration_hours, duration_minutes FROM todos WHERE id = ?',
+        [tid],
+      );
+      var dh = 0;
+      var dm = 0;
+      if (meta.isNotEmpty) {
+        dh = (meta.first['duration_hours'] as int?) ?? 0;
+        dm = (meta.first['duration_minutes'] as int?) ?? 0;
+      }
+      final total = (dh * 3600) + (dm * 60);
+      final wasOverdue = (total > 0 && newFt > total) ? 1 : 0;
+      final overdueTime = (total > 0)
+          ? ((newFt > total) ? (newFt - total) : 0)
+          : newOt;
+      final stmt = db.prepare(
+        'UPDATE todos SET focused_time = ?, overdue_time = ?, was_overdue = ? WHERE id = ?',
+      );
+      stmt.execute([newFt, overdueTime, wasOverdue, tid]);
+      stmt.dispose();
+      fixed += 1;
+    }
+  }
+  db.dispose();
+  print('Fixed $fixed todos.');
+}
+
+void printUsage() {
+  print('Usage: dart run bin/cli.dart <command>');
+  print('Commands:');
+  print('  init-db           Initialize the database using ../schema.sql');
+  print(
+    '  fix-focused-times Fix obviously bad focused_time/overdue_time values',
+  );
+}
+
+void main(List<String> args) {
+  if (args.isEmpty) {
+    printUsage();
+    exit(0);
+  }
+  final cmd = args.first;
+  if (cmd == 'init-db') {
+    initDb();
+  } else if (cmd == 'fix-focused-times') {
+    fixFocusedTimes();
+  } else {
+    printUsage();
+  }
+}
+</file>
+
+<file path="backend/pubspec.lock">
+# Generated by pub
+# See https://dart.dev/tools/pub/glossary#lockfile
+packages:
+  args:
+    dependency: transitive
+    description:
+      name: args
+      sha256: d0481093c50b1da8910eb0bb301626d4d8eb7284aa739614d2b394ee09e3ea04
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.7.0"
+  async:
+    dependency: transitive
+    description:
+      name: async
+      sha256: "758e6d74e971c3e5aceb4110bfd6698efc7f501675bcfe0c775459a8140750eb"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.13.0"
+  collection:
+    dependency: transitive
+    description:
+      name: collection
+      sha256: "2f5709ae4d3d59dd8f7cd309b4e023046b57d8a6c82130785d2b0e5868084e76"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.19.1"
+  crypto:
+    dependency: transitive
+    description:
+      name: crypto
+      sha256: "1e445881f28f22d6140f181e07737b22f1e099a5e1ff94b0af2f9e4a463f4855"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.6"
+  dotenv:
+    dependency: "direct main"
+    description:
+      name: dotenv
+      sha256: "379e64b6fc82d3df29461d349a1796ecd2c436c480d4653f3af6872eccbc90e1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.2.0"
+  ffi:
+    dependency: transitive
+    description:
+      name: ffi
+      sha256: "289279317b4b16eb2bb7e271abccd4bf84ec9bdcbe999e278a94b804f5630418"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.4"
+  http_methods:
+    dependency: transitive
+    description:
+      name: http_methods
+      sha256: "6bccce8f1ec7b5d701e7921dca35e202d425b57e317ba1a37f2638590e29e566"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.1"
+  http_parser:
+    dependency: transitive
+    description:
+      name: http_parser
+      sha256: "178d74305e7866013777bab2c3d8726205dc5a4dd935297175b19a23a2e66571"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.1.2"
+  js:
+    dependency: transitive
+    description:
+      name: js
+      sha256: f2c445dce49627136094980615a031419f7f3eb393237e4ecd97ac15dea343f3
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.6.7"
+  meta:
+    dependency: transitive
+    description:
+      name: meta
+      sha256: "23f08335362185a5ea2ad3a4e597f1375e78bce8a040df5c600c8d3552ef2394"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.17.0"
+  path:
+    dependency: transitive
+    description:
+      name: path
+      sha256: "75cca69d1490965be98c73ceaea117e8a04dd21217b37b292c9ddbec0d955bc5"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.9.1"
+  shelf:
+    dependency: "direct main"
+    description:
+      name: shelf
+      sha256: e7dd780a7ffb623c57850b33f43309312fc863fb6aa3d276a754bb299839ef12
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.4.2"
+  shelf_router:
+    dependency: "direct main"
+    description:
+      name: shelf_router
+      sha256: f5e5d492440a7fb165fe1e2e1a623f31f734d3370900070b2b1e0d0428d59864
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.4"
+  source_span:
+    dependency: transitive
+    description:
+      name: source_span
+      sha256: "254ee5351d6cb365c859e20ee823c3bb479bf4a293c22d17a9f1bf144ce86f7c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.10.1"
+  sqlite3:
+    dependency: "direct main"
+    description:
+      name: sqlite3
+      sha256: "281b672749af2edf259fc801f0fcba092257425bcd32a0ce1c8237130bc934c7"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.11.2"
+  stack_trace:
+    dependency: transitive
+    description:
+      name: stack_trace
+      sha256: "8b27215b45d22309b5cddda1aa2b19bdfec9df0e765f2de506401c071d38d1b1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.12.1"
+  stream_channel:
+    dependency: transitive
+    description:
+      name: stream_channel
+      sha256: "969e04c80b8bcdf826f8f16579c7b14d780458bd97f56d107d3950fdbeef059d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.4"
+  string_scanner:
+    dependency: transitive
+    description:
+      name: string_scanner
+      sha256: "921cd31725b72fe181906c6a94d987c78e3b98c2e205b397ea399d4054872b43"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.4.1"
+  term_glyph:
+    dependency: transitive
+    description:
+      name: term_glyph
+      sha256: "7f554798625ea768a7518313e58f83891c7f5024f88e46e7182a4558850a4b8e"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.2"
+  typed_data:
+    dependency: transitive
+    description:
+      name: typed_data
+      sha256: f9049c039ebfeb4cf7a7104a675823cd72dba8297f264b6637062516699fa006
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.4.0"
+  uuid:
+    dependency: "direct main"
+    description:
+      name: uuid
+      sha256: "648e103079f7c64a36dc7d39369cabb358d377078a051d6ae2ad3aa539519313"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.7"
+sdks:
+  dart: ">=3.7.0 <4.0.0"
+</file>
+
+<file path="backend/pubspec.yaml">
+name: todoapp_backend
+description: Dart replacement for the Flask backend used by the Todoapp project.
+version: 0.0.1
+environment:
+  sdk: '>=2.18.0 <4.0.0'
+dependencies:
+  shelf: ^1.4.0
+  shelf_router: ^1.1.0
+  sqlite3: ^1.2.0
+  dotenv: ^4.2.0
+  uuid: ^3.0.7
+</file>
+
+<file path="backend/README.md">
+# Dart backend replacement for Flask app
+
+This folder contains a minimal Dart backend implemented with `shelf` and `sqlite3` to replace the original Flask `app.py`.
+
+How to run
+
+1. Install Dart SDK (2.18+).
+2. From this folder run:
+
+```bash
+dart pub get
+dart run bin/server.dart
+```
+
+3. The server listens on port 5000 by default. For local development, the Flutter client can pass the `x-user-id` header to simulate a logged-in user (the original app used OAuth). Example: `x-user-id: dev`.
+
+Notes
+- OAuth was simplified: the Dart server uses an `x-user-id` header or DEBUG env var to allow local development without external OAuth provider.
+- The server expects the same SQLite file `database.db` used by the app; it will alter the schema to add `was_overdue` and `overdue_time` columns if missing.
+</file>
+
+<file path="backend/schema.sql">
+CREATE TABLE IF NOT EXISTS todos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  completed INTEGER DEFAULT 0,
+  duration_hours INTEGER DEFAULT 0,
+  duration_minutes INTEGER DEFAULT 0,
+  focused_time INTEGER DEFAULT 0,
+  was_overdue INTEGER DEFAULT 0,
+  overdue_time INTEGER DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+</file>
+
+<file path="flutter_app/android/app/src/debug/AndroidManifest.xml">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The INTERNET permission is required for development. Specifically,
+         the Flutter tool needs it to communicate with the running application
+         to allow setting breakpoints, to provide hot reload, etc.
+    -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+</manifest>
+</file>
+
+<file path="flutter_app/android/app/src/main/kotlin/com/example/flutter_app/MainActivity.kt">
+package com.example.flutter_app
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity()
+</file>
+
+<file path="flutter_app/android/app/src/main/res/drawable/launch_background.xml">
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Modify this file to customize your launch splash screen -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@android:color/white" />
+
+    <!-- You can insert your own image assets here -->
+    <!-- <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@mipmap/launch_image" />
+    </item> -->
+</layer-list>
+</file>
+
+<file path="flutter_app/android/app/src/main/res/drawable-v21/launch_background.xml">
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Modify this file to customize your launch splash screen -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="?android:colorBackground" />
+
+    <!-- You can insert your own image assets here -->
+    <!-- <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@mipmap/launch_image" />
+    </item> -->
+</layer-list>
+</file>
+
+<file path="flutter_app/android/app/src/main/res/values/styles.xml">
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is off -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <!-- Show a splash screen on the activity. Automatically removed when
+             the Flutter engine draws its first frame -->
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+    <!-- Theme applied to the Android Window as soon as the process has started.
+         This theme determines the color of the Android Window while your
+         Flutter UI initializes, as well as behind your Flutter UI while its
+         running.
+
+         This Theme is only used starting with V2 of Flutter's Android embedding. -->
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">?android:colorBackground</item>
+    </style>
+</resources>
+</file>
+
+<file path="flutter_app/android/app/src/main/res/values-night/styles.xml">
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is on -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <!-- Show a splash screen on the activity. Automatically removed when
+             the Flutter engine draws its first frame -->
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+    <!-- Theme applied to the Android Window as soon as the process has started.
+         This theme determines the color of the Android Window while your
+         Flutter UI initializes, as well as behind your Flutter UI while its
+         running.
+
+         This Theme is only used starting with V2 of Flutter's Android embedding. -->
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">?android:colorBackground</item>
+    </style>
+</resources>
+</file>
+
+<file path="flutter_app/android/app/src/main/AndroidManifest.xml">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application
+        android:label="flutter_app"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>
+</file>
+
+<file path="flutter_app/android/app/src/profile/AndroidManifest.xml">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The INTERNET permission is required for development. Specifically,
+         the Flutter tool needs it to communicate with the running application
+         to allow setting breakpoints, to provide hot reload, etc.
+    -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+</manifest>
+</file>
+
+<file path="flutter_app/android/app/google-services.json">
+{
+  "project_info": {
+    "project_number": "123456789000",
+    "project_id": "your-todoapp-project-dev",
+    "storage_bucket": "your-todoapp-project-dev.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:123456789000:android:abcdef123456789",
+        "android_client_info": {
+          "package_name": "com.example.flutter_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "123456789000-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.flutter_app",
+            "certificate_hash": "abcdefghijklmnopqrstuvwxyz123456789abcdef"
+          }
+        },
+        {
+          "client_id": "123456789000-abcdefghijklmnopqrstuvwxyz789012.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbCdEfGhIjKlMnOpQrStUvWxYz1234567"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "123456789000-abcdefghijklmnopqrstuvwxyz789012.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
+</file>
+
+<file path="flutter_app/android/gradle/wrapper/gradle-wrapper.properties">
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.12-all.zip
+</file>
+
+<file path="flutter_app/android/.gitignore">
+gradle-wrapper.jar
+/.gradle
+/captures/
+/gradlew
+/gradlew.bat
+/local.properties
+GeneratedPluginRegistrant.java
+.cxx/
+
+# Remember to never publicly share your keystore.
+# See https://flutter.dev/to/reference-keystore
+key.properties
+**/*.keystore
+**/*.jks
+</file>
+
+<file path="flutter_app/android/gradle.properties">
+org.gradle.jvmargs=-Xmx8G -XX:MaxMetaspaceSize=4G -XX:ReservedCodeCacheSize=512m -XX:+HeapDumpOnOutOfMemoryError
+android.useAndroidX=true
+android.enableJetifier=true
+</file>
+
+<file path="flutter_app/android/settings.gradle.kts">
+pluginManagement {
+    val flutterSdkPath =
+        run {
+            val properties = java.util.Properties()
+            file("local.properties").inputStream().use { properties.load(it) }
+            val flutterSdkPath = properties.getProperty("flutter.sdk")
+            require(flutterSdkPath != null) { "flutter.sdk not set in local.properties" }
+            flutterSdkPath
+        }
+
+    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    id("dev.flutter.flutter-plugin-loader") version "1.0.0"
+    id("com.android.application") version "8.9.1" apply false
+    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
+}
+
+include(":app")
+</file>
+
+<file path="flutter_app/ios/Flutter/AppFrameworkInfo.plist">
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleExecutable</key>
+  <string>App</string>
+  <key>CFBundleIdentifier</key>
+  <string>io.flutter.flutter.app</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>App</string>
+  <key>CFBundlePackageType</key>
+  <string>FMWK</string>
+  <key>CFBundleShortVersionString</key>
+  <string>1.0</string>
+  <key>CFBundleSignature</key>
+  <string>????</string>
+  <key>CFBundleVersion</key>
+  <string>1.0</string>
+  <key>MinimumOSVersion</key>
+  <string>13.0</string>
+</dict>
+</plist>
+</file>
+
+<file path="flutter_app/ios/Flutter/Debug.xcconfig">
+#include "Generated.xcconfig"
+</file>
+
+<file path="flutter_app/ios/Flutter/Release.xcconfig">
+#include "Generated.xcconfig"
+</file>
+
+<file path="flutter_app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json">
+{
+  "images" : [
+    {
+      "size" : "20x20",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-20x20@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "20x20",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-20x20@3x.png",
+      "scale" : "3x"
+    },
+    {
+      "size" : "29x29",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-29x29@1x.png",
+      "scale" : "1x"
+    },
+    {
+      "size" : "29x29",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-29x29@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "29x29",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-29x29@3x.png",
+      "scale" : "3x"
+    },
+    {
+      "size" : "40x40",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-40x40@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "40x40",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-40x40@3x.png",
+      "scale" : "3x"
+    },
+    {
+      "size" : "60x60",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-60x60@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "60x60",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-60x60@3x.png",
+      "scale" : "3x"
+    },
+    {
+      "size" : "20x20",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-20x20@1x.png",
+      "scale" : "1x"
+    },
+    {
+      "size" : "20x20",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-20x20@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "29x29",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-29x29@1x.png",
+      "scale" : "1x"
+    },
+    {
+      "size" : "29x29",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-29x29@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "40x40",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-40x40@1x.png",
+      "scale" : "1x"
+    },
+    {
+      "size" : "40x40",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-40x40@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "76x76",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-76x76@1x.png",
+      "scale" : "1x"
+    },
+    {
+      "size" : "76x76",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-76x76@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "83.5x83.5",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-83.5x83.5@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "1024x1024",
+      "idiom" : "ios-marketing",
+      "filename" : "Icon-App-1024x1024@1x.png",
+      "scale" : "1x"
+    }
+  ],
+  "info" : {
+    "version" : 1,
+    "author" : "xcode"
+  }
+}
+</file>
+
+<file path="flutter_app/ios/Runner/Assets.xcassets/LaunchImage.imageset/Contents.json">
+{
+  "images" : [
+    {
+      "idiom" : "universal",
+      "filename" : "LaunchImage.png",
+      "scale" : "1x"
+    },
+    {
+      "idiom" : "universal",
+      "filename" : "LaunchImage@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "idiom" : "universal",
+      "filename" : "LaunchImage@3x.png",
+      "scale" : "3x"
+    }
+  ],
+  "info" : {
+    "version" : 1,
+    "author" : "xcode"
+  }
+}
+</file>
+
+<file path="flutter_app/ios/Runner/Assets.xcassets/LaunchImage.imageset/README.md">
+# Launch Screen Assets
+
+You can customize the launch screen with your own desired assets by replacing the image files in this directory.
+
+You can also do it by opening your Flutter project's Xcode project with `open ios/Runner.xcworkspace`, selecting `Runner/Assets.xcassets` in the Project Navigator and dropping in the desired images.
+</file>
+
+<file path="flutter_app/ios/Runner/Base.lproj/LaunchScreen.storyboard">
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="12121" systemVersion="16G29" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="12089"/>
+    </dependencies>
+    <scenes>
+        <!--View Controller-->
+        <scene sceneID="EHf-IW-A2E">
+            <objects>
+                <viewController id="01J-lp-oVM" sceneMemberID="viewController">
+                    <layoutGuides>
+                        <viewControllerLayoutGuide type="top" id="Ydg-fD-yQy"/>
+                        <viewControllerLayoutGuide type="bottom" id="xbc-2k-c8Z"/>
+                    </layoutGuides>
+                    <view key="view" contentMode="scaleToFill" id="Ze5-6b-2t3">
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" image="LaunchImage" translatesAutoresizingMaskIntoConstraints="NO" id="YRO-k0-Ey4">
+                            </imageView>
+                        </subviews>
+                        <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstItem="YRO-k0-Ey4" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="1a2-6s-vTC"/>
+                            <constraint firstItem="YRO-k0-Ey4" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" id="4X2-HB-R7a"/>
+                        </constraints>
+                    </view>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="53" y="375"/>
+        </scene>
+    </scenes>
+    <resources>
+        <image name="LaunchImage" width="168" height="185"/>
+    </resources>
+</document>
+</file>
+
+<file path="flutter_app/ios/Runner/Base.lproj/Main.storyboard">
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="10117" systemVersion="15F34" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" initialViewController="BYZ-38-t0r">
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="10085"/>
+    </dependencies>
+    <scenes>
+        <!--Flutter View Controller-->
+        <scene sceneID="tne-QT-ifu">
+            <objects>
+                <viewController id="BYZ-38-t0r" customClass="FlutterViewController" sceneMemberID="viewController">
+                    <layoutGuides>
+                        <viewControllerLayoutGuide type="top" id="y3c-jy-aDJ"/>
+                        <viewControllerLayoutGuide type="bottom" id="wfy-db-euE"/>
+                    </layoutGuides>
+                    <view key="view" contentMode="scaleToFill" id="8bC-Xf-vdC">
+                        <rect key="frame" x="0.0" y="0.0" width="600" height="600"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="calibratedWhite"/>
+                    </view>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
+            </objects>
+        </scene>
+    </scenes>
+</document>
+</file>
+
+<file path="flutter_app/ios/Runner/AppDelegate.swift">
+import Flutter
+import UIKit
+
+@main
+@objc class AppDelegate: FlutterAppDelegate {
+  override func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+  ) -> Bool {
+    GeneratedPluginRegistrant.register(with: self)
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+}
+</file>
+
+<file path="flutter_app/ios/Runner/Info.plist">
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Flutter App</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>flutter_app</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+</dict>
+</plist>
+</file>
+
+<file path="flutter_app/ios/Runner/Runner-Bridging-Header.h">
+#import "GeneratedPluginRegistrant.h"
+</file>
+
+<file path="flutter_app/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist">
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IDEDidComputeMac32BitWarning</key>
+	<true/>
+</dict>
+</plist>
+</file>
+
+<file path="flutter_app/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings">
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PreviewsEnabled</key>
+	<false/>
+</dict>
+</plist>
+</file>
+
+<file path="flutter_app/ios/Runner.xcodeproj/project.xcworkspace/contents.xcworkspacedata">
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <FileRef
+      location = "self:">
+   </FileRef>
+</Workspace>
+</file>
+
+<file path="flutter_app/ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme">
+<?xml version="1.0" encoding="UTF-8"?>
+<Scheme
+   LastUpgradeVersion = "1510"
+   version = "1.3">
+   <BuildAction
+      parallelizeBuildables = "YES"
+      buildImplicitDependencies = "YES">
+      <BuildActionEntries>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "97C146ED1CF9000F007C117D"
+               BuildableName = "Runner.app"
+               BlueprintName = "Runner"
+               ReferencedContainer = "container:Runner.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+      </BuildActionEntries>
+   </BuildAction>
+   <TestAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      customLLDBInitFile = "$(SRCROOT)/Flutter/ephemeral/flutter_lldbinit"
+      shouldUseLaunchSchemeArgsEnv = "YES">
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "97C146ED1CF9000F007C117D"
+            BuildableName = "Runner.app"
+            BlueprintName = "Runner"
+            ReferencedContainer = "container:Runner.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
+      <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "331C8080294A63A400263BE5"
+               BuildableName = "RunnerTests.xctest"
+               BlueprintName = "RunnerTests"
+               ReferencedContainer = "container:Runner.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+      </Testables>
+   </TestAction>
+   <LaunchAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      customLLDBInitFile = "$(SRCROOT)/Flutter/ephemeral/flutter_lldbinit"
+      launchStyle = "0"
+      useCustomWorkingDirectory = "NO"
+      ignoresPersistentStateOnLaunch = "NO"
+      debugDocumentVersioning = "YES"
+      debugServiceExtension = "internal"
+      enableGPUValidationMode = "1"
+      allowLocationSimulation = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "97C146ED1CF9000F007C117D"
+            BuildableName = "Runner.app"
+            BlueprintName = "Runner"
+            ReferencedContainer = "container:Runner.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </LaunchAction>
+   <ProfileAction
+      buildConfiguration = "Profile"
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      savedToolIdentifier = ""
+      useCustomWorkingDirectory = "NO"
+      debugDocumentVersioning = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "97C146ED1CF9000F007C117D"
+            BuildableName = "Runner.app"
+            BlueprintName = "Runner"
+            ReferencedContainer = "container:Runner.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </ProfileAction>
+   <AnalyzeAction
+      buildConfiguration = "Debug">
+   </AnalyzeAction>
+   <ArchiveAction
+      buildConfiguration = "Release"
+      revealArchiveInOrganizer = "YES">
+   </ArchiveAction>
+</Scheme>
+</file>
+
+<file path="flutter_app/ios/Runner.xcodeproj/project.pbxproj">
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 54;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
+		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
+		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
+		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
+		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
+		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
+		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		331C8085294A63A400263BE5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 97C146ED1CF9000F007C117D;
+			remoteInfo = Runner;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		9705A1C41CF9048500538489 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
+		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
+		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
+		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
+		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
+		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
+		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
+		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
+		97C146EE1CF9000F007C117D /* Runner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runner.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		97C146FB1CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		97C146EB1CF9000F007C117D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		331C8082294A63A400263BE5 /* RunnerTests */ = {
+			isa = PBXGroup;
+			children = (
+				331C807B294A618700263BE5 /* RunnerTests.swift */,
+			);
+			path = RunnerTests;
+			sourceTree = "<group>";
+		};
+		9740EEB11CF90186004384FC /* Flutter */ = {
+			isa = PBXGroup;
+			children = (
+				3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */,
+				9740EEB21CF90195004384FC /* Debug.xcconfig */,
+				7AFA3C8E1D35360C0083082E /* Release.xcconfig */,
+				9740EEB31CF90195004384FC /* Generated.xcconfig */,
+			);
+			name = Flutter;
+			sourceTree = "<group>";
+		};
+		97C146E51CF9000F007C117D = {
+			isa = PBXGroup;
+			children = (
+				9740EEB11CF90186004384FC /* Flutter */,
+				97C146F01CF9000F007C117D /* Runner */,
+				97C146EF1CF9000F007C117D /* Products */,
+				331C8082294A63A400263BE5 /* RunnerTests */,
+			);
+			sourceTree = "<group>";
+		};
+		97C146EF1CF9000F007C117D /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				97C146EE1CF9000F007C117D /* Runner.app */,
+				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		97C146F01CF9000F007C117D /* Runner */ = {
+			isa = PBXGroup;
+			children = (
+				97C146FA1CF9000F007C117D /* Main.storyboard */,
+				97C146FD1CF9000F007C117D /* Assets.xcassets */,
+				97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */,
+				97C147021CF9000F007C117D /* Info.plist */,
+				1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */,
+				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
+				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
+				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
+			);
+			path = Runner;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		331C8080294A63A400263BE5 /* RunnerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 331C8087294A63A400263BE5 /* Build configuration list for PBXNativeTarget "RunnerTests" */;
+			buildPhases = (
+				331C807D294A63A400263BE5 /* Sources */,
+				331C807F294A63A400263BE5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				331C8086294A63A400263BE5 /* PBXTargetDependency */,
+			);
+			name = RunnerTests;
+			productName = RunnerTests;
+			productReference = 331C8081294A63A400263BE5 /* RunnerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		97C146ED1CF9000F007C117D /* Runner */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 97C147051CF9000F007C117D /* Build configuration list for PBXNativeTarget "Runner" */;
+			buildPhases = (
+				9740EEB61CF901F6004384FC /* Run Script */,
+				97C146EA1CF9000F007C117D /* Sources */,
+				97C146EB1CF9000F007C117D /* Frameworks */,
+				97C146EC1CF9000F007C117D /* Resources */,
+				9705A1C41CF9048500538489 /* Embed Frameworks */,
+				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Runner;
+			productName = Runner;
+			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		97C146E61CF9000F007C117D /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1510;
+				ORGANIZATIONNAME = "";
+				TargetAttributes = {
+					331C8080294A63A400263BE5 = {
+						CreatedOnToolsVersion = 14.0;
+						TestTargetID = 97C146ED1CF9000F007C117D;
+					};
+					97C146ED1CF9000F007C117D = {
+						CreatedOnToolsVersion = 7.3.1;
+						LastSwiftMigration = 1100;
+					};
+				};
+			};
+			buildConfigurationList = 97C146E91CF9000F007C117D /* Build configuration list for PBXProject "Runner" */;
+			compatibilityVersion = "Xcode 9.3";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 97C146E51CF9000F007C117D;
+			productRefGroup = 97C146EF1CF9000F007C117D /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				97C146ED1CF9000F007C117D /* Runner */,
+				331C8080294A63A400263BE5 /* RunnerTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		331C807F294A63A400263BE5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		97C146EC1CF9000F007C117D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */,
+				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
+				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
+				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		3B06AD1E1E4923F5004D2608 /* Thin Binary */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}",
+			);
+			name = "Thin Binary";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" embed_and_thin";
+		};
+		9740EEB61CF901F6004384FC /* Run Script */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Run Script";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		331C807D294A63A400263BE5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		97C146EA1CF9000F007C117D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
+				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		331C8086294A63A400263BE5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 97C146ED1CF9000F007C117D /* Runner */;
+			targetProxy = 331C8085294A63A400263BE5 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		97C146FA1CF9000F007C117D /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				97C146FB1CF9000F007C117D /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+		97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				97C147001CF9000F007C117D /* Base */,
+			);
+			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		249021D3217E4FDB00AE95B9 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Profile;
+		};
+		249021D4217E4FDB00AE95B9 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				ENABLE_BITCODE = NO;
+				INFOPLIST_FILE = Runner/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.flutterApp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Profile;
+		};
+		331C8088294A63A400263BE5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.flutterApp.RunnerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
+			};
+			name = Debug;
+		};
+		331C8089294A63A400263BE5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.flutterApp.RunnerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
+			};
+			name = Release;
+		};
+		331C808A294A63A400263BE5 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.flutterApp.RunnerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
+			};
+			name = Profile;
+		};
+		97C147031CF9000F007C117D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		97C147041CF9000F007C117D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		97C147061CF9000F007C117D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9740EEB21CF90195004384FC /* Debug.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				ENABLE_BITCODE = NO;
+				INFOPLIST_FILE = Runner/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.flutterApp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		97C147071CF9000F007C117D /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				ENABLE_BITCODE = NO;
+				INFOPLIST_FILE = Runner/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.flutterApp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		331C8087294A63A400263BE5 /* Build configuration list for PBXNativeTarget "RunnerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				331C8088294A63A400263BE5 /* Debug */,
+				331C8089294A63A400263BE5 /* Release */,
+				331C808A294A63A400263BE5 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		97C146E91CF9000F007C117D /* Build configuration list for PBXProject "Runner" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				97C147031CF9000F007C117D /* Debug */,
+				97C147041CF9000F007C117D /* Release */,
+				249021D3217E4FDB00AE95B9 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		97C147051CF9000F007C117D /* Build configuration list for PBXNativeTarget "Runner" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				97C147061CF9000F007C117D /* Debug */,
+				97C147071CF9000F007C117D /* Release */,
+				249021D4217E4FDB00AE95B9 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 97C146E61CF9000F007C117D /* Project object */;
+}
+</file>
+
+<file path="flutter_app/ios/Runner.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist">
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IDEDidComputeMac32BitWarning</key>
+	<true/>
+</dict>
+</plist>
+</file>
+
+<file path="flutter_app/ios/Runner.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings">
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PreviewsEnabled</key>
+	<false/>
+</dict>
+</plist>
+</file>
+
+<file path="flutter_app/ios/Runner.xcworkspace/contents.xcworkspacedata">
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <FileRef
+      location = "group:Runner.xcodeproj">
+   </FileRef>
+</Workspace>
+</file>
+
+<file path="flutter_app/ios/RunnerTests/RunnerTests.swift">
+import Flutter
+import UIKit
+import XCTest
+
+class RunnerTests: XCTestCase {
+
+  func testExample() {
+    // If you add code to the Runner application, consider adding tests here.
+    // See https://developer.apple.com/documentation/xctest for more information about using XCTest.
+  }
+
+}
+</file>
+
+<file path="flutter_app/ios/.gitignore">
+**/dgph
+*.mode1v3
+*.mode2v3
+*.moved-aside
+*.pbxuser
+*.perspectivev3
+**/*sync/
+.sconsign.dblite
+.tags*
+**/.vagrant/
+**/DerivedData/
+Icon?
+**/Pods/
+**/.symlinks/
+profile
+xcuserdata
+**/.generated/
+Flutter/App.framework
+Flutter/Flutter.framework
+Flutter/Flutter.podspec
+Flutter/Generated.xcconfig
+Flutter/ephemeral/
+Flutter/app.flx
+Flutter/app.zip
+Flutter/flutter_assets/
+Flutter/flutter_export_environment.sh
+ServiceDefinitions.json
+Runner/GeneratedPluginRegistrant.*
+
+# Exceptions to above rules.
+!default.mode1v3
+!default.mode2v3
+!default.pbxuser
+!default.perspectivev3
 </file>
 
 <file path="flutter_app/lib/core/providers/notification_provider.dart">
@@ -3160,70 +5265,6 @@ class PomodoroTimerView extends StatelessWidget {
 }
 </file>
 
-<file path="flutter_app/lib/features/pomodoro/pomodoro_router.dart">
-import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/services/api_service.dart';
-import '../../core/services/notification_service.dart';
-import '../todo/models/todo.dart';
-import 'providers/timer_provider.dart';
-
-/// Callback to let the parent (TodoListScreen) know the task was completed.
-typedef TaskCompletedCallback =
-    Future<void> Function({bool wasOverdue, int overdueTime});
-
-/// Router class for handling navigation to Pomodoro features.
-/// Decouples navigation logic from UI widgets.
-class PomodoroRouter {
-  /// Shows the Pomodoro timer as a bottom sheet.
-  static Future<void> showPomodoroSheet(
-    BuildContext context,
-    ApiService api,
-    Todo todo,
-    NotificationService notificationService,
-    TaskCompletedCallback onTaskCompleted,
-  ) async {
-    // Function to handle sheet dismissal and update minibar
-    void updateMinibar() {
-      final container = ProviderScope.containerOf(context);
-      final timerState = container.read(timerProvider);
-
-      if (kDebugMode) {
-        debugPrint(
-          'DEBUG: PomodoroRouter.showPomodoroSheet - Mini bar update after sheet dismissed. Timer state: ${timerState.isRunning}',
-        );
-      }
-    }
-
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        height: MediaQuery.of(context).size.height * 0.88,
-        child: const Center(
-          child: Text(
-            'Pomodoro Timer Coming Soon...',
-            style: TextStyle(color: Colors.white, fontSize: 18),
-          ),
-        ),
-      ),
-    );
-
-    // Update mini bar after sheet is dismissed
-    updateMinibar();
-  }
-}
-</file>
-
 <file path="flutter_app/lib/features/todo/models/todo.dart">
 class Todo {
   final int id;
@@ -3677,9 +5718,10 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
                   todos: todos,
                   api: api,
                   notificationService: notificationService,
-                  onPlay: (id) => _handleTaskCompletion(id, wasOverdue: false),
-                  onDelete: (id) => _handleTaskDeletion(id),
-                  onToggle: (id) => _handleTaskToggle(id),
+                  onPlay: (id) =>
+                      _handleTaskCompletion(int.parse(id), wasOverdue: false),
+                  onDelete: (id) => _handleTaskDeletion(int.parse(id)),
+                  onToggle: (id) => _handleTaskToggle(int.parse(id)),
                 ),
               ),
             ),
@@ -3694,7 +5736,7 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
               api: api,
               notificationService: notificationService,
               activeTodo: activeTodo,
-              onComplete: (id) => _handleTaskCompletion(id.toString()),
+              onComplete: (id) => _handleTaskCompletion(id),
             ),
           ),
       ],
@@ -3702,23 +5744,22 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
   }
 
   Future<void> _handleTaskCompletion(
-    String id, {
+    int id, {
     bool wasOverdue = false,
     int overdueTime = 0,
   }) async {
     if (!mounted) return;
     try {
-      final intId = int.parse(id);
       if (wasOverdue) {
         await ref
             .read(todosProvider.notifier)
             .toggleTodoWithOverdue(
-              intId,
+              id,
               wasOverdue: wasOverdue,
               overdueTime: overdueTime,
             );
       } else {
-        await ref.read(todosProvider.notifier).toggleTodo(intId);
+        await ref.read(todosProvider.notifier).toggleTodo(id);
       }
     } catch (e) {
       if (mounted && context.mounted) {
@@ -3732,11 +5773,10 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
     }
   }
 
-  Future<void> _handleTaskDeletion(String id) async {
+  Future<void> _handleTaskDeletion(int id) async {
     if (!mounted) return;
     try {
-      final intId = int.parse(id);
-      await ref.read(todosProvider.notifier).deleteTodo(intId);
+      await ref.read(todosProvider.notifier).deleteTodo(id);
     } catch (e) {
       if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3749,11 +5789,10 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
     }
   }
 
-  Future<void> _handleTaskToggle(String id) async {
+  Future<void> _handleTaskToggle(int id) async {
     if (!mounted) return;
     try {
-      final intId = int.parse(id);
-      await ref.read(todosProvider.notifier).toggleTodo(intId);
+      await ref.read(todosProvider.notifier).toggleTodo(id);
     } catch (e) {
       if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -4629,2112 +6668,6 @@ class TodoListAppBar extends ConsumerWidget {
     }
   }
 }
-</file>
-
-<file path="backend/.dart_tool/extension_discovery/devtools.json">
-{"version":2,"entries":[{"package":"todoapp_backend","rootUri":"../","packageUri":"lib/"}]}
-</file>
-
-<file path="backend/.dart_tool/extension_discovery/README.md">
-Extension Discovery Cache
-=========================
-
-This folder is used by `package:extension_discovery` to cache lists of
-packages that contains extensions for other packages.
-
-DO NOT USE THIS FOLDER
-----------------------
-
- * Do not read (or rely) the contents of this folder.
- * Do write to this folder.
-
-If you're interested in the lists of extensions stored in this folder use the
-API offered by package `extension_discovery` to get this information.
-
-If this package doesn't work for your use-case, then don't try to read the
-contents of this folder. It may change, and will not remain stable.
-
-Use package `extension_discovery`
----------------------------------
-
-If you want to access information from this folder.
-
-Feel free to delete this folder
--------------------------------
-
-Files in this folder act as a cache, and the cache is discarded if the files
-are older than the modification time of `.dart_tool/package_config.json`.
-
-Hence, it should never be necessary to clear this cache manually, if you find a
-need to do please file a bug.
-</file>
-
-<file path="backend/.dart_tool/extension_discovery/vs_code.json">
-{"version":2,"entries":[{"package":"todoapp_backend","rootUri":"../","packageUri":"lib/"}]}
-</file>
-
-<file path="backend/.dart_tool/package_config.json">
-{
-  "configVersion": 2,
-  "packages": [
-    {
-      "name": "args",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/args-2.7.0",
-      "packageUri": "lib/",
-      "languageVersion": "3.3"
-    },
-    {
-      "name": "async",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/async-2.13.0",
-      "packageUri": "lib/",
-      "languageVersion": "3.4"
-    },
-    {
-      "name": "collection",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/collection-1.19.1",
-      "packageUri": "lib/",
-      "languageVersion": "3.4"
-    },
-    {
-      "name": "crypto",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/crypto-3.0.6",
-      "packageUri": "lib/",
-      "languageVersion": "3.4"
-    },
-    {
-      "name": "dotenv",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/dotenv-4.2.0",
-      "packageUri": "lib/",
-      "languageVersion": "2.16"
-    },
-    {
-      "name": "ffi",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/ffi-2.1.4",
-      "packageUri": "lib/",
-      "languageVersion": "3.7"
-    },
-    {
-      "name": "http_methods",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/http_methods-1.1.1",
-      "packageUri": "lib/",
-      "languageVersion": "2.12"
-    },
-    {
-      "name": "http_parser",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/http_parser-4.1.2",
-      "packageUri": "lib/",
-      "languageVersion": "3.4"
-    },
-    {
-      "name": "js",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/js-0.6.7",
-      "packageUri": "lib/",
-      "languageVersion": "2.19"
-    },
-    {
-      "name": "meta",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/meta-1.17.0",
-      "packageUri": "lib/",
-      "languageVersion": "3.5"
-    },
-    {
-      "name": "path",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/path-1.9.1",
-      "packageUri": "lib/",
-      "languageVersion": "3.4"
-    },
-    {
-      "name": "shelf",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/shelf-1.4.2",
-      "packageUri": "lib/",
-      "languageVersion": "3.4"
-    },
-    {
-      "name": "shelf_router",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/shelf_router-1.1.4",
-      "packageUri": "lib/",
-      "languageVersion": "2.17"
-    },
-    {
-      "name": "source_span",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/source_span-1.10.1",
-      "packageUri": "lib/",
-      "languageVersion": "3.1"
-    },
-    {
-      "name": "sqlite3",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/sqlite3-1.11.2",
-      "packageUri": "lib/",
-      "languageVersion": "2.18"
-    },
-    {
-      "name": "stack_trace",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/stack_trace-1.12.1",
-      "packageUri": "lib/",
-      "languageVersion": "3.4"
-    },
-    {
-      "name": "stream_channel",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/stream_channel-2.1.4",
-      "packageUri": "lib/",
-      "languageVersion": "3.3"
-    },
-    {
-      "name": "string_scanner",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/string_scanner-1.4.1",
-      "packageUri": "lib/",
-      "languageVersion": "3.1"
-    },
-    {
-      "name": "term_glyph",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/term_glyph-1.2.2",
-      "packageUri": "lib/",
-      "languageVersion": "3.1"
-    },
-    {
-      "name": "typed_data",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/typed_data-1.4.0",
-      "packageUri": "lib/",
-      "languageVersion": "3.5"
-    },
-    {
-      "name": "uuid",
-      "rootUri": "file:///Users/pustak/.pub-cache/hosted/pub.dev/uuid-3.0.7",
-      "packageUri": "lib/",
-      "languageVersion": "2.12"
-    },
-    {
-      "name": "todoapp_backend",
-      "rootUri": "../",
-      "packageUri": "lib/",
-      "languageVersion": "2.18"
-    }
-  ],
-  "generator": "pub",
-  "generatorVersion": "3.9.0",
-  "flutterRoot": "file:///opt/homebrew/share/flutter",
-  "flutterVersion": "3.35.1",
-  "pubCache": "file:///Users/pustak/.pub-cache"
-}
-</file>
-
-<file path="backend/.dart_tool/package_graph.json">
-{
-  "roots": [
-    "todoapp_backend"
-  ],
-  "packages": [
-    {
-      "name": "todoapp_backend",
-      "version": "0.0.1",
-      "dependencies": [
-        "dotenv",
-        "shelf",
-        "shelf_router",
-        "sqlite3",
-        "uuid"
-      ],
-      "devDependencies": []
-    },
-    {
-      "name": "uuid",
-      "version": "3.0.7",
-      "dependencies": [
-        "crypto"
-      ]
-    },
-    {
-      "name": "dotenv",
-      "version": "4.2.0",
-      "dependencies": [
-        "args",
-        "meta"
-      ]
-    },
-    {
-      "name": "sqlite3",
-      "version": "1.11.2",
-      "dependencies": [
-        "collection",
-        "ffi",
-        "js",
-        "meta",
-        "path"
-      ]
-    },
-    {
-      "name": "shelf_router",
-      "version": "1.1.4",
-      "dependencies": [
-        "http_methods",
-        "meta",
-        "shelf"
-      ]
-    },
-    {
-      "name": "shelf",
-      "version": "1.4.2",
-      "dependencies": [
-        "async",
-        "collection",
-        "http_parser",
-        "path",
-        "stack_trace",
-        "stream_channel"
-      ]
-    },
-    {
-      "name": "crypto",
-      "version": "3.0.6",
-      "dependencies": [
-        "typed_data"
-      ]
-    },
-    {
-      "name": "meta",
-      "version": "1.17.0",
-      "dependencies": []
-    },
-    {
-      "name": "args",
-      "version": "2.7.0",
-      "dependencies": []
-    },
-    {
-      "name": "path",
-      "version": "1.9.1",
-      "dependencies": []
-    },
-    {
-      "name": "js",
-      "version": "0.6.7",
-      "dependencies": [
-        "meta"
-      ]
-    },
-    {
-      "name": "ffi",
-      "version": "2.1.4",
-      "dependencies": []
-    },
-    {
-      "name": "collection",
-      "version": "1.19.1",
-      "dependencies": []
-    },
-    {
-      "name": "http_methods",
-      "version": "1.1.1",
-      "dependencies": []
-    },
-    {
-      "name": "stream_channel",
-      "version": "2.1.4",
-      "dependencies": [
-        "async"
-      ]
-    },
-    {
-      "name": "stack_trace",
-      "version": "1.12.1",
-      "dependencies": [
-        "path"
-      ]
-    },
-    {
-      "name": "http_parser",
-      "version": "4.1.2",
-      "dependencies": [
-        "collection",
-        "source_span",
-        "string_scanner",
-        "typed_data"
-      ]
-    },
-    {
-      "name": "async",
-      "version": "2.13.0",
-      "dependencies": [
-        "collection",
-        "meta"
-      ]
-    },
-    {
-      "name": "typed_data",
-      "version": "1.4.0",
-      "dependencies": [
-        "collection"
-      ]
-    },
-    {
-      "name": "string_scanner",
-      "version": "1.4.1",
-      "dependencies": [
-        "source_span"
-      ]
-    },
-    {
-      "name": "source_span",
-      "version": "1.10.1",
-      "dependencies": [
-        "collection",
-        "path",
-        "term_glyph"
-      ]
-    },
-    {
-      "name": "term_glyph",
-      "version": "1.2.2",
-      "dependencies": []
-    }
-  ],
-  "configVersion": 1
-}
-</file>
-
-<file path="backend/bin/cli.dart">
-import 'dart:io';
-import 'package:sqlite3/sqlite3.dart';
-
-final String databasePath = 'database.db';
-
-Database getDb() => sqlite3.open(databasePath);
-
-void initDb() {
-  final dbFile = File('../schema.sql');
-  if (!dbFile.existsSync()) {
-    print('schema.sql not found at ../schema.sql');
-    exit(1);
-  }
-  final sql = dbFile.readAsStringSync();
-  final db = getDb();
-  db.execute(sql);
-  db.dispose();
-  print('Initialized the database.');
-}
-
-void fixFocusedTimes() {
-  final db = getDb();
-  final rows = db.select('SELECT id, focused_time, overdue_time FROM todos');
-  var fixed = 0;
-  for (final r in rows) {
-    final tid = r['id'] as int;
-    var ft = (r['focused_time'] as int?) ?? 0;
-    var ot = (r['overdue_time'] as int?) ?? 0;
-    if (ft > 1000000) {
-      final newFt = ft ~/ 1000;
-      final newOt = (ot != 0 && ot > 1000000) ? (ot ~/ 1000) : ot;
-      final meta = db.select(
-        'SELECT duration_hours, duration_minutes FROM todos WHERE id = ?',
-        [tid],
-      );
-      var dh = 0;
-      var dm = 0;
-      if (meta.isNotEmpty) {
-        dh = (meta.first['duration_hours'] as int?) ?? 0;
-        dm = (meta.first['duration_minutes'] as int?) ?? 0;
-      }
-      final total = (dh * 3600) + (dm * 60);
-      final wasOverdue = (total > 0 && newFt > total) ? 1 : 0;
-      final overdueTime = (total > 0)
-          ? ((newFt > total) ? (newFt - total) : 0)
-          : newOt;
-      final stmt = db.prepare(
-        'UPDATE todos SET focused_time = ?, overdue_time = ?, was_overdue = ? WHERE id = ?',
-      );
-      stmt.execute([newFt, overdueTime, wasOverdue, tid]);
-      stmt.dispose();
-      fixed += 1;
-    }
-  }
-  db.dispose();
-  print('Fixed $fixed todos.');
-}
-
-void printUsage() {
-  print('Usage: dart run bin/cli.dart <command>');
-  print('Commands:');
-  print('  init-db           Initialize the database using ../schema.sql');
-  print(
-    '  fix-focused-times Fix obviously bad focused_time/overdue_time values',
-  );
-}
-
-void main(List<String> args) {
-  if (args.isEmpty) {
-    printUsage();
-    exit(0);
-  }
-  final cmd = args.first;
-  if (cmd == 'init-db') {
-    initDb();
-  } else if (cmd == 'fix-focused-times') {
-    fixFocusedTimes();
-  } else {
-    printUsage();
-  }
-}
-</file>
-
-<file path="backend/pubspec.lock">
-# Generated by pub
-# See https://dart.dev/tools/pub/glossary#lockfile
-packages:
-  args:
-    dependency: transitive
-    description:
-      name: args
-      sha256: d0481093c50b1da8910eb0bb301626d4d8eb7284aa739614d2b394ee09e3ea04
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.7.0"
-  async:
-    dependency: transitive
-    description:
-      name: async
-      sha256: "758e6d74e971c3e5aceb4110bfd6698efc7f501675bcfe0c775459a8140750eb"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.13.0"
-  collection:
-    dependency: transitive
-    description:
-      name: collection
-      sha256: "2f5709ae4d3d59dd8f7cd309b4e023046b57d8a6c82130785d2b0e5868084e76"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.19.1"
-  crypto:
-    dependency: transitive
-    description:
-      name: crypto
-      sha256: "1e445881f28f22d6140f181e07737b22f1e099a5e1ff94b0af2f9e4a463f4855"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.0.6"
-  dotenv:
-    dependency: "direct main"
-    description:
-      name: dotenv
-      sha256: "379e64b6fc82d3df29461d349a1796ecd2c436c480d4653f3af6872eccbc90e1"
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.2.0"
-  ffi:
-    dependency: transitive
-    description:
-      name: ffi
-      sha256: "289279317b4b16eb2bb7e271abccd4bf84ec9bdcbe999e278a94b804f5630418"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.1.4"
-  http_methods:
-    dependency: transitive
-    description:
-      name: http_methods
-      sha256: "6bccce8f1ec7b5d701e7921dca35e202d425b57e317ba1a37f2638590e29e566"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.1.1"
-  http_parser:
-    dependency: transitive
-    description:
-      name: http_parser
-      sha256: "178d74305e7866013777bab2c3d8726205dc5a4dd935297175b19a23a2e66571"
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.1.2"
-  js:
-    dependency: transitive
-    description:
-      name: js
-      sha256: f2c445dce49627136094980615a031419f7f3eb393237e4ecd97ac15dea343f3
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.6.7"
-  meta:
-    dependency: transitive
-    description:
-      name: meta
-      sha256: "23f08335362185a5ea2ad3a4e597f1375e78bce8a040df5c600c8d3552ef2394"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.17.0"
-  path:
-    dependency: transitive
-    description:
-      name: path
-      sha256: "75cca69d1490965be98c73ceaea117e8a04dd21217b37b292c9ddbec0d955bc5"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.9.1"
-  shelf:
-    dependency: "direct main"
-    description:
-      name: shelf
-      sha256: e7dd780a7ffb623c57850b33f43309312fc863fb6aa3d276a754bb299839ef12
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.4.2"
-  shelf_router:
-    dependency: "direct main"
-    description:
-      name: shelf_router
-      sha256: f5e5d492440a7fb165fe1e2e1a623f31f734d3370900070b2b1e0d0428d59864
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.1.4"
-  source_span:
-    dependency: transitive
-    description:
-      name: source_span
-      sha256: "254ee5351d6cb365c859e20ee823c3bb479bf4a293c22d17a9f1bf144ce86f7c"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.10.1"
-  sqlite3:
-    dependency: "direct main"
-    description:
-      name: sqlite3
-      sha256: "281b672749af2edf259fc801f0fcba092257425bcd32a0ce1c8237130bc934c7"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.11.2"
-  stack_trace:
-    dependency: transitive
-    description:
-      name: stack_trace
-      sha256: "8b27215b45d22309b5cddda1aa2b19bdfec9df0e765f2de506401c071d38d1b1"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.12.1"
-  stream_channel:
-    dependency: transitive
-    description:
-      name: stream_channel
-      sha256: "969e04c80b8bcdf826f8f16579c7b14d780458bd97f56d107d3950fdbeef059d"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.1.4"
-  string_scanner:
-    dependency: transitive
-    description:
-      name: string_scanner
-      sha256: "921cd31725b72fe181906c6a94d987c78e3b98c2e205b397ea399d4054872b43"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.4.1"
-  term_glyph:
-    dependency: transitive
-    description:
-      name: term_glyph
-      sha256: "7f554798625ea768a7518313e58f83891c7f5024f88e46e7182a4558850a4b8e"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.2.2"
-  typed_data:
-    dependency: transitive
-    description:
-      name: typed_data
-      sha256: f9049c039ebfeb4cf7a7104a675823cd72dba8297f264b6637062516699fa006
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.4.0"
-  uuid:
-    dependency: "direct main"
-    description:
-      name: uuid
-      sha256: "648e103079f7c64a36dc7d39369cabb358d377078a051d6ae2ad3aa539519313"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.0.7"
-sdks:
-  dart: ">=3.7.0 <4.0.0"
-</file>
-
-<file path="backend/pubspec.yaml">
-name: todoapp_backend
-description: Dart replacement for the Flask backend used by the Todoapp project.
-version: 0.0.1
-environment:
-  sdk: '>=2.18.0 <4.0.0'
-dependencies:
-  shelf: ^1.4.0
-  shelf_router: ^1.1.0
-  sqlite3: ^1.2.0
-  dotenv: ^4.2.0
-  uuid: ^3.0.7
-</file>
-
-<file path="backend/README.md">
-# Dart backend replacement for Flask app
-
-This folder contains a minimal Dart backend implemented with `shelf` and `sqlite3` to replace the original Flask `app.py`.
-
-How to run
-
-1. Install Dart SDK (2.18+).
-2. From this folder run:
-
-```bash
-dart pub get
-dart run bin/server.dart
-```
-
-3. The server listens on port 5000 by default. For local development, the Flutter client can pass the `x-user-id` header to simulate a logged-in user (the original app used OAuth). Example: `x-user-id: dev`.
-
-Notes
-- OAuth was simplified: the Dart server uses an `x-user-id` header or DEBUG env var to allow local development without external OAuth provider.
-- The server expects the same SQLite file `database.db` used by the app; it will alter the schema to add `was_overdue` and `overdue_time` columns if missing.
-</file>
-
-<file path="backend/schema.sql">
-CREATE TABLE IF NOT EXISTS todos (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id TEXT NOT NULL,
-  text TEXT NOT NULL,
-  completed INTEGER DEFAULT 0,
-  duration_hours INTEGER DEFAULT 0,
-  duration_minutes INTEGER DEFAULT 0,
-  focused_time INTEGER DEFAULT 0,
-  was_overdue INTEGER DEFAULT 0,
-  overdue_time INTEGER DEFAULT 0,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-</file>
-
-<file path="flutter_app/android/app/src/debug/AndroidManifest.xml">
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- The INTERNET permission is required for development. Specifically,
-         the Flutter tool needs it to communicate with the running application
-         to allow setting breakpoints, to provide hot reload, etc.
-    -->
-    <uses-permission android:name="android.permission.INTERNET"/>
-</manifest>
-</file>
-
-<file path="flutter_app/android/app/src/main/kotlin/com/example/flutter_app/MainActivity.kt">
-package com.example.flutter_app
-
-import io.flutter.embedding.android.FlutterActivity
-
-class MainActivity : FlutterActivity()
-</file>
-
-<file path="flutter_app/android/app/src/main/res/drawable/launch_background.xml">
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
-
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
-</layer-list>
-</file>
-
-<file path="flutter_app/android/app/src/main/res/drawable-v21/launch_background.xml">
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="?android:colorBackground" />
-
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
-</layer-list>
-</file>
-
-<file path="flutter_app/android/app/src/main/res/values/styles.xml">
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is off -->
-    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <!-- Show a splash screen on the activity. Automatically removed when
-             the Flutter engine draws its first frame -->
-        <item name="android:windowBackground">@drawable/launch_background</item>
-    </style>
-    <!-- Theme applied to the Android Window as soon as the process has started.
-         This theme determines the color of the Android Window while your
-         Flutter UI initializes, as well as behind your Flutter UI while its
-         running.
-
-         This Theme is only used starting with V2 of Flutter's Android embedding. -->
-    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <item name="android:windowBackground">?android:colorBackground</item>
-    </style>
-</resources>
-</file>
-
-<file path="flutter_app/android/app/src/main/res/values-night/styles.xml">
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is on -->
-    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
-        <!-- Show a splash screen on the activity. Automatically removed when
-             the Flutter engine draws its first frame -->
-        <item name="android:windowBackground">@drawable/launch_background</item>
-    </style>
-    <!-- Theme applied to the Android Window as soon as the process has started.
-         This theme determines the color of the Android Window while your
-         Flutter UI initializes, as well as behind your Flutter UI while its
-         running.
-
-         This Theme is only used starting with V2 of Flutter's Android embedding. -->
-    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
-        <item name="android:windowBackground">?android:colorBackground</item>
-    </style>
-</resources>
-</file>
-
-<file path="flutter_app/android/app/src/main/AndroidManifest.xml">
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application
-        android:label="flutter_app"
-        android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:launchMode="singleTop"
-            android:taskAffinity=""
-            android:theme="@style/LaunchTheme"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
-            android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize">
-            <!-- Specifies an Android theme to apply to this Activity as soon as
-                 the Android process has started. This theme is visible to the user
-                 while the Flutter UI initializes. After that, this theme continues
-                 to determine the Window background behind the Flutter UI. -->
-            <meta-data
-              android:name="io.flutter.embedding.android.NormalTheme"
-              android:resource="@style/NormalTheme"
-              />
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity>
-        <!-- Don't delete the meta-data below.
-             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
-        <meta-data
-            android:name="flutterEmbedding"
-            android:value="2" />
-    </application>
-    <!-- Required to query activities that can process text, see:
-         https://developer.android.com/training/package-visibility and
-         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
-
-         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT"/>
-            <data android:mimeType="text/plain"/>
-        </intent>
-    </queries>
-</manifest>
-</file>
-
-<file path="flutter_app/android/app/src/profile/AndroidManifest.xml">
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- The INTERNET permission is required for development. Specifically,
-         the Flutter tool needs it to communicate with the running application
-         to allow setting breakpoints, to provide hot reload, etc.
-    -->
-    <uses-permission android:name="android.permission.INTERNET"/>
-</manifest>
-</file>
-
-<file path="flutter_app/android/app/google-services.json">
-{
-  "project_info": {
-    "project_number": "123456789000",
-    "project_id": "your-todoapp-project-dev",
-    "storage_bucket": "your-todoapp-project-dev.appspot.com"
-  },
-  "client": [
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:123456789000:android:abcdef123456789",
-        "android_client_info": {
-          "package_name": "com.example.flutter_app"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "123456789000-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.example.flutter_app",
-            "certificate_hash": "abcdefghijklmnopqrstuvwxyz123456789abcdef"
-          }
-        },
-        {
-          "client_id": "123456789000-abcdefghijklmnopqrstuvwxyz789012.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyAbCdEfGhIjKlMnOpQrStUvWxYz1234567"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "123456789000-abcdefghijklmnopqrstuvwxyz789012.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
-        }
-      }
-    }
-  ],
-  "configuration_version": "1"
-}
-</file>
-
-<file path="flutter_app/android/gradle/wrapper/gradle-wrapper.properties">
-distributionBase=GRADLE_USER_HOME
-distributionPath=wrapper/dists
-zipStoreBase=GRADLE_USER_HOME
-zipStorePath=wrapper/dists
-distributionUrl=https\://services.gradle.org/distributions/gradle-8.12-all.zip
-</file>
-
-<file path="flutter_app/android/.gitignore">
-gradle-wrapper.jar
-/.gradle
-/captures/
-/gradlew
-/gradlew.bat
-/local.properties
-GeneratedPluginRegistrant.java
-.cxx/
-
-# Remember to never publicly share your keystore.
-# See https://flutter.dev/to/reference-keystore
-key.properties
-**/*.keystore
-**/*.jks
-</file>
-
-<file path="flutter_app/android/gradle.properties">
-org.gradle.jvmargs=-Xmx8G -XX:MaxMetaspaceSize=4G -XX:ReservedCodeCacheSize=512m -XX:+HeapDumpOnOutOfMemoryError
-android.useAndroidX=true
-android.enableJetifier=true
-</file>
-
-<file path="flutter_app/android/settings.gradle.kts">
-pluginManagement {
-    val flutterSdkPath =
-        run {
-            val properties = java.util.Properties()
-            file("local.properties").inputStream().use { properties.load(it) }
-            val flutterSdkPath = properties.getProperty("flutter.sdk")
-            require(flutterSdkPath != null) { "flutter.sdk not set in local.properties" }
-            flutterSdkPath
-        }
-
-    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
-
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
-
-plugins {
-    id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "8.9.1" apply false
-    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
-}
-
-include(":app")
-</file>
-
-<file path="flutter_app/ios/Flutter/AppFrameworkInfo.plist">
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleDevelopmentRegion</key>
-  <string>en</string>
-  <key>CFBundleExecutable</key>
-  <string>App</string>
-  <key>CFBundleIdentifier</key>
-  <string>io.flutter.flutter.app</string>
-  <key>CFBundleInfoDictionaryVersion</key>
-  <string>6.0</string>
-  <key>CFBundleName</key>
-  <string>App</string>
-  <key>CFBundlePackageType</key>
-  <string>FMWK</string>
-  <key>CFBundleShortVersionString</key>
-  <string>1.0</string>
-  <key>CFBundleSignature</key>
-  <string>????</string>
-  <key>CFBundleVersion</key>
-  <string>1.0</string>
-  <key>MinimumOSVersion</key>
-  <string>13.0</string>
-</dict>
-</plist>
-</file>
-
-<file path="flutter_app/ios/Flutter/Debug.xcconfig">
-#include "Generated.xcconfig"
-</file>
-
-<file path="flutter_app/ios/Flutter/Release.xcconfig">
-#include "Generated.xcconfig"
-</file>
-
-<file path="flutter_app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json">
-{
-  "images" : [
-    {
-      "size" : "20x20",
-      "idiom" : "iphone",
-      "filename" : "Icon-App-20x20@2x.png",
-      "scale" : "2x"
-    },
-    {
-      "size" : "20x20",
-      "idiom" : "iphone",
-      "filename" : "Icon-App-20x20@3x.png",
-      "scale" : "3x"
-    },
-    {
-      "size" : "29x29",
-      "idiom" : "iphone",
-      "filename" : "Icon-App-29x29@1x.png",
-      "scale" : "1x"
-    },
-    {
-      "size" : "29x29",
-      "idiom" : "iphone",
-      "filename" : "Icon-App-29x29@2x.png",
-      "scale" : "2x"
-    },
-    {
-      "size" : "29x29",
-      "idiom" : "iphone",
-      "filename" : "Icon-App-29x29@3x.png",
-      "scale" : "3x"
-    },
-    {
-      "size" : "40x40",
-      "idiom" : "iphone",
-      "filename" : "Icon-App-40x40@2x.png",
-      "scale" : "2x"
-    },
-    {
-      "size" : "40x40",
-      "idiom" : "iphone",
-      "filename" : "Icon-App-40x40@3x.png",
-      "scale" : "3x"
-    },
-    {
-      "size" : "60x60",
-      "idiom" : "iphone",
-      "filename" : "Icon-App-60x60@2x.png",
-      "scale" : "2x"
-    },
-    {
-      "size" : "60x60",
-      "idiom" : "iphone",
-      "filename" : "Icon-App-60x60@3x.png",
-      "scale" : "3x"
-    },
-    {
-      "size" : "20x20",
-      "idiom" : "ipad",
-      "filename" : "Icon-App-20x20@1x.png",
-      "scale" : "1x"
-    },
-    {
-      "size" : "20x20",
-      "idiom" : "ipad",
-      "filename" : "Icon-App-20x20@2x.png",
-      "scale" : "2x"
-    },
-    {
-      "size" : "29x29",
-      "idiom" : "ipad",
-      "filename" : "Icon-App-29x29@1x.png",
-      "scale" : "1x"
-    },
-    {
-      "size" : "29x29",
-      "idiom" : "ipad",
-      "filename" : "Icon-App-29x29@2x.png",
-      "scale" : "2x"
-    },
-    {
-      "size" : "40x40",
-      "idiom" : "ipad",
-      "filename" : "Icon-App-40x40@1x.png",
-      "scale" : "1x"
-    },
-    {
-      "size" : "40x40",
-      "idiom" : "ipad",
-      "filename" : "Icon-App-40x40@2x.png",
-      "scale" : "2x"
-    },
-    {
-      "size" : "76x76",
-      "idiom" : "ipad",
-      "filename" : "Icon-App-76x76@1x.png",
-      "scale" : "1x"
-    },
-    {
-      "size" : "76x76",
-      "idiom" : "ipad",
-      "filename" : "Icon-App-76x76@2x.png",
-      "scale" : "2x"
-    },
-    {
-      "size" : "83.5x83.5",
-      "idiom" : "ipad",
-      "filename" : "Icon-App-83.5x83.5@2x.png",
-      "scale" : "2x"
-    },
-    {
-      "size" : "1024x1024",
-      "idiom" : "ios-marketing",
-      "filename" : "Icon-App-1024x1024@1x.png",
-      "scale" : "1x"
-    }
-  ],
-  "info" : {
-    "version" : 1,
-    "author" : "xcode"
-  }
-}
-</file>
-
-<file path="flutter_app/ios/Runner/Assets.xcassets/LaunchImage.imageset/Contents.json">
-{
-  "images" : [
-    {
-      "idiom" : "universal",
-      "filename" : "LaunchImage.png",
-      "scale" : "1x"
-    },
-    {
-      "idiom" : "universal",
-      "filename" : "LaunchImage@2x.png",
-      "scale" : "2x"
-    },
-    {
-      "idiom" : "universal",
-      "filename" : "LaunchImage@3x.png",
-      "scale" : "3x"
-    }
-  ],
-  "info" : {
-    "version" : 1,
-    "author" : "xcode"
-  }
-}
-</file>
-
-<file path="flutter_app/ios/Runner/Assets.xcassets/LaunchImage.imageset/README.md">
-# Launch Screen Assets
-
-You can customize the launch screen with your own desired assets by replacing the image files in this directory.
-
-You can also do it by opening your Flutter project's Xcode project with `open ios/Runner.xcworkspace`, selecting `Runner/Assets.xcassets` in the Project Navigator and dropping in the desired images.
-</file>
-
-<file path="flutter_app/ios/Runner/Base.lproj/LaunchScreen.storyboard">
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="12121" systemVersion="16G29" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
-    <dependencies>
-        <deployment identifier="iOS"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="12089"/>
-    </dependencies>
-    <scenes>
-        <!--View Controller-->
-        <scene sceneID="EHf-IW-A2E">
-            <objects>
-                <viewController id="01J-lp-oVM" sceneMemberID="viewController">
-                    <layoutGuides>
-                        <viewControllerLayoutGuide type="top" id="Ydg-fD-yQy"/>
-                        <viewControllerLayoutGuide type="bottom" id="xbc-2k-c8Z"/>
-                    </layoutGuides>
-                    <view key="view" contentMode="scaleToFill" id="Ze5-6b-2t3">
-                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <subviews>
-                            <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" image="LaunchImage" translatesAutoresizingMaskIntoConstraints="NO" id="YRO-k0-Ey4">
-                            </imageView>
-                        </subviews>
-                        <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                        <constraints>
-                            <constraint firstItem="YRO-k0-Ey4" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="1a2-6s-vTC"/>
-                            <constraint firstItem="YRO-k0-Ey4" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" id="4X2-HB-R7a"/>
-                        </constraints>
-                    </view>
-                </viewController>
-                <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
-            </objects>
-            <point key="canvasLocation" x="53" y="375"/>
-        </scene>
-    </scenes>
-    <resources>
-        <image name="LaunchImage" width="168" height="185"/>
-    </resources>
-</document>
-</file>
-
-<file path="flutter_app/ios/Runner/Base.lproj/Main.storyboard">
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="10117" systemVersion="15F34" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" initialViewController="BYZ-38-t0r">
-    <dependencies>
-        <deployment identifier="iOS"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="10085"/>
-    </dependencies>
-    <scenes>
-        <!--Flutter View Controller-->
-        <scene sceneID="tne-QT-ifu">
-            <objects>
-                <viewController id="BYZ-38-t0r" customClass="FlutterViewController" sceneMemberID="viewController">
-                    <layoutGuides>
-                        <viewControllerLayoutGuide type="top" id="y3c-jy-aDJ"/>
-                        <viewControllerLayoutGuide type="bottom" id="wfy-db-euE"/>
-                    </layoutGuides>
-                    <view key="view" contentMode="scaleToFill" id="8bC-Xf-vdC">
-                        <rect key="frame" x="0.0" y="0.0" width="600" height="600"/>
-                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="calibratedWhite"/>
-                    </view>
-                </viewController>
-                <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
-            </objects>
-        </scene>
-    </scenes>
-</document>
-</file>
-
-<file path="flutter_app/ios/Runner/AppDelegate.swift">
-import Flutter
-import UIKit
-
-@main
-@objc class AppDelegate: FlutterAppDelegate {
-  override func application(
-    _ application: UIApplication,
-    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
-  ) -> Bool {
-    GeneratedPluginRegistrant.register(with: self)
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-  }
-}
-</file>
-
-<file path="flutter_app/ios/Runner/Info.plist">
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<key>CFBundleDisplayName</key>
-	<string>Flutter App</string>
-	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIdentifier</key>
-	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>flutter_app</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>$(FLUTTER_BUILD_NAME)</string>
-	<key>CFBundleSignature</key>
-	<string>????</string>
-	<key>CFBundleVersion</key>
-	<string>$(FLUTTER_BUILD_NUMBER)</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
-	<key>UILaunchStoryboardName</key>
-	<string>LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
-	<key>UISupportedInterfaceOrientations</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
-</dict>
-</plist>
-</file>
-
-<file path="flutter_app/ios/Runner/Runner-Bridging-Header.h">
-#import "GeneratedPluginRegistrant.h"
-</file>
-
-<file path="flutter_app/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist">
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>IDEDidComputeMac32BitWarning</key>
-	<true/>
-</dict>
-</plist>
-</file>
-
-<file path="flutter_app/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings">
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>PreviewsEnabled</key>
-	<false/>
-</dict>
-</plist>
-</file>
-
-<file path="flutter_app/ios/Runner.xcodeproj/project.xcworkspace/contents.xcworkspacedata">
-<?xml version="1.0" encoding="UTF-8"?>
-<Workspace
-   version = "1.0">
-   <FileRef
-      location = "self:">
-   </FileRef>
-</Workspace>
-</file>
-
-<file path="flutter_app/ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme">
-<?xml version="1.0" encoding="UTF-8"?>
-<Scheme
-   LastUpgradeVersion = "1510"
-   version = "1.3">
-   <BuildAction
-      parallelizeBuildables = "YES"
-      buildImplicitDependencies = "YES">
-      <BuildActionEntries>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "YES"
-            buildForProfiling = "YES"
-            buildForArchiving = "YES"
-            buildForAnalyzing = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "97C146ED1CF9000F007C117D"
-               BuildableName = "Runner.app"
-               BlueprintName = "Runner"
-               ReferencedContainer = "container:Runner.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-      </BuildActionEntries>
-   </BuildAction>
-   <TestAction
-      buildConfiguration = "Debug"
-      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
-      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      customLLDBInitFile = "$(SRCROOT)/Flutter/ephemeral/flutter_lldbinit"
-      shouldUseLaunchSchemeArgsEnv = "YES">
-      <MacroExpansion>
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "97C146ED1CF9000F007C117D"
-            BuildableName = "Runner.app"
-            BlueprintName = "Runner"
-            ReferencedContainer = "container:Runner.xcodeproj">
-         </BuildableReference>
-      </MacroExpansion>
-      <Testables>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "331C8080294A63A400263BE5"
-               BuildableName = "RunnerTests.xctest"
-               BlueprintName = "RunnerTests"
-               ReferencedContainer = "container:Runner.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-      </Testables>
-   </TestAction>
-   <LaunchAction
-      buildConfiguration = "Debug"
-      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
-      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      customLLDBInitFile = "$(SRCROOT)/Flutter/ephemeral/flutter_lldbinit"
-      launchStyle = "0"
-      useCustomWorkingDirectory = "NO"
-      ignoresPersistentStateOnLaunch = "NO"
-      debugDocumentVersioning = "YES"
-      debugServiceExtension = "internal"
-      enableGPUValidationMode = "1"
-      allowLocationSimulation = "YES">
-      <BuildableProductRunnable
-         runnableDebuggingMode = "0">
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "97C146ED1CF9000F007C117D"
-            BuildableName = "Runner.app"
-            BlueprintName = "Runner"
-            ReferencedContainer = "container:Runner.xcodeproj">
-         </BuildableReference>
-      </BuildableProductRunnable>
-   </LaunchAction>
-   <ProfileAction
-      buildConfiguration = "Profile"
-      shouldUseLaunchSchemeArgsEnv = "YES"
-      savedToolIdentifier = ""
-      useCustomWorkingDirectory = "NO"
-      debugDocumentVersioning = "YES">
-      <BuildableProductRunnable
-         runnableDebuggingMode = "0">
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "97C146ED1CF9000F007C117D"
-            BuildableName = "Runner.app"
-            BlueprintName = "Runner"
-            ReferencedContainer = "container:Runner.xcodeproj">
-         </BuildableReference>
-      </BuildableProductRunnable>
-   </ProfileAction>
-   <AnalyzeAction
-      buildConfiguration = "Debug">
-   </AnalyzeAction>
-   <ArchiveAction
-      buildConfiguration = "Release"
-      revealArchiveInOrganizer = "YES">
-   </ArchiveAction>
-</Scheme>
-</file>
-
-<file path="flutter_app/ios/Runner.xcodeproj/project.pbxproj">
-// !$*UTF8*$!
-{
-	archiveVersion = 1;
-	classes = {
-	};
-	objectVersion = 54;
-	objects = {
-
-/* Begin PBXBuildFile section */
-		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
-		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
-		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
-		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
-		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
-		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
-		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
-/* End PBXBuildFile section */
-
-/* Begin PBXContainerItemProxy section */
-		331C8085294A63A400263BE5 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 97C146ED1CF9000F007C117D;
-			remoteInfo = Runner;
-		};
-/* End PBXContainerItemProxy section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		9705A1C41CF9048500538489 /* Embed Frameworks */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 10;
-			files = (
-			);
-			name = "Embed Frameworks";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
-
-/* Begin PBXFileReference section */
-		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
-		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
-		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
-		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
-		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
-		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
-		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
-		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
-		97C146EE1CF9000F007C117D /* Runner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runner.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		97C146FB1CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
-		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
-		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-/* End PBXFileReference section */
-
-/* Begin PBXFrameworksBuildPhase section */
-		97C146EB1CF9000F007C117D /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXFrameworksBuildPhase section */
-
-/* Begin PBXGroup section */
-		331C8082294A63A400263BE5 /* RunnerTests */ = {
-			isa = PBXGroup;
-			children = (
-				331C807B294A618700263BE5 /* RunnerTests.swift */,
-			);
-			path = RunnerTests;
-			sourceTree = "<group>";
-		};
-		9740EEB11CF90186004384FC /* Flutter */ = {
-			isa = PBXGroup;
-			children = (
-				3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */,
-				9740EEB21CF90195004384FC /* Debug.xcconfig */,
-				7AFA3C8E1D35360C0083082E /* Release.xcconfig */,
-				9740EEB31CF90195004384FC /* Generated.xcconfig */,
-			);
-			name = Flutter;
-			sourceTree = "<group>";
-		};
-		97C146E51CF9000F007C117D = {
-			isa = PBXGroup;
-			children = (
-				9740EEB11CF90186004384FC /* Flutter */,
-				97C146F01CF9000F007C117D /* Runner */,
-				97C146EF1CF9000F007C117D /* Products */,
-				331C8082294A63A400263BE5 /* RunnerTests */,
-			);
-			sourceTree = "<group>";
-		};
-		97C146EF1CF9000F007C117D /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				97C146EE1CF9000F007C117D /* Runner.app */,
-				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
-		97C146F01CF9000F007C117D /* Runner */ = {
-			isa = PBXGroup;
-			children = (
-				97C146FA1CF9000F007C117D /* Main.storyboard */,
-				97C146FD1CF9000F007C117D /* Assets.xcassets */,
-				97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */,
-				97C147021CF9000F007C117D /* Info.plist */,
-				1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */,
-				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
-				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
-				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
-			);
-			path = Runner;
-			sourceTree = "<group>";
-		};
-/* End PBXGroup section */
-
-/* Begin PBXNativeTarget section */
-		331C8080294A63A400263BE5 /* RunnerTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 331C8087294A63A400263BE5 /* Build configuration list for PBXNativeTarget "RunnerTests" */;
-			buildPhases = (
-				331C807D294A63A400263BE5 /* Sources */,
-				331C807F294A63A400263BE5 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				331C8086294A63A400263BE5 /* PBXTargetDependency */,
-			);
-			name = RunnerTests;
-			productName = RunnerTests;
-			productReference = 331C8081294A63A400263BE5 /* RunnerTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
-		97C146ED1CF9000F007C117D /* Runner */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 97C147051CF9000F007C117D /* Build configuration list for PBXNativeTarget "Runner" */;
-			buildPhases = (
-				9740EEB61CF901F6004384FC /* Run Script */,
-				97C146EA1CF9000F007C117D /* Sources */,
-				97C146EB1CF9000F007C117D /* Frameworks */,
-				97C146EC1CF9000F007C117D /* Resources */,
-				9705A1C41CF9048500538489 /* Embed Frameworks */,
-				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = Runner;
-			productName = Runner;
-			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
-			productType = "com.apple.product-type.application";
-		};
-/* End PBXNativeTarget section */
-
-/* Begin PBXProject section */
-		97C146E61CF9000F007C117D /* Project object */ = {
-			isa = PBXProject;
-			attributes = {
-				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1510;
-				ORGANIZATIONNAME = "";
-				TargetAttributes = {
-					331C8080294A63A400263BE5 = {
-						CreatedOnToolsVersion = 14.0;
-						TestTargetID = 97C146ED1CF9000F007C117D;
-					};
-					97C146ED1CF9000F007C117D = {
-						CreatedOnToolsVersion = 7.3.1;
-						LastSwiftMigration = 1100;
-					};
-				};
-			};
-			buildConfigurationList = 97C146E91CF9000F007C117D /* Build configuration list for PBXProject "Runner" */;
-			compatibilityVersion = "Xcode 9.3";
-			developmentRegion = en;
-			hasScannedForEncodings = 0;
-			knownRegions = (
-				en,
-				Base,
-			);
-			mainGroup = 97C146E51CF9000F007C117D;
-			productRefGroup = 97C146EF1CF9000F007C117D /* Products */;
-			projectDirPath = "";
-			projectRoot = "";
-			targets = (
-				97C146ED1CF9000F007C117D /* Runner */,
-				331C8080294A63A400263BE5 /* RunnerTests */,
-			);
-		};
-/* End PBXProject section */
-
-/* Begin PBXResourcesBuildPhase section */
-		331C807F294A63A400263BE5 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		97C146EC1CF9000F007C117D /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */,
-				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
-				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
-				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		3B06AD1E1E4923F5004D2608 /* Thin Binary */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}",
-			);
-			name = "Thin Binary";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" embed_and_thin";
-		};
-		9740EEB61CF901F6004384FC /* Run Script */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "Run Script";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
-		};
-/* End PBXShellScriptBuildPhase section */
-
-/* Begin PBXSourcesBuildPhase section */
-		331C807D294A63A400263BE5 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		97C146EA1CF9000F007C117D /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
-				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-		331C8086294A63A400263BE5 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 97C146ED1CF9000F007C117D /* Runner */;
-			targetProxy = 331C8085294A63A400263BE5 /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
-
-/* Begin PBXVariantGroup section */
-		97C146FA1CF9000F007C117D /* Main.storyboard */ = {
-			isa = PBXVariantGroup;
-			children = (
-				97C146FB1CF9000F007C117D /* Base */,
-			);
-			name = Main.storyboard;
-			sourceTree = "<group>";
-		};
-		97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */ = {
-			isa = PBXVariantGroup;
-			children = (
-				97C147001CF9000F007C117D /* Base */,
-			);
-			name = LaunchScreen.storyboard;
-			sourceTree = "<group>";
-		};
-/* End PBXVariantGroup section */
-
-/* Begin XCBuildConfiguration section */
-		249021D3217E4FDB00AE95B9 /* Profile */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GCC_C_LANGUAGE_STANDARD = gnu99;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
-				MTL_ENABLE_DEBUG_INFO = NO;
-				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Profile;
-		};
-		249021D4217E4FDB00AE95B9 /* Profile */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				ENABLE_BITCODE = NO;
-				INFOPLIST_FILE = Runner/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.flutterApp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
-				SWIFT_VERSION = 5.0;
-				VERSIONING_SYSTEM = "apple-generic";
-			};
-			name = Profile;
-		};
-		331C8088294A63A400263BE5 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.flutterApp.RunnerTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
-			};
-			name = Debug;
-		};
-		331C8089294A63A400263BE5 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.flutterApp.RunnerTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
-			};
-			name = Release;
-		};
-		331C808A294A63A400263BE5 /* Profile */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.flutterApp.RunnerTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
-			};
-			name = Profile;
-		};
-		97C147031CF9000F007C117D /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GCC_C_LANGUAGE_STANDARD = gnu99;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
-				MTL_ENABLE_DEBUG_INFO = YES;
-				ONLY_ACTIVE_ARCH = YES;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		97C147041CF9000F007C117D /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GCC_C_LANGUAGE_STANDARD = gnu99;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
-				MTL_ENABLE_DEBUG_INFO = NO;
-				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = iphoneos;
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
-		97C147061CF9000F007C117D /* Debug */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9740EEB21CF90195004384FC /* Debug.xcconfig */;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				ENABLE_BITCODE = NO;
-				INFOPLIST_FILE = Runner/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.flutterApp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
-				VERSIONING_SYSTEM = "apple-generic";
-			};
-			name = Debug;
-		};
-		97C147071CF9000F007C117D /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				ENABLE_BITCODE = NO;
-				INFOPLIST_FILE = Runner/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.flutterApp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
-				SWIFT_VERSION = 5.0;
-				VERSIONING_SYSTEM = "apple-generic";
-			};
-			name = Release;
-		};
-/* End XCBuildConfiguration section */
-
-/* Begin XCConfigurationList section */
-		331C8087294A63A400263BE5 /* Build configuration list for PBXNativeTarget "RunnerTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				331C8088294A63A400263BE5 /* Debug */,
-				331C8089294A63A400263BE5 /* Release */,
-				331C808A294A63A400263BE5 /* Profile */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		97C146E91CF9000F007C117D /* Build configuration list for PBXProject "Runner" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				97C147031CF9000F007C117D /* Debug */,
-				97C147041CF9000F007C117D /* Release */,
-				249021D3217E4FDB00AE95B9 /* Profile */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		97C147051CF9000F007C117D /* Build configuration list for PBXNativeTarget "Runner" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				97C147061CF9000F007C117D /* Debug */,
-				97C147071CF9000F007C117D /* Release */,
-				249021D4217E4FDB00AE95B9 /* Profile */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-/* End XCConfigurationList section */
-	};
-	rootObject = 97C146E61CF9000F007C117D /* Project object */;
-}
-</file>
-
-<file path="flutter_app/ios/Runner.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist">
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>IDEDidComputeMac32BitWarning</key>
-	<true/>
-</dict>
-</plist>
-</file>
-
-<file path="flutter_app/ios/Runner.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings">
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>PreviewsEnabled</key>
-	<false/>
-</dict>
-</plist>
-</file>
-
-<file path="flutter_app/ios/Runner.xcworkspace/contents.xcworkspacedata">
-<?xml version="1.0" encoding="UTF-8"?>
-<Workspace
-   version = "1.0">
-   <FileRef
-      location = "group:Runner.xcodeproj">
-   </FileRef>
-</Workspace>
-</file>
-
-<file path="flutter_app/ios/RunnerTests/RunnerTests.swift">
-import Flutter
-import UIKit
-import XCTest
-
-class RunnerTests: XCTestCase {
-
-  func testExample() {
-    // If you add code to the Runner application, consider adding tests here.
-    // See https://developer.apple.com/documentation/xctest for more information about using XCTest.
-  }
-
-}
-</file>
-
-<file path="flutter_app/ios/.gitignore">
-**/dgph
-*.mode1v3
-*.mode2v3
-*.moved-aside
-*.pbxuser
-*.perspectivev3
-**/*sync/
-.sconsign.dblite
-.tags*
-**/.vagrant/
-**/DerivedData/
-Icon?
-**/Pods/
-**/.symlinks/
-profile
-xcuserdata
-**/.generated/
-Flutter/App.framework
-Flutter/Flutter.framework
-Flutter/Flutter.podspec
-Flutter/Generated.xcconfig
-Flutter/ephemeral/
-Flutter/app.flx
-Flutter/app.zip
-Flutter/flutter_assets/
-Flutter/flutter_export_environment.sh
-ServiceDefinitions.json
-Runner/GeneratedPluginRegistrant.*
-
-# Exceptions to above rules.
-!default.mode1v3
-!default.mode2v3
-!default.pbxuser
-!default.perspectivev3
 </file>
 
 <file path="flutter_app/linux/flutter/CMakeLists.txt">
@@ -8692,69 +8625,6 @@ class RunnerTests: XCTestCase {
 **/xcuserdata/
 </file>
 
-<file path="flutter_app/test/timer_provider_overdue_test.dart">
-import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_app/features/pomodoro/providers/timer_provider.dart';
-
-void main() {
-  test('focused time accumulates while running in focus mode', () async {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
-    final notifier = container.read(timerProvider.notifier);
-
-    notifier.update(
-      taskName: 'taskA',
-      active: true,
-      running: true,
-      mode: 'focus',
-      remaining: 3, // small countdown
-      focusDuration: 3,
-      breakDuration: 2,
-      plannedDuration: 3, // plan equals focus duration
-    );
-    notifier.startTicker();
-
-    await Future.delayed(const Duration(seconds: 4));
-
-    final focused = notifier.getFocusedTime('taskA');
-    expect(
-      focused >= 3,
-      isTrue,
-      reason: 'Should record at least planned focus seconds',
-    );
-  });
-
-  test(
-    'overdue crossing sets overdueCrossedTaskName and freezes timer',
-    () async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      final notifier = container.read(timerProvider.notifier);
-
-      notifier.update(
-        taskName: 'taskB',
-        active: true,
-        running: true,
-        mode: 'focus',
-        remaining: 1,
-        focusDuration: 1,
-        breakDuration: 1,
-        plannedDuration: 1,
-      );
-      notifier.startTicker();
-
-      await Future.delayed(const Duration(seconds: 2));
-
-      final state = container.read(timerProvider);
-      expect(state.overdueCrossedTaskName, 'taskB');
-      expect(state.isRunning, isFalse, reason: 'Timer should freeze');
-      expect(state.timeRemaining, 0);
-    },
-  );
-}
-</file>
-
 <file path="flutter_app/test/widget_test.dart">
 // This is a basic Flutter widget test.
 //
@@ -10172,6 +10042,548 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+</file>
+
+<file path=".gitignore">
+# Environment variables
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
+</file>
+
+<file path="FEATURE_COMPARISON.md">
+# UX Flow vs Current Implementation Comparison
+
+## 📋 COMPREHENSIVE FEATURE ANALYSIS
+
+### ✅ **FULLY IMPLEMENTED FEATURES:**
+
+#### 1. **Authentication System**
+- **UX Flow**: Google Sign-In, token storage, AuthWrapper navigation
+- **Current Implementation**: ✅ Complete in `auth_provider.dart`, `login_screen.dart`, `auth_wrapper.dart`
+- **Status**: FULLY IMPLEMENTED
+
+#### 2. **Todo List Management**
+- **UX Flow**: Add, complete, delete tasks with confirmation dialogs
+- **Current Implementation**: ✅ Complete in `todo_list_screen.dart`, `todos_provider.dart`
+- **Status**: FULLY IMPLEMENTED
+
+#### 3. **Task Card Status & Tags**
+- **UX Flow**: Overdue status, progress bars, visual indicators
+- **Current Implementation**: ✅ Complete in `task_card.dart`, with real-time progress tracking
+- **Status**: FULLY IMPLEMENTED
+
+#### 4. **Focus Duration Validation**
+- **UX Flow**: "Focus duration CANNOT be more than the Total task duration"
+- **Current Implementation**: ✅ Complete - validation dialog prevents invalid duration
+- **Status**: FULLY IMPLEMENTED
+
+#### 5. **Reset Button Logic**
+- **UX Flow**: "Reverts the timer for the current phase only back to its full duration"
+- **Current Implementation**: ✅ Complete - `resetCurrentPhase()` method implemented correctly
+- **Status**: FULLY IMPLEMENTED
+
+#### 6. **Switch Task Confirmation**
+- **UX Flow**: Dialog when switching to different task while timer active
+- **Current Implementation**: ✅ Complete in `app_dialogs.dart` and `todo_list_screen.dart`
+- **Status**: FULLY IMPLEMENTED
+
+#### 7. **Stop & Save Functionality**
+- **UX Flow**: Close button triggers "Stop Session Confirmation Dialog" with "Stop & Save"
+- **Current Implementation**: ✅ Complete in pomodoro screen close button
+- **Status**: FULLY IMPLEMENTED
+
+#### 8. **Mini Timer Bar**
+- **UX Flow**: Shows when Pomodoro screen is closed with active timer
+- **Current Implementation**: ✅ Complete in `mini_timer_bar.dart`
+- **Status**: FULLY IMPLEMENTED
+
+#### 9. **Overdue Dialog System**
+- **UX Flow**: Shows when focused_time >= planned_duration
+- **Current Implementation**: ✅ Complete with "Mark Complete" and "Continue" options
+- **Status**: FULLY IMPLEMENTED
+
+#### 10. **Automatic Cycle Calculation**
+- **UX Flow**: "Cycles" field calculated as ceil(planned_task_duration / work_duration)
+- **Current Implementation**: ✅ Complete in pomodoro screen setup
+- **Status**: FULLY IMPLEMENTED
+
+---
+
+### 🔍 **DETAILED FEATURE VERIFICATION:**
+
+#### **Timer State Management**
+- **UX Requirement**: Complex state tracking with focus/break cycles
+- **Implementation**: ✅ Full state management in `timer_provider.dart` with:
+  - Active task tracking
+  - Real-time progress updates
+  - Overdue detection and handling
+  - Session completion tracking
+
+#### **Sound & Notification System**
+- **UX Requirement**: Audio feedback for timer transitions
+- **Implementation**: ✅ Complete in `notification_service.dart` with proper asset loading
+
+#### **Progress Visualization**
+- **UX Requirement**: Real-time progress bars and status indicators
+- **Implementation**: ✅ Complete with `progress_bar.dart` and task card visuals
+
+#### **Dialog System**
+- **UX Requirement**: Multiple confirmation dialogs for various actions
+- **Implementation**: ✅ Complete set in `app_dialogs.dart`:
+  - Switch Task Dialog
+  - Stop Session Dialog  
+  - Overdue Dialog
+  - Delete Task Dialog
+  - Clear Completed Dialog
+
+---
+
+### 🚫 **MISSING OR INCOMPLETE FEATURES:**
+
+#### **❌ ALL SESSIONS COMPLETE DIALOG**
+- **UX Flow**: "current_cycle > total_cycles → Triggers All Sessions Complete Dialog"
+- **Current Implementation**: ❌ NOT IMPLEMENTED
+- **Required**: Dialog should show "You have completed all X focus sessions..." with "Dismiss" option
+- **Impact**: HIGH - Users don't get completion feedback
+
+#### **❌ PROPER TIMER PAUSE DURING DIALOGS**
+- **UX Flow**: "Pauses the timer while the dialog is active"
+- **Current Implementation**: ⚠️ PARTIALLY IMPLEMENTED for close dialog only
+- **Required**: All dialogs should pause timer and resume on cancel
+- **Impact**: MEDIUM - Timer continues running during confirmation dialogs
+
+---
+
+### 🐛 **IDENTIFIED ERRORS TO FIX:**
+
+#### **1. BuildContext Async Gap Issues**
+- **File**: `pomodoro_screen.dart` lines 237, 238
+- **Issue**: BuildContext used across async gaps without proper mounted checks
+- **Fix**: Add proper mounted checks or restructure async flow
+
+#### **2. Private Field Mutability**
+- **File**: `timer_session_controller.dart` lines 35-37
+- **Issue**: Private fields could be final but aren't marked as such
+- **Fix**: Mark fields as final for better performance
+
+#### **3. Missing All Sessions Complete Logic**
+- **File**: `timer_provider.dart`
+- **Issue**: No implementation for session completion dialog trigger
+- **Fix**: Add logic to detect when all cycles are complete
+
+---
+
+### 📊 **IMPLEMENTATION COMPLETENESS SCORE:**
+
+- **Core Timer Functionality**: 100% ✅
+- **Dialog System**: 90% ⚠️ (Missing All Sessions Complete)
+- **UI/UX Features**: 100% ✅  
+- **Validation & Error Handling**: 100% ✅
+- **State Management**: 100% ✅
+
+**Overall Completeness: 95%** 
+
+---
+
+### 🎯 **IMMEDIATE ACTION ITEMS:**
+
+1. **HIGH PRIORITY**: Implement "All Sessions Complete Dialog" 
+2. **MEDIUM PRIORITY**: Fix BuildContext async gap issues
+3. **LOW PRIORITY**: Mark private fields as final
+4. **LOW PRIORITY**: Ensure timer pause consistency across all dialogs
+
+---
+
+### 📝 **NOTES:**
+
+The codebase is remarkably complete and well-implemented. The major UX flow requirements are all present and functional. The only significant missing piece is the "All Sessions Complete Dialog", which represents less than 5% of the total feature set.
+
+The existing code quality is high with proper state management, comprehensive error handling, and excellent separation of concerns.
+</file>
+
+<file path="ux_flow.md">
+FINAL REVISED 
+
+Of course. I have integrated the finalized logic for the `Reset` button, the "Stop & Save" `Close` button, and the "Switch Task" flow directly into the master flowchart you provided.
+
+The changes are clearly marked with a `🔥 [REVISED LOGIC]` annotation. The rest of the flowchart remains the same, preserving the excellent structure you designed.
+
+---
+
+### Master UX Flowchart (Immutable Tasks Version - FINALIZED)
+
+**A Note on Task Immutability:** *This workflow operates under the principle that once a task is created, its name and planned duration cannot be edited. To change these properties, a user must delete the existing task and create a new one. This simplifies the application's logic and encourages deliberate planning.*
+
+**🚀 APP STARTUP**
+|
+├── NotificationService.init()
+├── Backend readiness check (up to 8 attempts, DEBUG only)
+|
+|
+**🔐 AUTHENTICATION CHECK**
+|
+├── `authProvider` checks for a saved token.
+├── User authenticated?
+│   ├── ✅ YES → **Navigate to `TodoListScreen`**
+│   └── ❌ NO → **Navigate to `LoginScreen`**
+|
+|
+**📱 LOGIN SCREEN (if not authenticated)**
+|
+├── Display: Welcome to TodoApp, Sign in with Google button.
+├── **Event: User taps "Sign in with Google" button**
+│   ├── UI → Show loading indicator: "Signing you in..."
+│   ├── `authProvider.signInWithGoogle()` is called.
+│   │   ├── ✅ **Success:** `isAuthenticated` becomes true.
+│   │   │   └── `AuthWrapper` → **Rebuilds and navigates to `TodoListScreen`**.
+│   │   └── ❌ **Failure:**
+│   │       ├── `authProvider` reports an error.
+│   │       └── UI → Shows a red `SnackBar`: "Google Sign-In failed". User remains on `LoginScreen`.
+|
+|
+**🏠 TODO LIST SCREEN (Main App Interface)**
+|
+├── **TOP APP BAR**
+│   ├── Title: "Todo List"
+│   └── User Menu (Avatar, Name, Email)
+│       └── **Event: User taps avatar/menu**
+│           └── `Sign Out` dropdown option appears.
+│               └── **Event: User taps "Sign Out"**
+│                   └── **`Sign Out Confirmation Dialog`**
+│                       ├── Shows: "Are you sure you want to sign out?"
+│                       ├── **Option: "Cancel"** → Closes dialog.
+│                       └── **Option: "Sign Out"** → `authProvider.signOut()` → Navigates to `LoginScreen`.
+|
+├── **MAIN CONTENT CARD**
+│   ├── Header: "TO-DO APP"
+│   ├── Welcome: "Welcome, {userName}!" (Dynamically loaded)
+│   │
+│   ├── **📝 ADD NEW TASK SECTION**
+│   │   ├── Text input for task name.
+│   │   ├── Duration inputs: Hours and Minutes (default: 0h 25m).
+│   │   └── **Event: User taps "Add" button**
+│   │       ├── `todosProvider.addTodo()` is called.
+│   │       ├── ✅ **Success:** The form fields are cleared, keyboard dismissed.
+│   │       └── ❌ **Failure (Network/API error):** A red `SnackBar` appears: "Failed to add task."
+│   │
+│   ├── **📋 ACTIVE TASKS LIST**
+│   │   ├── If no incomplete tasks → Shows empty state message: "No tasks yet..."
+│   │   └── **Task Cards (for each incomplete task)**
+│   │       ├── **Task Name & Duration:** Displayed as read-only text.
+│   │       ├── **Real-time Progress & Status Tags:** (As defined in the tag logic flowchart).
+│   │       ├── **🔥 [REVISED LOGIC] Dynamic `▶️`/`⏸️` Play/Pause Button:**
+│   │       │   ├── If timer is active for *this task* → Button shows `⏸️` (if running) or `▶️` (if paused). Tapping toggles the timer state.
+│   │       │   └── If timer is inactive or for another task → Button shows `▶️`. Tapping **initiates the "Start Session" flow**:
+│   │       │       ├── **1. Check if another task's timer is already active.**
+│   │       │       │   ├── ✅ **YES** → **Triggers `Switch Task Confirmation Dialog`** (see Dialogs flowchart).
+│   │       │       │   └── ❌ **NO** → **Opens `Pomodoro Screen` in Setup Mode** for this task.
+│   │       ├── **Event: User taps `✅` Complete button** → `todosProvider.toggleTodo()` → Moves task to "Completed" section.
+│   │       └── **Event: User taps `🗑️` Delete button** → **`Delete Task Confirmation Dialog`**
+│   │           ├── **Option: "Cancel"** → Closes dialog.
+│   │           └── **Option: "Delete"** → `todosProvider.deleteTodo()` → Task is removed. **If it was the active task, the timer is cleared, dismissing any active Pomodoro/Mini Bar UI.**
+│   │
+│   └── **📊 COMPLETED TASKS SECTION**
+│       ├── Expandable section.
+│       └── When expanded, shows completed tasks and a "Clear All" button, which triggers its own confirmation dialog.
+│
+└── **📊 MINI TIMER BAR (at the bottom)**
+    ├── **Appears automatically** when `PomodoroScreen` is closed with an active timer.
+    ├── Border color syncs with timer mode (Red for focus, Green for break).
+    ├── Displays active task name and remaining time.
+    ├── **Event: User taps `▶️`/`⏸️` Play/Pause button** → Toggles the global timer state.
+    ├── **Event: User taps anywhere on the bar** → **Re-opens the full `Pomodoro Screen`**, preserving the timer's current state.
+    └── **Is automatically hidden** if the associated task is deleted, completed, or the session is stopped.
+|
+|
+**🍅 POMODORO SCREEN (Modal Bottom Sheet)**
+|
+├── **SETUP MODE (Initial state)**
+│   ├── Fields for Work Duration and Break Time are pre-filled.
+│   └── Automatic Cycle Calculation: The "Cycles" field is read-only and calculated as: `ceil(planned_task_duration / work_duration)`.
+	NOTE the focus duration CANNOT be more than the Total task duration (If user puts this and tries to start the timer. - give a pop up with appropriate error message) 
+│
+├── **RUNNING MODE**
+│   ├── Displays current cycle (`X / Y`) and a progress bar (Normal Mode) or an Overdue Timer (Overdue Mode).
+│   └── **🔥 [REVISED LOGIC] `🔄` Reset button →** Reverts the timer for the *current phase only* back to its full duration. Any time passed *within that specific interval* is subtracted from the task's total `focused_time`. This works for both normal and overdue sessions, correctly preserving all previously accumulated time.
+│
+├── **AUTOMATIC BEHAVIORS**
+│   ├── Focus/Break timers automatically transition with sound and notifications.
+│   ├── **`focused_time` >= `planned_duration`** → **Triggers `Overdue Dialog`**.
+│   └── **`current_cycle` > `total_cycles`** → **Triggers `All Sessions Complete Dialog`**.
+|
+└── **🔥 [REVISED LOGIC] Event: User taps `❌` Close button** → **Triggers `Stop Session Confirmation Dialog`** (see Dialogs flowchart).
+
+---
+
+### Flowchart for Pop-ups and Dialogs (Immutable Tasks Version - FINALIZED)
+
+This flowchart details every modal interaction in the application.
+
+**📱 USER ACTION TRIGGERS**
+|
+├── **Taps "Sign Out"**
+│   └── `Sign Out Confirmation Dialog`
+│       ├── Shows: "Are you sure you want to sign out?"
+│       ├── **Option: "Cancel"** → Closes dialog.
+│       └── **Option: "Sign Out"** → `authProvider.signOut()` → Navigates to `LoginScreen`.
+|
+├── **Taps `🗑️` on a Task Card**
+│   └── `Delete Task Confirmation Dialog`
+│       ├── Shows: "This will remove the task permanently."
+│       ├── **Option: "Cancel"** → Closes dialog.
+│       └── **Option: "Delete"** → `todosProvider.deleteTodo()` → Task removed.
+|
+├── **Taps `🗑️` in "Completed" Section**
+│   └── `Clear Completed Confirmation Dialog`
+│       ├── Shows: "This will permanently delete all completed tasks."
+│       ├── **Option: "Cancel"** → Closes dialog.
+│       └── **Option: "Clear"** → `todosProvider.clearCompleted()` → Completed tasks removed.
+|
+├── **🔥 [REVISED LOGIC] Taps `▶️` on a Task Card while another session is active**
+│   └── **`Switch Task Confirmation Dialog`**
+│       ├── Shows: "Switch to '{New Task}'? This will stop the current session for '{Old Task}' and save its progress."
+│       ├── **Option: "Cancel"** → Closes dialog. The original session for '{Old Task}' continues uninterrupted.
+│       └── **Option: "Switch"** → **Stops & Saves** the session for '{Old Task}', banking any partial progress. Then opens `Pomodoro Screen` in **Setup Mode** for '{New Task}'.
+|
+├── **🔥 [REVISED LOGIC] Taps `❌` on Pomodoro Screen**
+│   └── **`Stop Session Confirmation Dialog`**
+│       ├── **Pauses the timer** while the dialog is active.
+│       ├── Shows: "Stop session for '{Task Name}'? Your progress of {X minutes} from this interval will be saved."
+│       ├── **Option: "Cancel"** → The dialog is dismissed. **The timer resumes** from where it was paused.
+│       └── **Option: "Stop & Save"** → Captures and saves partial progress, terminates the session, and closes the `Pomodoro Screen`. The `Mini Timer Bar` does not appear.
+|
+└── **Taps `▶️` on a Task Card (no other session active) OR taps on the `MiniTimerBar`**
+    └── **`Pomodoro Screen (Modal Bottom Sheet)`**
+        └── This is the main timer interface, whose complex logic is detailed in the main flowchart.
+
+**🤖 AUTOMATIC SYSTEM TRIGGERS (Inside Pomodoro Screen)**
+|
+├── **`focused_time` >= `planned_duration`**
+│   └── **`Overdue Dialog`**
+│       ├── **Pauses timer.**
+│       ├── Shows: "Planned time is complete. Mark task as done or continue working?"
+│       ├── **Option: "Mark Complete"** → `todosProvider.toggleTodo()`, closes Pomodoro screen, clears timer.
+│       └── **🔥 [REVISED LOGIC] Option: "Continue"** → Dialog is dismissed. **The timer resumes and continues running** in an "Overdue Mode". The task is flagged internally to show the persistent `🔴` overdue icon on the main list.
+|
+└── **`current_cycle` > `total_cycles`**
+    └── **`All Sessions Complete Dialog`**
+        ├── **Pauses timer.**
+        ├── Shows: "You have completed all X focus sessions..."
+        └── **🔥 [REVISED LOGIC] Option: "Dismiss"** → **The session gracefully ends.** The `PomodoroScreen` closes, the `Mini Timer Bar` is hidden, and the user is returned to the `TodoListScreen`.
+
+---
+
+### Master Flowchart for Task Card Status & Tag Logic (Immutable Task Version)
+*(This section had no required changes and remains the same as your excellent original version.)*
+
+**entryway TaskCard Widget Build Process**
+|
+├── 1. Check Overall Task Status
+│   └── Is task.completed == true?
+│   ├── ✅ YES → Go to ➡️ Flow for Completed Tasks
+│   └── ❌ NO → Go to ➡️ Flow for Incomplete Tasks
+|
+|
+➡️ **Flow for Incomplete Tasks**
+|
+├── 2. Check for Active Timer State (Visual Indicator)
+│   └── Is timerProvider.activeTaskName == task.text?
+│   └── ✅ YES → Display a bright yellow border around the entire TaskCard.
+│   └── This visually links the card to the active MiniTimerBar or PomodoroScreen, indicating it's the "task in focus."
+|
+├── 3. Check for Overdue Status (Text Tag & Visual Cue)
+│   └── Does task.planned_duration > 0?
+│   ├── ❌ NO (Task has no planned duration) → No tag is displayed. The task can never be overdue.
+│   └── ✅ YES (Task has a planned duration)
+│   └── Calculate: Use the live_focused_time from the timerProvider's cache if available; otherwise, use the value from the database.
+│   └── Is live_focused_time >= task.planned_duration?
+│   ├── ❌ NO → No tag is displayed. The task is on track.
+│   └── ✅ YES → The task is now considered Overdue.
+│   ├── Display Text Tag: "Overdue: X:XX" (in red)
+│   │   └── Calculation: The displayed time is live_focused_time - task.planned_duration, formatted as minutes and seconds (or hours). This provides a running clock of the "overage" time.
+│   │
+│   └── Check for "Continued Overdue" Status:
+│   └── Is task.text present in the timerProvider.overdueContinued set?
+│   └── ✅ YES (User explicitly chose "Continue" from the Overdue Dialog in a previous session for this task) → Display a red dot 🔴 icon next to the task text as a persistent visual reminder that this task has exceeded its plan.
+|
+|
+➡️ **Flow for Completed Tasks**
+|
+├── 4. Set Visual Style
+│   └── The entire TaskCard is rendered with 50% opacity to visually de-emphasize it.
+|
+├── 5. Check for Underdue/Completed Status (Text Tag)
+│   └── Does task.planned_duration > 0?
+│   ├── ❌ NO (Task had no planned duration) → Display Text Tag: "Completed" (in green).
+│   └── ✅ YES (Task had a planned duration)
+│   └── Is task.focused_time < task.planned_duration?
+│   ├── ✅ YES → The task was completed before its planned time was met.
+│   │   └── Display Text Tag: "Underdue task X%" (in orange).
+│   │   └── Calculation: The percentage is (task.focused_time / task.planned_duration) * 100.
+│   │
+│   └── ❌ NO (task.focused_time >= task.planned_duration) → The task was completed at or after its planned time was met.
+│   └── Display Text Tag: "Completed" (in green). The "Overdue" status is no longer shown because the primary status is now "Completed".
+
+
+now evlauate this revised chart
+</file>
+
+<file path="flutter_app/android/app/build.gradle.kts">
+plugins {
+    id("com.android.application")
+    id("kotlin-android")
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id("dev.flutter.flutter-gradle-plugin")
+    // Google Services plugin for Firebase/Google Auth
+    id("com.google.gms.google-services")
+}
+
+android {
+    namespace = "com.example.flutter_app"
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    // Enable core library desugaring for libraries that require newer Java APIs on older
+    // Android runtimes (required by flutter_local_notifications and others).
+    isCoreLibraryDesugaringEnabled = true
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_11.toString()
+    }
+
+    defaultConfig {
+        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        applicationId = "com.example.flutter_app"
+        // You can update the following values to match your application needs.
+        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+    }
+
+    buildTypes {
+        release {
+            // TODO: Add your own signing config for the release build.
+            // Signing with the debug keys for now, so `flutter run --release` works.
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+}
+
+flutter {
+    source = "../.."
+}
+
+dependencies {
+    // Provides backported Java core library APIs for desugaring on older Android runtimes.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+}
+</file>
+
+<file path="flutter_app/android/build.gradle.kts">
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+val newBuildDir: Directory =
+    rootProject.layout.buildDirectory
+        .dir("../../build")
+        .get()
+rootProject.layout.buildDirectory.value(newBuildDir)
+
+subprojects {
+    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
+    project.layout.buildDirectory.value(newSubprojectBuildDir)
+}
+subprojects {
+    project.evaluationDependsOn(":app")
+}
+
+tasks.register<Delete>("clean") {
+    delete(rootProject.layout.buildDirectory)
+}
+
+// Add Google services plugin to the root build.gradle
+plugins {
+    id("com.google.gms.google-services") version "4.4.0" apply false
+}
+</file>
+
+<file path="flutter_app/test/timer_provider_overdue_test.dart">
+import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_app/features/pomodoro/providers/timer_provider.dart';
+
+void main() {
+  test('focused time accumulates while running in focus mode', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(timerProvider.notifier);
+
+    notifier.update(
+      taskName: 'taskA',
+      active: true,
+      running: true,
+      mode: 'focus',
+      remaining: 3, // small countdown
+      focusDuration: 3,
+      breakDuration: 2,
+      plannedDuration: 3, // plan equals focus duration
+    );
+    notifier.startTicker();
+
+    await Future.delayed(const Duration(seconds: 4));
+
+    final focused = notifier.getFocusedTime('taskA');
+    expect(
+      focused >= 3,
+      isTrue,
+      reason: 'Should record at least planned focus seconds',
+    );
+  });
+
+  test(
+    'overdue crossing sets overdueCrossedTaskName and freezes timer',
+    () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(timerProvider.notifier);
+
+      notifier.update(
+        taskName: 'taskB',
+        active: true,
+        running: true,
+        mode: 'focus',
+        remaining: 1,
+        focusDuration: 1,
+        breakDuration: 1,
+        plannedDuration: 1,
+      );
+      notifier.startTicker();
+
+      await Future.delayed(const Duration(seconds: 2));
+
+      final state = container.read(timerProvider);
+      expect(state.overdueCrossedTaskName, 'taskB');
+      expect(state.isRunning, isFalse, reason: 'Timer should freeze');
+      expect(state.timeRemaining, 0);
+    },
+  );
+}
 </file>
 
 <file path="flutter_app/repomix-output.xml">
@@ -21651,485 +22063,6 @@ samples, guidance on mobile development, and a full API reference.
 </files>
 </file>
 
-<file path=".gitignore">
-# Environment variables
-.env
-
-# Python cache
-__pycache__/
-*.pyc
-
-# OS files
-.DS_Store
-</file>
-
-<file path="FEATURE_COMPARISON.md">
-# UX Flow vs Current Implementation Comparison
-
-## 📋 COMPREHENSIVE FEATURE ANALYSIS
-
-### ✅ **FULLY IMPLEMENTED FEATURES:**
-
-#### 1. **Authentication System**
-- **UX Flow**: Google Sign-In, token storage, AuthWrapper navigation
-- **Current Implementation**: ✅ Complete in `auth_provider.dart`, `login_screen.dart`, `auth_wrapper.dart`
-- **Status**: FULLY IMPLEMENTED
-
-#### 2. **Todo List Management**
-- **UX Flow**: Add, complete, delete tasks with confirmation dialogs
-- **Current Implementation**: ✅ Complete in `todo_list_screen.dart`, `todos_provider.dart`
-- **Status**: FULLY IMPLEMENTED
-
-#### 3. **Task Card Status & Tags**
-- **UX Flow**: Overdue status, progress bars, visual indicators
-- **Current Implementation**: ✅ Complete in `task_card.dart`, with real-time progress tracking
-- **Status**: FULLY IMPLEMENTED
-
-#### 4. **Focus Duration Validation**
-- **UX Flow**: "Focus duration CANNOT be more than the Total task duration"
-- **Current Implementation**: ✅ Complete - validation dialog prevents invalid duration
-- **Status**: FULLY IMPLEMENTED
-
-#### 5. **Reset Button Logic**
-- **UX Flow**: "Reverts the timer for the current phase only back to its full duration"
-- **Current Implementation**: ✅ Complete - `resetCurrentPhase()` method implemented correctly
-- **Status**: FULLY IMPLEMENTED
-
-#### 6. **Switch Task Confirmation**
-- **UX Flow**: Dialog when switching to different task while timer active
-- **Current Implementation**: ✅ Complete in `app_dialogs.dart` and `todo_list_screen.dart`
-- **Status**: FULLY IMPLEMENTED
-
-#### 7. **Stop & Save Functionality**
-- **UX Flow**: Close button triggers "Stop Session Confirmation Dialog" with "Stop & Save"
-- **Current Implementation**: ✅ Complete in pomodoro screen close button
-- **Status**: FULLY IMPLEMENTED
-
-#### 8. **Mini Timer Bar**
-- **UX Flow**: Shows when Pomodoro screen is closed with active timer
-- **Current Implementation**: ✅ Complete in `mini_timer_bar.dart`
-- **Status**: FULLY IMPLEMENTED
-
-#### 9. **Overdue Dialog System**
-- **UX Flow**: Shows when focused_time >= planned_duration
-- **Current Implementation**: ✅ Complete with "Mark Complete" and "Continue" options
-- **Status**: FULLY IMPLEMENTED
-
-#### 10. **Automatic Cycle Calculation**
-- **UX Flow**: "Cycles" field calculated as ceil(planned_task_duration / work_duration)
-- **Current Implementation**: ✅ Complete in pomodoro screen setup
-- **Status**: FULLY IMPLEMENTED
-
----
-
-### 🔍 **DETAILED FEATURE VERIFICATION:**
-
-#### **Timer State Management**
-- **UX Requirement**: Complex state tracking with focus/break cycles
-- **Implementation**: ✅ Full state management in `timer_provider.dart` with:
-  - Active task tracking
-  - Real-time progress updates
-  - Overdue detection and handling
-  - Session completion tracking
-
-#### **Sound & Notification System**
-- **UX Requirement**: Audio feedback for timer transitions
-- **Implementation**: ✅ Complete in `notification_service.dart` with proper asset loading
-
-#### **Progress Visualization**
-- **UX Requirement**: Real-time progress bars and status indicators
-- **Implementation**: ✅ Complete with `progress_bar.dart` and task card visuals
-
-#### **Dialog System**
-- **UX Requirement**: Multiple confirmation dialogs for various actions
-- **Implementation**: ✅ Complete set in `app_dialogs.dart`:
-  - Switch Task Dialog
-  - Stop Session Dialog  
-  - Overdue Dialog
-  - Delete Task Dialog
-  - Clear Completed Dialog
-
----
-
-### 🚫 **MISSING OR INCOMPLETE FEATURES:**
-
-#### **❌ ALL SESSIONS COMPLETE DIALOG**
-- **UX Flow**: "current_cycle > total_cycles → Triggers All Sessions Complete Dialog"
-- **Current Implementation**: ❌ NOT IMPLEMENTED
-- **Required**: Dialog should show "You have completed all X focus sessions..." with "Dismiss" option
-- **Impact**: HIGH - Users don't get completion feedback
-
-#### **❌ PROPER TIMER PAUSE DURING DIALOGS**
-- **UX Flow**: "Pauses the timer while the dialog is active"
-- **Current Implementation**: ⚠️ PARTIALLY IMPLEMENTED for close dialog only
-- **Required**: All dialogs should pause timer and resume on cancel
-- **Impact**: MEDIUM - Timer continues running during confirmation dialogs
-
----
-
-### 🐛 **IDENTIFIED ERRORS TO FIX:**
-
-#### **1. BuildContext Async Gap Issues**
-- **File**: `pomodoro_screen.dart` lines 237, 238
-- **Issue**: BuildContext used across async gaps without proper mounted checks
-- **Fix**: Add proper mounted checks or restructure async flow
-
-#### **2. Private Field Mutability**
-- **File**: `timer_session_controller.dart` lines 35-37
-- **Issue**: Private fields could be final but aren't marked as such
-- **Fix**: Mark fields as final for better performance
-
-#### **3. Missing All Sessions Complete Logic**
-- **File**: `timer_provider.dart`
-- **Issue**: No implementation for session completion dialog trigger
-- **Fix**: Add logic to detect when all cycles are complete
-
----
-
-### 📊 **IMPLEMENTATION COMPLETENESS SCORE:**
-
-- **Core Timer Functionality**: 100% ✅
-- **Dialog System**: 90% ⚠️ (Missing All Sessions Complete)
-- **UI/UX Features**: 100% ✅  
-- **Validation & Error Handling**: 100% ✅
-- **State Management**: 100% ✅
-
-**Overall Completeness: 95%** 
-
----
-
-### 🎯 **IMMEDIATE ACTION ITEMS:**
-
-1. **HIGH PRIORITY**: Implement "All Sessions Complete Dialog" 
-2. **MEDIUM PRIORITY**: Fix BuildContext async gap issues
-3. **LOW PRIORITY**: Mark private fields as final
-4. **LOW PRIORITY**: Ensure timer pause consistency across all dialogs
-
----
-
-### 📝 **NOTES:**
-
-The codebase is remarkably complete and well-implemented. The major UX flow requirements are all present and functional. The only significant missing piece is the "All Sessions Complete Dialog", which represents less than 5% of the total feature set.
-
-The existing code quality is high with proper state management, comprehensive error handling, and excellent separation of concerns.
-</file>
-
-<file path="ux_flow.md">
-FINAL REVISED 
-
-Of course. I have integrated the finalized logic for the `Reset` button, the "Stop & Save" `Close` button, and the "Switch Task" flow directly into the master flowchart you provided.
-
-The changes are clearly marked with a `🔥 [REVISED LOGIC]` annotation. The rest of the flowchart remains the same, preserving the excellent structure you designed.
-
----
-
-### Master UX Flowchart (Immutable Tasks Version - FINALIZED)
-
-**A Note on Task Immutability:** *This workflow operates under the principle that once a task is created, its name and planned duration cannot be edited. To change these properties, a user must delete the existing task and create a new one. This simplifies the application's logic and encourages deliberate planning.*
-
-**🚀 APP STARTUP**
-|
-├── NotificationService.init()
-├── Backend readiness check (up to 8 attempts, DEBUG only)
-|
-|
-**🔐 AUTHENTICATION CHECK**
-|
-├── `authProvider` checks for a saved token.
-├── User authenticated?
-│   ├── ✅ YES → **Navigate to `TodoListScreen`**
-│   └── ❌ NO → **Navigate to `LoginScreen`**
-|
-|
-**📱 LOGIN SCREEN (if not authenticated)**
-|
-├── Display: Welcome to TodoApp, Sign in with Google button.
-├── **Event: User taps "Sign in with Google" button**
-│   ├── UI → Show loading indicator: "Signing you in..."
-│   ├── `authProvider.signInWithGoogle()` is called.
-│   │   ├── ✅ **Success:** `isAuthenticated` becomes true.
-│   │   │   └── `AuthWrapper` → **Rebuilds and navigates to `TodoListScreen`**.
-│   │   └── ❌ **Failure:**
-│   │       ├── `authProvider` reports an error.
-│   │       └── UI → Shows a red `SnackBar`: "Google Sign-In failed". User remains on `LoginScreen`.
-|
-|
-**🏠 TODO LIST SCREEN (Main App Interface)**
-|
-├── **TOP APP BAR**
-│   ├── Title: "Todo List"
-│   └── User Menu (Avatar, Name, Email)
-│       └── **Event: User taps avatar/menu**
-│           └── `Sign Out` dropdown option appears.
-│               └── **Event: User taps "Sign Out"**
-│                   └── **`Sign Out Confirmation Dialog`**
-│                       ├── Shows: "Are you sure you want to sign out?"
-│                       ├── **Option: "Cancel"** → Closes dialog.
-│                       └── **Option: "Sign Out"** → `authProvider.signOut()` → Navigates to `LoginScreen`.
-|
-├── **MAIN CONTENT CARD**
-│   ├── Header: "TO-DO APP"
-│   ├── Welcome: "Welcome, {userName}!" (Dynamically loaded)
-│   │
-│   ├── **📝 ADD NEW TASK SECTION**
-│   │   ├── Text input for task name.
-│   │   ├── Duration inputs: Hours and Minutes (default: 0h 25m).
-│   │   └── **Event: User taps "Add" button**
-│   │       ├── `todosProvider.addTodo()` is called.
-│   │       ├── ✅ **Success:** The form fields are cleared, keyboard dismissed.
-│   │       └── ❌ **Failure (Network/API error):** A red `SnackBar` appears: "Failed to add task."
-│   │
-│   ├── **📋 ACTIVE TASKS LIST**
-│   │   ├── If no incomplete tasks → Shows empty state message: "No tasks yet..."
-│   │   └── **Task Cards (for each incomplete task)**
-│   │       ├── **Task Name & Duration:** Displayed as read-only text.
-│   │       ├── **Real-time Progress & Status Tags:** (As defined in the tag logic flowchart).
-│   │       ├── **🔥 [REVISED LOGIC] Dynamic `▶️`/`⏸️` Play/Pause Button:**
-│   │       │   ├── If timer is active for *this task* → Button shows `⏸️` (if running) or `▶️` (if paused). Tapping toggles the timer state.
-│   │       │   └── If timer is inactive or for another task → Button shows `▶️`. Tapping **initiates the "Start Session" flow**:
-│   │       │       ├── **1. Check if another task's timer is already active.**
-│   │       │       │   ├── ✅ **YES** → **Triggers `Switch Task Confirmation Dialog`** (see Dialogs flowchart).
-│   │       │       │   └── ❌ **NO** → **Opens `Pomodoro Screen` in Setup Mode** for this task.
-│   │       ├── **Event: User taps `✅` Complete button** → `todosProvider.toggleTodo()` → Moves task to "Completed" section.
-│   │       └── **Event: User taps `🗑️` Delete button** → **`Delete Task Confirmation Dialog`**
-│   │           ├── **Option: "Cancel"** → Closes dialog.
-│   │           └── **Option: "Delete"** → `todosProvider.deleteTodo()` → Task is removed. **If it was the active task, the timer is cleared, dismissing any active Pomodoro/Mini Bar UI.**
-│   │
-│   └── **📊 COMPLETED TASKS SECTION**
-│       ├── Expandable section.
-│       └── When expanded, shows completed tasks and a "Clear All" button, which triggers its own confirmation dialog.
-│
-└── **📊 MINI TIMER BAR (at the bottom)**
-    ├── **Appears automatically** when `PomodoroScreen` is closed with an active timer.
-    ├── Border color syncs with timer mode (Red for focus, Green for break).
-    ├── Displays active task name and remaining time.
-    ├── **Event: User taps `▶️`/`⏸️` Play/Pause button** → Toggles the global timer state.
-    ├── **Event: User taps anywhere on the bar** → **Re-opens the full `Pomodoro Screen`**, preserving the timer's current state.
-    └── **Is automatically hidden** if the associated task is deleted, completed, or the session is stopped.
-|
-|
-**🍅 POMODORO SCREEN (Modal Bottom Sheet)**
-|
-├── **SETUP MODE (Initial state)**
-│   ├── Fields for Work Duration and Break Time are pre-filled.
-│   └── Automatic Cycle Calculation: The "Cycles" field is read-only and calculated as: `ceil(planned_task_duration / work_duration)`.
-	NOTE the focus duration CANNOT be more than the Total task duration (If user puts this and tries to start the timer. - give a pop up with appropriate error message) 
-│
-├── **RUNNING MODE**
-│   ├── Displays current cycle (`X / Y`) and a progress bar (Normal Mode) or an Overdue Timer (Overdue Mode).
-│   └── **🔥 [REVISED LOGIC] `🔄` Reset button →** Reverts the timer for the *current phase only* back to its full duration. Any time passed *within that specific interval* is subtracted from the task's total `focused_time`. This works for both normal and overdue sessions, correctly preserving all previously accumulated time.
-│
-├── **AUTOMATIC BEHAVIORS**
-│   ├── Focus/Break timers automatically transition with sound and notifications.
-│   ├── **`focused_time` >= `planned_duration`** → **Triggers `Overdue Dialog`**.
-│   └── **`current_cycle` > `total_cycles`** → **Triggers `All Sessions Complete Dialog`**.
-|
-└── **🔥 [REVISED LOGIC] Event: User taps `❌` Close button** → **Triggers `Stop Session Confirmation Dialog`** (see Dialogs flowchart).
-
----
-
-### Flowchart for Pop-ups and Dialogs (Immutable Tasks Version - FINALIZED)
-
-This flowchart details every modal interaction in the application.
-
-**📱 USER ACTION TRIGGERS**
-|
-├── **Taps "Sign Out"**
-│   └── `Sign Out Confirmation Dialog`
-│       ├── Shows: "Are you sure you want to sign out?"
-│       ├── **Option: "Cancel"** → Closes dialog.
-│       └── **Option: "Sign Out"** → `authProvider.signOut()` → Navigates to `LoginScreen`.
-|
-├── **Taps `🗑️` on a Task Card**
-│   └── `Delete Task Confirmation Dialog`
-│       ├── Shows: "This will remove the task permanently."
-│       ├── **Option: "Cancel"** → Closes dialog.
-│       └── **Option: "Delete"** → `todosProvider.deleteTodo()` → Task removed.
-|
-├── **Taps `🗑️` in "Completed" Section**
-│   └── `Clear Completed Confirmation Dialog`
-│       ├── Shows: "This will permanently delete all completed tasks."
-│       ├── **Option: "Cancel"** → Closes dialog.
-│       └── **Option: "Clear"** → `todosProvider.clearCompleted()` → Completed tasks removed.
-|
-├── **🔥 [REVISED LOGIC] Taps `▶️` on a Task Card while another session is active**
-│   └── **`Switch Task Confirmation Dialog`**
-│       ├── Shows: "Switch to '{New Task}'? This will stop the current session for '{Old Task}' and save its progress."
-│       ├── **Option: "Cancel"** → Closes dialog. The original session for '{Old Task}' continues uninterrupted.
-│       └── **Option: "Switch"** → **Stops & Saves** the session for '{Old Task}', banking any partial progress. Then opens `Pomodoro Screen` in **Setup Mode** for '{New Task}'.
-|
-├── **🔥 [REVISED LOGIC] Taps `❌` on Pomodoro Screen**
-│   └── **`Stop Session Confirmation Dialog`**
-│       ├── **Pauses the timer** while the dialog is active.
-│       ├── Shows: "Stop session for '{Task Name}'? Your progress of {X minutes} from this interval will be saved."
-│       ├── **Option: "Cancel"** → The dialog is dismissed. **The timer resumes** from where it was paused.
-│       └── **Option: "Stop & Save"** → Captures and saves partial progress, terminates the session, and closes the `Pomodoro Screen`. The `Mini Timer Bar` does not appear.
-|
-└── **Taps `▶️` on a Task Card (no other session active) OR taps on the `MiniTimerBar`**
-    └── **`Pomodoro Screen (Modal Bottom Sheet)`**
-        └── This is the main timer interface, whose complex logic is detailed in the main flowchart.
-
-**🤖 AUTOMATIC SYSTEM TRIGGERS (Inside Pomodoro Screen)**
-|
-├── **`focused_time` >= `planned_duration`**
-│   └── **`Overdue Dialog`**
-│       ├── **Pauses timer.**
-│       ├── Shows: "Planned time is complete. Mark task as done or continue working?"
-│       ├── **Option: "Mark Complete"** → `todosProvider.toggleTodo()`, closes Pomodoro screen, clears timer.
-│       └── **🔥 [REVISED LOGIC] Option: "Continue"** → Dialog is dismissed. **The timer resumes and continues running** in an "Overdue Mode". The task is flagged internally to show the persistent `🔴` overdue icon on the main list.
-|
-└── **`current_cycle` > `total_cycles`**
-    └── **`All Sessions Complete Dialog`**
-        ├── **Pauses timer.**
-        ├── Shows: "You have completed all X focus sessions..."
-        └── **🔥 [REVISED LOGIC] Option: "Dismiss"** → **The session gracefully ends.** The `PomodoroScreen` closes, the `Mini Timer Bar` is hidden, and the user is returned to the `TodoListScreen`.
-
----
-
-### Master Flowchart for Task Card Status & Tag Logic (Immutable Task Version)
-*(This section had no required changes and remains the same as your excellent original version.)*
-
-**entryway TaskCard Widget Build Process**
-|
-├── 1. Check Overall Task Status
-│   └── Is task.completed == true?
-│   ├── ✅ YES → Go to ➡️ Flow for Completed Tasks
-│   └── ❌ NO → Go to ➡️ Flow for Incomplete Tasks
-|
-|
-➡️ **Flow for Incomplete Tasks**
-|
-├── 2. Check for Active Timer State (Visual Indicator)
-│   └── Is timerProvider.activeTaskName == task.text?
-│   └── ✅ YES → Display a bright yellow border around the entire TaskCard.
-│   └── This visually links the card to the active MiniTimerBar or PomodoroScreen, indicating it's the "task in focus."
-|
-├── 3. Check for Overdue Status (Text Tag & Visual Cue)
-│   └── Does task.planned_duration > 0?
-│   ├── ❌ NO (Task has no planned duration) → No tag is displayed. The task can never be overdue.
-│   └── ✅ YES (Task has a planned duration)
-│   └── Calculate: Use the live_focused_time from the timerProvider's cache if available; otherwise, use the value from the database.
-│   └── Is live_focused_time >= task.planned_duration?
-│   ├── ❌ NO → No tag is displayed. The task is on track.
-│   └── ✅ YES → The task is now considered Overdue.
-│   ├── Display Text Tag: "Overdue: X:XX" (in red)
-│   │   └── Calculation: The displayed time is live_focused_time - task.planned_duration, formatted as minutes and seconds (or hours). This provides a running clock of the "overage" time.
-│   │
-│   └── Check for "Continued Overdue" Status:
-│   └── Is task.text present in the timerProvider.overdueContinued set?
-│   └── ✅ YES (User explicitly chose "Continue" from the Overdue Dialog in a previous session for this task) → Display a red dot 🔴 icon next to the task text as a persistent visual reminder that this task has exceeded its plan.
-|
-|
-➡️ **Flow for Completed Tasks**
-|
-├── 4. Set Visual Style
-│   └── The entire TaskCard is rendered with 50% opacity to visually de-emphasize it.
-|
-├── 5. Check for Underdue/Completed Status (Text Tag)
-│   └── Does task.planned_duration > 0?
-│   ├── ❌ NO (Task had no planned duration) → Display Text Tag: "Completed" (in green).
-│   └── ✅ YES (Task had a planned duration)
-│   └── Is task.focused_time < task.planned_duration?
-│   ├── ✅ YES → The task was completed before its planned time was met.
-│   │   └── Display Text Tag: "Underdue task X%" (in orange).
-│   │   └── Calculation: The percentage is (task.focused_time / task.planned_duration) * 100.
-│   │
-│   └── ❌ NO (task.focused_time >= task.planned_duration) → The task was completed at or after its planned time was met.
-│   └── Display Text Tag: "Completed" (in green). The "Overdue" status is no longer shown because the primary status is now "Completed".
-
-
-now evlauate this revised chart
-</file>
-
-<file path="flutter_app/android/app/build.gradle.kts">
-plugins {
-    id("com.android.application")
-    id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
-    id("dev.flutter.flutter-gradle-plugin")
-    // Google Services plugin for Firebase/Google Auth
-    id("com.google.gms.google-services")
-}
-
-android {
-    namespace = "com.example.flutter_app"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    // Enable core library desugaring for libraries that require newer Java APIs on older
-    // Android runtimes (required by flutter_local_notifications and others).
-    isCoreLibraryDesugaringEnabled = true
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
-    }
-
-    defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.flutter_app"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
-    }
-
-    buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
-        }
-    }
-}
-
-flutter {
-    source = "../.."
-}
-
-dependencies {
-    // Provides backported Java core library APIs for desugaring on older Android runtimes.
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-}
-</file>
-
-<file path="flutter_app/android/build.gradle.kts">
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
-val newBuildDir: Directory =
-    rootProject.layout.buildDirectory
-        .dir("../../build")
-        .get()
-rootProject.layout.buildDirectory.value(newBuildDir)
-
-subprojects {
-    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
-    project.layout.buildDirectory.value(newSubprojectBuildDir)
-}
-subprojects {
-    project.evaluationDependsOn(":app")
-}
-
-tasks.register<Delete>("clean") {
-    delete(rootProject.layout.buildDirectory)
-}
-
-// Add Google services plugin to the root build.gradle
-plugins {
-    id("com.google.gms.google-services") version "4.4.0" apply false
-}
-</file>
-
 <file path="flutter_app/test/timer_service_test.dart">
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24049,7 +23982,7 @@ class MyApp extends ConsumerWidget {
 </file>
 
 <file path="backend/server.pid">
-55924
+70460
 </file>
 
 </files>
