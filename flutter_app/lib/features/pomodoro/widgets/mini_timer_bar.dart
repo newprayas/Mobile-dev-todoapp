@@ -191,6 +191,46 @@ class MiniTimerBar extends ConsumerWidget {
                 color: Colors.white,
               ),
             ),
+            // *** UX ENHANCEMENT: Quick stop/close button ***
+            IconButton(
+              onPressed: () async {
+                if (kDebugMode) debugPrint('MINI BAR: stop session pressed');
+
+                // Save progress if there's an active todo
+                if (activeTodo != null) {
+                  final success = await notifier.stopAndSaveProgress(
+                    activeTodo!.id,
+                  );
+
+                  // Show feedback
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          success
+                              ? 'Session stopped and progress saved ✓'
+                              : 'Session stopped (save failed)',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: success
+                            ? Colors.green[700]
+                            : Colors.orange[700],
+                        duration: const Duration(seconds: 2),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                } else {
+                  // No active todo, just clear the session
+                  notifier.clear();
+                }
+              },
+              icon: const Icon(
+                Icons.close_rounded,
+                color: Colors.red,
+                size: 20,
+              ),
+            ),
           ],
         ),
       ),

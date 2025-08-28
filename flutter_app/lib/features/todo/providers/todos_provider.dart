@@ -2,6 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/todo.dart';
 import '../../../core/services/api_service.dart';
 
+/// Todo list state management provider with optimistic updates.
+///
+/// Manages the complete todo lifecycle including creation, updates, deletion,
+/// and completion. Implements optimistic UI updates for immediate feedback
+/// with automatic rollback on API errors.
 class TodosNotifier extends AsyncNotifier<List<Todo>> {
   @override
   Future<List<Todo>> build() async {
@@ -33,6 +38,18 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
     }
   }
 
+  /// Adds a new todo with optimistic updates.
+  ///
+  /// Creates a temporary todo with a local ID for immediate UI feedback,
+  /// then replaces it with the server-generated todo on successful creation.
+  /// Automatically reverts on API errors.
+  ///
+  /// Parameters:
+  /// - [text]: Todo description text
+  /// - [hours]: Planned duration hours (0-23)
+  /// - [minutes]: Planned duration minutes (0-59)
+  ///
+  /// Throws: API exceptions if the server request fails
   Future<void> addTodo(String text, int hours, int minutes) async {
     // Optimistic update
     final localId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -65,6 +82,13 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
     }
   }
 
+  /// Deletes a todo with optimistic updates.
+  ///
+  /// Immediately removes the todo from the UI, then calls the API.
+  /// Automatically reverts the list if the API call fails.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to delete
   Future<void> deleteTodo(int id) async {
     // Optimistic update
     final currentTodos = state.value ?? [];
@@ -81,6 +105,18 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
     }
   }
 
+  /// Updates todo properties via API.
+  ///
+  /// Modifies text content and/or planned duration for an existing todo.
+  /// Refreshes the full list after successful update.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to update
+  /// - [text]: New description text (optional)
+  /// - [hours]: New planned duration hours (optional)
+  /// - [minutes]: New planned duration minutes (optional)
+  ///
+  /// Throws: API exceptions if the server request fails
   Future<void> updateTodo(
     int id, {
     String? text,
@@ -97,6 +133,13 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
     }
   }
 
+  /// Toggles todo completion status with optimistic updates.
+  ///
+  /// Immediately flips the completed status in the UI, then syncs with API.
+  /// Automatically reverts on API errors.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to toggle
   Future<void> toggleTodo(int id) async {
     // Optimistic update
     final currentTodos = state.value ?? [];
@@ -118,6 +161,15 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
     }
   }
 
+  /// Toggles todo completion with overdue tracking information.
+  ///
+  /// Enhanced version of toggleTodo that also tracks overdue completion.
+  /// Used when a task is completed after exceeding its planned duration.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to toggle
+  /// - [wasOverdue]: Whether the task was completed past its planned time
+  /// - [overdueTime]: Additional time spent beyond planned duration in seconds
   Future<void> toggleTodoWithOverdue(
     int id, {
     bool wasOverdue = false,
@@ -151,6 +203,10 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
     }
   }
 
+  /// Removes all completed todos with optimistic updates.
+  ///
+  /// Immediately hides completed todos from the UI, then batch-deletes them
+  /// via the API. Automatically reverts the full list on API errors.
   Future<void> clearCompleted() async {
     final currentTodos = state.value ?? [];
     final completedTodos = currentTodos

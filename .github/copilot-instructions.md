@@ -98,7 +98,7 @@ Only fix the most importnat errors after running flutter analzye - only the ones
 
 
 
-# ALWAYS prefer modularity of code 
+# MUSt FOLLOW - IMPORTANT - ALWAYS prefer modularity of code - KEEP YOUR CODE AS MODULAR AS POSISBLE 
 Summary Table: AI Preference
 Attribute	More Modular (AI's Preference)	Less Modular (Monolithic)
 Context Usage	Efficient. Small, relevant files fit easily.	Inefficient. Large files consume entire context, risking errors.
@@ -234,3 +234,31 @@ Directive 3.3: Name State Variables by What They Represent.
 Boolean variables must be prefixed with is, has, or should (e.g., isRunning, hasError). Variables representing a specific piece of state should be fully descriptive.
 Good Examples: timeRemaining, activeTaskName, overdueCrossedTaskName, suppressNextActivation.
 Unacceptable Examples: time, task, overdue, flag.
+
+
+
+
+# MORE REFINEINE OF CODE _ ALWAYS APPLY AND FOLLOW THESE CODING PRACTICES - FOLLOW 4 PRINCPELS WHILE CODING  
+
+NUMBER 1-  Excellent Separation of Concerns:
+
+XMAPLE : UI (PomodoroScreen): Knows only how to display the state and forward user events (like button presses) to the notifier. It is "dumb" in the best way possible.
+State Management (TimerNotifier): Contains all the business logic for the timer. It is the single source of truth for the timer's state and is completely independent of the UI.
+Navigation (PomodoroRouter): Has the single responsibility of knowing how to present the Pomodoro screen (as a modal bottom sheet). The calling widgets don't need to know these details.
+Services (ApiService, etc.): Abstract away external interactions like database calls and notifications.
+
+
+NUMBER 2 Clear State Management (Riverpod):
+
+The use of an immutable TimerState class with a copyWith method is best practice. It prevents accidental state mutation and makes state changes predictable.
+The TimerNotifier cleanly exposes methods for specific actions (startTask, stopAndSaveProgress), which makes the code easy to reason about for both humans and AI.
+
+
+
+NUMBER 3 : High Cohesion, Low Coupling:
+Files within the features/pomodoro folder are highly related (high cohesion).
+The pomodoro feature has minimal dependencies on the todo feature (low coupling). It receives a Todo object but doesn't need to know how the todo list is managed. This is excellent.
+
+
+Suggestion for Even Better AI-Friendliness:
+NUMBER 4 : Add Doc Comments (///): While the code is very readable, adding formal Dart doc comments to public methods in the notifiers (TimerNotifier, TodosNotifier) and services (ApiService) would be the final polish. Explain what each method does, its parameters, and what it returns. This provides invaluable context for an AI agent trying to understand the codebase's intent.

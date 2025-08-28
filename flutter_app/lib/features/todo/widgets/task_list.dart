@@ -149,9 +149,65 @@ class _TaskListState extends ConsumerState<TaskList> {
 
       if (shouldSwitch != true || !mounted) return;
 
-      // Mark previous inactive & clear running state cleanly
+      // *** CRITICAL BUG FIX: Save progress before switching tasks ***
+      // Find the current active todo by matching task name
+      final currentActiveTodo = widget.todos.firstWhere(
+        (t) => t.text == timerState.activeTaskName,
+        orElse: () => Todo(
+          id: 0,
+          userId: '',
+          text: timerState.activeTaskName!,
+          completed: false,
+          durationHours: 0,
+          durationMinutes: 0,
+          focusedTime: 0,
+          wasOverdue: 0,
+          overdueTime: 0,
+        ),
+      );
+
+      // Save progress for the current active task
       final notifier = ref.read(timerProvider.notifier);
-      notifier.clearPreserveProgress();
+      if (currentActiveTodo.id > 0) {
+        try {
+          final success = await notifier.stopAndSaveProgress(
+            currentActiveTodo.id,
+          );
+          if (kDebugMode) {
+            debugPrint(
+              'TASK_SWITCH: Progress save ${success ? 'successful' : 'failed'} for ${currentActiveTodo.text}',
+            );
+          }
+
+          // Show feedback to user
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  success
+                      ? 'Progress saved for "${currentActiveTodo.text}" ✓'
+                      : 'Failed to save progress for "${currentActiveTodo.text}"',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                backgroundColor: success
+                    ? Colors.green[700]
+                    : Colors.orange[700],
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('TASK_SWITCH: Error saving progress: $e');
+          }
+          // Still clear the session even if save fails
+          notifier.clearPreserveProgress();
+        }
+      } else {
+        // No valid todo ID, just clear
+        notifier.clearPreserveProgress();
+      }
     }
 
     // Pre-initialize provider with this task's planned details for setup UI

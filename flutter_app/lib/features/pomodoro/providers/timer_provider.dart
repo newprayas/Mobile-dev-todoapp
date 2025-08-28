@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/timer_session_controller.dart';
+import '../../../core/providers/notification_provider.dart';
+import '../../todo/providers/todos_provider.dart';
 
 class TimerState {
   final String? activeTaskName;
@@ -95,6 +97,11 @@ class TimerState {
   }
 }
 
+/// Core timer state management provider for the Pomodoro application.
+///
+/// Manages timer lifecycle, state transitions, sound/notification integration,
+/// progress tracking, and API synchronization. Provides smart business logic
+/// for automatic cycle progression and overdue handling.
 class TimerNotifier extends Notifier<TimerState> {
   Timer? _ticker;
   bool _processingOverdue = false;
@@ -111,6 +118,22 @@ class TimerNotifier extends Notifier<TimerState> {
     return const TimerState();
   }
 
+  /// Updates timer state with provided parameters.
+  ///
+  /// Only updates fields that have changed to minimize unnecessary rebuilds.
+  /// Logs state changes in debug mode for development tracking.
+  ///
+  /// Parameters:
+  /// - [taskName]: Name of the active task
+  /// - [remaining]: Time remaining in seconds
+  /// - [running]: Whether timer is currently running
+  /// - [active]: Whether timer session is active
+  /// - [plannedDuration]: Planned duration for the task in seconds
+  /// - [mode]: Current timer mode ('focus' or 'break')
+  /// - [focusDuration]: Duration of focus periods in seconds
+  /// - [breakDuration]: Duration of break periods in seconds
+  /// - [setTotalCycles]: Total number of focus/break cycles
+  /// - [setCurrentCycle]: Current cycle number
   void update({
     String? taskName,
     int? remaining,
@@ -186,24 +209,54 @@ class TimerNotifier extends Notifier<TimerState> {
     }
   }
 
+  /// Marks that an overdue prompt has been shown for a specific task.
+  ///
+  /// Prevents duplicate overdue prompts for the same task during a session.
+  ///
+  /// Parameters:
+  /// - [taskName]: Name of the task that triggered the overdue prompt
   void markOverduePromptShown(String taskName) {
     final newPromptShown = Set<String>.from(state.overduePromptShown)
       ..add(taskName);
     state = state.copyWith(overduePromptShown: newPromptShown);
   }
 
+  /// Marks that a user chose to continue working on an overdue task.
+  ///
+  /// Tracks which tasks have been continued past their planned duration
+  /// for analytics and UI state management.
+  ///
+  /// Parameters:
+  /// - [taskName]: Name of the task that was continued past its planned time
   void markOverdueContinued(String taskName) {
     final newOverdueContinued = Set<String>.from(state.overdueContinued)
       ..add(taskName);
     state = state.copyWith(overdueContinued: newOverdueContinued);
   }
 
+  /// Updates the total focused time for a specific task.
+  ///
+  /// Maintains a cache of focused time per task for progress tracking
+  /// and progress bar calculations.
+  ///
+  /// Parameters:
+  /// - [taskName]: Name of the task to update
+  /// - [seconds]: Total focused time in seconds
   void updateFocusedTime(String taskName, int seconds) {
     final newFocusedTimeCache = Map<String, int>.from(state.focusedTimeCache);
     newFocusedTimeCache[taskName] = seconds;
     state = state.copyWith(focusedTimeCache: newFocusedTimeCache);
   }
 
+  /// Gets the total focused time for a specific task.
+  ///
+  /// Returns the cumulative focused time from the cache or 0 if no
+  /// time has been tracked for the task.
+  ///
+  /// Parameters:
+  /// - [taskName]: Name of the task to query
+  ///
+  /// Returns: Total focused time in seconds
   int getFocusedTime(String taskName) {
     return state.focusedTimeCache[taskName] ?? 0;
   }
@@ -237,6 +290,18 @@ class TimerNotifier extends Notifier<TimerState> {
         // Handle transitions similar to legacy service (simplified for bridge).
         if (state.currentMode == 'focus' &&
             state.breakDurationSeconds != null) {
+          // *** SMART BUSINESS LOGIC: Play break sound and show notification ***
+          try {
+            final notificationService = ref.read(notificationServiceProvider);
+            notificationService.playSound('break_timer_start.wav');
+            notificationService.showNotification(
+              title: 'Focus Session Complete!',
+              body: 'Time for a break. Great work!',
+            );
+          } catch (e) {
+            if (kDebugMode) debugPrint('SOUND/NOTIFICATION ERROR: $e');
+          }
+
           // Mark completion of a focus session
           final completed = state.completedSessions + 1;
           state = state.copyWith(completedSessions: completed);
@@ -255,6 +320,18 @@ class TimerNotifier extends Notifier<TimerState> {
           );
         } else if (state.currentMode == 'break' &&
             state.focusDurationSeconds != null) {
+          // *** SMART BUSINESS LOGIC: Play focus sound and show notification ***
+          try {
+            final notificationService = ref.read(notificationServiceProvider);
+            notificationService.playSound('focus_timer_start.wav');
+            notificationService.showNotification(
+              title: 'Break Complete!',
+              body: 'Time to focus. Let\'s get back to work!',
+            );
+          } catch (e) {
+            if (kDebugMode) debugPrint('SOUND/NOTIFICATION ERROR: $e');
+          }
+
           state = state.copyWith(
             currentMode: 'focus',
             timeRemaining: state.focusDurationSeconds,
@@ -440,6 +517,55 @@ class TimerNotifier extends Notifier<TimerState> {
     state = TimerState(focusedTimeCache: preserved);
   }
 
+  /// Saves current progress and safely stops the timer session.
+  ///
+  /// Critical feature that ensures no progress is lost when stopping a session.
+  /// Updates the backend with current focused time and gracefully clears the session.
+  ///
+  /// Parameters:
+  /// - [todoId]: Database ID of the todo item to update
+  ///
+  /// Returns: true if progress was saved successfully, false if an error occurred
+  Future<bool> stopAndSaveProgress(int todoId) async {
+    if (state.activeTaskName == null) {
+      // No active session to save
+      clear();
+      return true;
+    }
+
+    try {
+      // Calculate elapsed time in current session
+      final taskName = state.activeTaskName!;
+      final currentFocusedTime = state.focusedTimeCache[taskName] ?? 0;
+
+      if (kDebugMode) {
+        debugPrint(
+          'TIMER: Saving progress for $taskName (ID: $todoId): ${currentFocusedTime}s focused time',
+        );
+      }
+
+      // Update backend with current focused time
+      final api = ref.read(apiServiceProvider);
+      await api.updateFocusTime(todoId, currentFocusedTime);
+
+      // Clear the session but preserve progress cache
+      clearPreserveProgress();
+
+      if (kDebugMode) {
+        debugPrint('TIMER: Progress saved successfully for $taskName');
+      }
+
+      return true;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('TIMER: Failed to save progress: $e');
+      }
+      // Even if save fails, we should clear the session to prevent data inconsistency
+      clearPreserveProgress();
+      return false;
+    }
+  }
+
   void toggleRunning() {
     final nextRunning = !state.isRunning;
     state = state.copyWith(isRunning: nextRunning);
@@ -450,6 +576,20 @@ class TimerNotifier extends Notifier<TimerState> {
     }
   }
 
+  /// Starts a new Pomodoro timer session with smart business logic.
+  ///
+  /// Initializes a new timer session with the specified parameters, plays
+  /// notification sounds, and starts the focus timer. Includes debouncing
+  /// to prevent rapid start attempts.
+  ///
+  /// Parameters:
+  /// - [taskName]: Name of the task to focus on
+  /// - [focusDuration]: Duration of focus periods in seconds
+  /// - [breakDuration]: Duration of break periods in seconds
+  /// - [plannedDuration]: Planned total duration for the task in seconds
+  /// - [totalCycles]: Total number of focus/break cycles to complete
+  ///
+  /// Returns: true if session started successfully, false if start was prevented
   bool startTask({
     required String taskName,
     required int focusDuration,
@@ -491,6 +631,18 @@ class TimerNotifier extends Notifier<TimerState> {
         debugPrint('TIMER_FSM: Failed to start session for $taskName');
       }
       return false;
+    }
+
+    // *** SMART BUSINESS LOGIC: Play focus start sound and show notification ***
+    try {
+      final notificationService = ref.read(notificationServiceProvider);
+      notificationService.playSound('focus_timer_start.wav');
+      notificationService.showNotification(
+        title: 'Focus Session Started!',
+        body: 'Focus time for "$taskName". You\'ve got this!',
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('SOUND/NOTIFICATION ERROR: $e');
     }
 
     state = state.copyWith(
