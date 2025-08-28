@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/timer_session_controller.dart';
+import '../../../core/services/timer_session_controller.dart';
 
 class TimerState {
   final String? activeTaskName;
@@ -301,6 +301,7 @@ class TimerNotifier extends Notifier<TimerState> {
     state = state.copyWith(
       isRunning: false,
       timeRemaining: 0,
+      isProgressBarFull: true, // Add this flag to signal the UI
       overdueCrossedTaskName: task,
       // Preserve activeTaskName & isTimerActive
       // Clear adjustable durations

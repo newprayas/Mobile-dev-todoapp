@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../models/todo.dart';
-import '../theme/app_colors.dart';
+import '../../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/timer_provider.dart';
+import '../../pomodoro/providers/timer_provider.dart';
 
 typedef PlayCallback = Future<void> Function(Todo todo);
 
@@ -324,6 +324,21 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ),
+        // Overdue time display (replaces progress bar for overdue tasks)
+        if (!widget.todo.completed &&
+            (widget.todo.wasOverdue == 1 || isContinuedOverdue || isOverdue) &&
+            totalMins > 0)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text(
+              'OVERDUE TIME: ${_formatOverdueTime((cachedFocused - plannedSeconds).clamp(0, double.infinity).toInt())}',
+              style: TextStyle(
+                color: AppColors.priorityHigh,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),

@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/todo.dart';
-import '../services/api_service.dart';
+import '../../../core/services/api_service.dart';
 
 class TodosNotifier extends AsyncNotifier<List<Todo>> {
   @override
@@ -111,6 +111,39 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
     try {
       final api = ref.read(apiServiceProvider);
       await api.toggleTodo(id);
+      // No full refresh needed, optimistic update is usually enough
+    } catch (e) {
+      // Revert on error
+      state = AsyncValue.data(currentTodos);
+    }
+  }
+
+  Future<void> toggleTodoWithOverdue(
+    int id, {
+    bool wasOverdue = false,
+    int overdueTime = 0,
+  }) async {
+    // Optimistic update with overdue information
+    final currentTodos = state.value ?? [];
+    final updatedTodos = currentTodos.map((todo) {
+      if (todo.id == id) {
+        return todo.copyWith(
+          completed: !todo.completed,
+          wasOverdue: wasOverdue ? 1 : 0,
+          overdueTime: overdueTime,
+        );
+      }
+      return todo;
+    }).toList();
+    state = AsyncValue.data(updatedTodos);
+
+    try {
+      final api = ref.read(apiServiceProvider);
+      await api.toggleTodoWithOverdue(
+        id,
+        wasOverdue: wasOverdue,
+        overdueTime: overdueTime,
+      );
       // No full refresh needed, optimistic update is usually enough
     } catch (e) {
       // Revert on error

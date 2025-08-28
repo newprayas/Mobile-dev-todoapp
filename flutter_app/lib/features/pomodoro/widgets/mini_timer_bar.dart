@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/timer_provider.dart';
-import '../theme/app_colors.dart';
-import '../services/api_service.dart';
-import '../services/notification_service.dart';
-import '../models/todo.dart';
-import '../screens/pomodoro_screen.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/services/notification_service.dart';
+import '../../todo/models/todo.dart';
+import '../pomodoro_router.dart';
 
 class MiniTimerBar extends ConsumerWidget {
   final ApiService api;
@@ -87,7 +87,7 @@ class MiniTimerBar extends ConsumerWidget {
           debugPrint('MINI BAR: opening full sheet (adapter stage)');
         }
         notifier.update(active: false);
-        await PomodoroScreen.showAsBottomSheet(
+        await PomodoroRouter.showPomodoroSheet(
           context,
           api,
           activeTodo ??
@@ -103,7 +103,7 @@ class MiniTimerBar extends ConsumerWidget {
                 overdueTime: 0,
               ),
           notificationService,
-          () async {
+          ({bool wasOverdue = false, int overdueTime = 0}) async {
             if (activeTodo != null) {
               await onComplete(activeTodo!.id);
             }
@@ -162,7 +162,7 @@ class MiniTimerBar extends ConsumerWidget {
             IconButton(
               onPressed: () async {
                 if (kDebugMode) debugPrint('MINI BAR: expand pressed');
-                await PomodoroScreen.showAsBottomSheet(
+                await PomodoroRouter.showPomodoroSheet(
                   context,
                   api,
                   activeTodo ??
@@ -178,7 +178,7 @@ class MiniTimerBar extends ConsumerWidget {
                         overdueTime: 0,
                       ),
                   notificationService,
-                  () async {
+                  ({bool wasOverdue = false, int overdueTime = 0}) async {
                     if (activeTodo != null) {
                       await onComplete(activeTodo!.id);
                     }

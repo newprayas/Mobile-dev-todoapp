@@ -4,12 +4,12 @@ import 'dart:io'
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'services/api_service.dart';
-import 'theme/app_colors.dart';
-import 'services/notification_service.dart';
-import 'widgets/auth_wrapper.dart';
-import 'providers/todos_provider.dart';
-import 'providers/notification_provider.dart';
+import 'core/services/api_service.dart';
+import 'core/theme/app_colors.dart';
+import 'core/services/notification_service.dart';
+import 'core/widgets/auth_wrapper.dart';
+import 'features/todo/providers/todos_provider.dart';
+import 'core/providers/notification_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

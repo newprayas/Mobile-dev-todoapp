@@ -177,6 +177,11 @@ Future<Response> toggleTodo(Request request) async {
   final payload =
       json.decode(await request.readAsString()) as Map<String, dynamic>;
   final todoId = payload['id'];
+  final wasOverdue =
+      payload['was_overdue'] ?? 0; // Optional parameter, defaults to 0
+  final overdueTime = payload['overdue_time'] ??
+      0; // Optional parameter for overdue time tracking
+
   final db = getDb();
   final row = db.select(
     'SELECT completed FROM todos WHERE id = ? AND user_id = ?',
@@ -185,11 +190,21 @@ Future<Response> toggleTodo(Request request) async {
   if (row.isNotEmpty) {
     final current = row.first['completed'] as int;
     final newVal = current == 0 ? 1 : 0;
-    final stmt = db.prepare(
-      'UPDATE todos SET completed = ? WHERE id = ? AND user_id = ?',
-    );
-    stmt.execute([newVal, todoId, user['sub']]);
-    stmt.dispose();
+
+    // If marking as complete and was_overdue flag is provided, update the was_overdue column
+    if (newVal == 1 && wasOverdue == 1) {
+      final stmt = db.prepare(
+        'UPDATE todos SET completed = ?, was_overdue = ?, overdue_time = ? WHERE id = ? AND user_id = ?',
+      );
+      stmt.execute([newVal, wasOverdue, overdueTime, todoId, user['sub']]);
+      stmt.dispose();
+    } else {
+      final stmt = db.prepare(
+        'UPDATE todos SET completed = ? WHERE id = ? AND user_id = ?',
+      );
+      stmt.execute([newVal, todoId, user['sub']]);
+      stmt.dispose();
+    }
   }
   db.dispose();
   return jsonResponse({'result': 'success'});

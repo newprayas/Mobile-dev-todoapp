@@ -89,6 +89,20 @@ class ApiService {
     return resp.data;
   }
 
+  Future<dynamic> toggleTodoWithOverdue(
+    int id, {
+    bool wasOverdue = false,
+    int overdueTime = 0,
+  }) async {
+    final payload = {
+      'id': id,
+      'was_overdue': wasOverdue ? 1 : 0,
+      'overdue_time': overdueTime,
+    };
+    final resp = await _withRetry(() => _dio.post('/toggle', data: payload));
+    return resp.data;
+  }
+
   Future<dynamic> updateFocusTime(int id, int focusedTime) async {
     final resp = await _withRetry(
       () => _dio.post(

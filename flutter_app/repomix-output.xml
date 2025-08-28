@@ -136,6 +136,7 @@ lib/
   utils/
     app_dialogs.dart
     debug_logger.dart
+    helpers.dart
   widgets/
     auth_wrapper.dart
     inline_task_input.dart
@@ -2039,6 +2040,7 @@ class TimerState {
   final Set<String> overdueContinued;
   final Map<String, int> focusedTimeCache;
   final bool suppressNextActivation;
+  final bool cycleOverflowBlocked;
 
   const TimerState({
     this.activeTaskName,
@@ -2059,6 +2061,7 @@ class TimerState {
     this.overdueContinued = const {},
     this.focusedTimeCache = const {},
     this.suppressNextActivation = false,
+    this.cycleOverflowBlocked = false,
   });
 
   TimerState copyWith({
@@ -2080,6 +2083,7 @@ class TimerState {
     Set<String>? overdueContinued,
     Map<String, int>? focusedTimeCache,
     bool? suppressNextActivation,
+    bool? cycleOverflowBlocked,
   }) {
     return TimerState(
       activeTaskName: activeTaskName ?? this.activeTaskName,
@@ -2103,6 +2107,7 @@ class TimerState {
       focusedTimeCache: focusedTimeCache ?? this.focusedTimeCache,
       suppressNextActivation:
           suppressNextActivation ?? this.suppressNextActivation,
+      cycleOverflowBlocked: cycleOverflowBlocked ?? this.cycleOverflowBlocked,
     );
   }
 }
@@ -2256,10 +2261,14 @@ class TimerNotifier extends Notifier<TimerState> {
           if (completed >= state.totalCycles && !state.isProgressBarFull) {
             state = state.copyWith(allSessionsComplete: true);
           }
+          // Increment cycle but cap at totalCycles (no 3/2 situations)
+          final nextCycle = (state.currentCycle + 1) <= state.totalCycles
+              ? state.currentCycle + 1
+              : state.totalCycles;
           state = state.copyWith(
             currentMode: 'break',
             timeRemaining: state.breakDurationSeconds,
-            currentCycle: state.currentCycle + 1,
+            currentCycle: nextCycle,
           );
         } else if (state.currentMode == 'break' &&
             state.focusDurationSeconds != null) {
@@ -2309,6 +2318,7 @@ class TimerNotifier extends Notifier<TimerState> {
     state = state.copyWith(
       isRunning: false,
       timeRemaining: 0,
+      isProgressBarFull: true, // Add this flag to signal the UI
       overdueCrossedTaskName: task,
       // Preserve activeTaskName & isTimerActive
       // Clear adjustable durations
@@ -2439,6 +2449,14 @@ class TimerNotifier extends Notifier<TimerState> {
     state = const TimerState();
   }
 
+  /// Clear active session while preserving historical focused time cache so task progress bars remain.
+  void clearPreserveProgress() {
+    stopTicker();
+    _sessionController?.forceReset();
+    final preserved = state.focusedTimeCache;
+    state = TimerState(focusedTimeCache: preserved);
+  }
+
   void toggleRunning() {
     final nextRunning = !state.isRunning;
     state = state.copyWith(isRunning: nextRunning);
@@ -2529,11 +2547,12 @@ class TimerNotifier extends Notifier<TimerState> {
       focusDurationSeconds: focusDuration ?? state.focusDurationSeconds,
       breakDurationSeconds: breakDuration ?? state.breakDurationSeconds,
       totalCycles: totalCycles ?? state.totalCycles,
-      // Keep timeRemaining aligned with focus duration if currently in setup (not running)
+      // Only realign remaining time if user is still in initial setup (cycle 0)
       timeRemaining:
           (!state.isRunning &&
               state.currentMode == 'focus' &&
-              focusDuration != null)
+              focusDuration != null &&
+              state.currentCycle == 0)
           ? focusDuration
           : state.timeRemaining,
     );
@@ -2541,6 +2560,21 @@ class TimerNotifier extends Notifier<TimerState> {
 
   void markProgressBarFull() {
     state = state.copyWith(isProgressBarFull: true);
+  }
+
+  void clearProgressBarFullFlag() {
+    if (state.isProgressBarFull) {
+      if (kDebugMode) {
+        debugPrint('TIMER: Clearing progressBarFull flag');
+      }
+      state = state.copyWith(isProgressBarFull: false);
+    }
+  }
+
+  void clearCycleOverflowBlockedFlag() {
+    if (state.cycleOverflowBlocked) {
+      state = state.copyWith(cycleOverflowBlocked: false);
+    }
   }
 
   void resetForSetup({
@@ -2571,6 +2605,8 @@ class TimerNotifier extends Notifier<TimerState> {
     required int plannedDuration,
   }) {
     stopTicker();
+    // Preserve focusedTimeCache so progress bars retain prior accumulated time when revisiting a task
+    final cache = state.focusedTimeCache;
     state = state.copyWith(
       activeTaskName: taskName,
       focusDurationSeconds: focusDuration,
@@ -2584,17 +2620,24 @@ class TimerNotifier extends Notifier<TimerState> {
       completedSessions: 0,
       isProgressBarFull: false,
       allSessionsComplete: false,
+      focusedTimeCache: cache, // re-apply preserved cache
     );
   }
 
   void skipPhase() {
     if (state.currentMode == 'focus') {
+      // Prevent going beyond total cycles
+      if (state.currentCycle >= state.totalCycles) {
+        state = state.copyWith(cycleOverflowBlocked: true);
+        return;
+      }
       final completed = state.completedSessions + 1;
+      final nextCycle = state.currentCycle + 1;
       state = state.copyWith(
         currentMode: 'break',
         timeRemaining: state.breakDurationSeconds ?? state.timeRemaining,
         completedSessions: completed,
-        currentCycle: state.currentCycle + 1,
+        currentCycle: nextCycle,
       );
     } else if (state.currentMode == 'break') {
       state = state.copyWith(
@@ -2609,6 +2652,10 @@ class TimerNotifier extends Notifier<TimerState> {
   bool hasUserContinuedOverdue(String task) =>
       state.overdueContinued.contains(task);
   void markUserContinuedOverdue(String task) => markOverdueContinued(task);
+
+  void clearAllSessionsCompleteFlag() {
+    state = state.copyWith(allSessionsComplete: false);
+  }
 }
 
 // The main timer provider
@@ -2733,6 +2780,39 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
     try {
       final api = ref.read(apiServiceProvider);
       await api.toggleTodo(id);
+      // No full refresh needed, optimistic update is usually enough
+    } catch (e) {
+      // Revert on error
+      state = AsyncValue.data(currentTodos);
+    }
+  }
+
+  Future<void> toggleTodoWithOverdue(
+    int id, {
+    bool wasOverdue = false,
+    int overdueTime = 0,
+  }) async {
+    // Optimistic update with overdue information
+    final currentTodos = state.value ?? [];
+    final updatedTodos = currentTodos.map((todo) {
+      if (todo.id == id) {
+        return todo.copyWith(
+          completed: !todo.completed,
+          wasOverdue: wasOverdue ? 1 : 0,
+          overdueTime: overdueTime,
+        );
+      }
+      return todo;
+    }).toList();
+    state = AsyncValue.data(updatedTodos);
+
+    try {
+      final api = ref.read(apiServiceProvider);
+      await api.toggleTodoWithOverdue(
+        id,
+        wasOverdue: wasOverdue,
+        overdueTime: overdueTime,
+      );
       // No full refresh needed, optimistic update is usually enough
     } catch (e) {
       // Revert on error
@@ -3002,8 +3082,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../widgets/progress_bar.dart';
 import '../utils/app_dialogs.dart';
 
+// Default timer configuration constants
+const int kDefaultFocusMinutes = 25;
+const int kDefaultBreakMinutes = 5;
+const int kDefaultCycles = 4;
+
 // Callback to let the parent (TodoListScreen) know the task was completed.
-typedef TaskCompletedCallback = Future<void> Function();
+typedef TaskCompletedCallback =
+    Future<void> Function({bool wasOverdue, int overdueTime});
 
 class PomodoroScreen extends ConsumerStatefulWidget {
   final ApiService api;
@@ -3107,14 +3193,35 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
   void initState() {
     super.initState();
     // Initialize controllers with default values - will sync with state in first build
-    _focusController = TextEditingController(text: '25');
-    _breakController = TextEditingController(text: '5');
-    _cyclesController = TextEditingController(text: '4');
+    _focusController = TextEditingController(
+      text: kDefaultFocusMinutes.toString(),
+    );
+    _breakController = TextEditingController(
+      text: kDefaultBreakMinutes.toString(),
+    );
+    _cyclesController = TextEditingController(text: kDefaultCycles.toString());
+
+    // Add listeners to auto-calculate cycles based on focus duration and task planned duration
+    _focusController.addListener(_updateCyclesFromDuration);
+  }
+
+  void _updateCyclesFromDuration() {
+    final focusMinutes =
+        int.tryParse(_focusController.text) ?? kDefaultFocusMinutes;
+    final taskDurationMinutes =
+        (widget.todo.durationHours * 60) + widget.todo.durationMinutes;
+
+    if (taskDurationMinutes > 0 && focusMinutes > 0) {
+      // Calculate cycles as ceil(planned_task_duration / work_duration)
+      final calculatedCycles = (taskDurationMinutes / focusMinutes).ceil();
+      _cyclesController.text = calculatedCycles.toString();
+    }
   }
 
   @override
   void dispose() {
-    // Dispose of the controllers to prevent memory leaks.
+    // Remove listeners and dispose of controllers to prevent memory leaks.
+    _focusController.removeListener(_updateCyclesFromDuration);
     _focusController.dispose();
     _breakController.dispose();
     _cyclesController.dispose();
@@ -3138,8 +3245,9 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
 
     // Handle progress bar full
     if (timerState.isProgressBarFull) {
+      // Guard against multiple scheduling in rapid rebuilds
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (context.mounted) {
+        if (mounted) {
           _showProgressBarFullDialog(context, ref, timerNotifier);
         }
       });
@@ -3154,10 +3262,46 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
       });
     }
 
-    final isSetupMode =
-        !timerState.isRunning &&
-        (timerState.timeRemaining == timerState.focusDurationSeconds ||
-            timerState.timeRemaining == 0);
+    // Handle cycle overflow blocked (attempt to go beyond total cycles)
+    if (timerState.cycleOverflowBlocked) {
+      // Show only once per flag set
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        // Re-read current state to avoid stale flag check
+        final currentState = ref.read(timerProvider);
+        if (!currentState.cycleOverflowBlocked) return; // flag already cleared
+        showDialog(
+          context: context,
+          barrierDismissible: true,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Maximum Cycles Reached'),
+            content: const Text(
+              'All planned cycles are complete. Adjust task duration or focus length to create more cycles.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        ).whenComplete(() {
+          timerNotifier.clearCycleOverflowBlockedFlag();
+        });
+      });
+    }
+
+    // Setup mode when not running and currentCycle is 0 (initial setup state)
+    final isSetupMode = !timerState.isRunning && timerState.currentCycle == 0;
+
+    // Ensure cycles are calculated correctly on first build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.mounted) {
+        _updateCyclesFromDuration();
+      }
+    });
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -3198,24 +3342,50 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
                         // Pause timer while dialog is shown (as per UX flow)
                         final wasRunning = timerState.isRunning;
                         if (wasRunning) {
-                          timerNotifier.deactivate();
+                          // Use pause so timer does not keep counting while dialog is open
+                          timerNotifier.pauseTask();
                         }
 
-                        // Calculate progress for this interval
-                        final focusedTime = timerNotifier.getFocusedTime(
-                          widget.todo.text,
-                        );
-                        final minutesWorked = (focusedTime / 60).round();
+                        // Calculate progress for this interval (time elapsed in current phase)
+                        final currentPhaseDuration =
+                            timerState.currentMode == 'focus'
+                            ? (timerState.focusDurationSeconds ?? 25 * 60)
+                            : (timerState.breakDurationSeconds ?? 5 * 60);
+                        final elapsedTimeInCurrentInterval =
+                            currentPhaseDuration - timerState.timeRemaining;
+                        final minutesWorkedThisInterval =
+                            (elapsedTimeInCurrentInterval / 60).round();
 
                         final shouldStop =
                             await AppDialogs.showStopSessionDialog(
                               context: context,
                               taskName: widget.todo.text,
-                              minutesWorked: minutesWorked,
+                              minutesWorked: minutesWorkedThisInterval,
                             );
 
                         if (shouldStop == true) {
-                          // Stop & Save - terminate session and close
+                          // Stop & Save - save progress from current interval and terminate session
+                          if (kDebugMode) {
+                            debugPrint(
+                              'STOP_SAVE: Saving $elapsedTimeInCurrentInterval seconds from current interval',
+                            );
+                          }
+
+                          // Save progress from current interval if in focus mode
+                          if (timerState.currentMode == 'focus' &&
+                              elapsedTimeInCurrentInterval > 0) {
+                            final taskName = widget.todo.text;
+                            final currentFocusedTime = timerNotifier
+                                .getFocusedTime(taskName);
+                            final newFocusedTime =
+                                currentFocusedTime +
+                                elapsedTimeInCurrentInterval;
+                            timerNotifier.updateFocusedTime(
+                              taskName,
+                              newFocusedTime,
+                            );
+                          }
+
                           timerNotifier.clear();
                           if (mounted && context.mounted) {
                             if (Navigator.of(context).canPop()) {
@@ -3327,10 +3497,23 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
                     style: const TextStyle(fontSize: 18.0, color: Colors.white),
                     decoration: const InputDecoration(border: InputBorder.none),
                     onChanged: (value) {
-                      final intValue = int.tryParse(value) ?? 25;
+                      final intValue =
+                          int.tryParse(value) ?? kDefaultFocusMinutes;
                       timerNotifier.updateDurations(
                         focusDuration: intValue * 60,
                       );
+                      // Update cycles will be handled by _updateCyclesFromDuration listener
+                      // but we also need to update the timer provider with calculated cycles
+                      final taskDurationMinutes =
+                          (widget.todo.durationHours * 60) +
+                          widget.todo.durationMinutes;
+                      if (taskDurationMinutes > 0 && intValue > 0) {
+                        final calculatedCycles =
+                            (taskDurationMinutes / intValue).ceil();
+                        timerNotifier.updateDurations(
+                          totalCycles: calculatedCycles,
+                        );
+                      }
                     },
                   ),
                 ),
@@ -3380,7 +3563,8 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
                     style: const TextStyle(fontSize: 18.0, color: Colors.white),
                     decoration: const InputDecoration(border: InputBorder.none),
                     onChanged: (value) {
-                      final intValue = int.tryParse(value) ?? 5;
+                      final intValue =
+                          int.tryParse(value) ?? kDefaultBreakMinutes;
                       timerNotifier.updateDurations(
                         breakDuration: intValue * 60,
                       );
@@ -3410,10 +3594,8 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
                     keyboardType: TextInputType.number,
                     style: const TextStyle(fontSize: 18.0, color: Colors.white),
                     decoration: const InputDecoration(border: InputBorder.none),
-                    onChanged: (value) {
-                      final intValue = int.tryParse(value) ?? 4;
-                      timerNotifier.updateDurations(totalCycles: intValue);
-                    },
+                    readOnly: true, // Make cycles read-only as per UX spec
+                    onChanged: null, // Remove onChanged since it's read-only
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -3523,10 +3705,8 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
     TimerNotifier timerNotifier,
   ) {
     final isRunning = timerState.isRunning;
-    final isSetupMode =
-        !timerState.isRunning &&
-        (timerState.timeRemaining == timerState.focusDurationSeconds ||
-            timerState.timeRemaining == 0);
+    // Setup mode when not running and currentCycle is 0 (initial setup state)
+    final isSetupMode = !timerState.isRunning && timerState.currentCycle == 0;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -3761,7 +3941,6 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
     WidgetRef ref,
     TimerNotifier timerNotifier,
   ) async {
-    final timerState = ref.read(timerProvider);
     timerNotifier.markOverduePromptShown(widget.todo.text);
     timerNotifier.deactivate();
 
@@ -3782,24 +3961,55 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
     );
 
     if (result == true) {
-      // Mark Complete
-      widget.onTaskCompleted();
+      // Mark Complete (from regular overdue prompt, not progress bar full)
+      widget.onTaskCompleted(wasOverdue: false, overdueTime: 0);
       timerNotifier.clear();
       if (context.mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
     } else {
-      // Continue
+      // Continue - resume timer as specified in UX flow
       timerNotifier.markUserContinuedOverdue(widget.todo.text);
-      timerNotifier.resetForSetupWithTask(
-        taskName: widget.todo.text,
-        focusDuration: timerState.focusDurationSeconds ?? 25 * 60,
-        breakDuration: timerState.breakDurationSeconds ?? 5 * 60,
-        totalCycles: timerState.totalCycles,
-        plannedDuration:
+
+      final currentTimerState = ref.read(timerProvider);
+      final existingDurationsAvailable =
+          currentTimerState.focusDurationSeconds != null &&
+          currentTimerState.breakDurationSeconds != null &&
+          currentTimerState.activeTaskName == widget.todo.text;
+
+      if (existingDurationsAvailable && currentTimerState.timeRemaining > 0) {
+        timerNotifier.resumeTask();
+        if (kDebugMode) {
+          debugPrint('OVERDUE_CONTINUE: Resuming existing timer state');
+        }
+      } else {
+        // Reconstruct durations from controllers (user input) or defaults
+        final reconstructedFocusMinutes =
+            int.tryParse(_focusController.text) ?? kDefaultFocusMinutes;
+        final reconstructedBreakMinutes =
+            int.tryParse(_breakController.text) ?? kDefaultBreakMinutes;
+        final focusSeconds = reconstructedFocusMinutes * 60;
+        final breakSeconds = reconstructedBreakMinutes * 60;
+        final plannedDuration =
             (widget.todo.durationHours * 3600) +
-            (widget.todo.durationMinutes * 60),
-      );
+            (widget.todo.durationMinutes * 60);
+        final cycles = currentTimerState.totalCycles > 0
+            ? currentTimerState.totalCycles
+            : (int.tryParse(_cyclesController.text) ?? kDefaultCycles);
+
+        final started = timerNotifier.startTask(
+          taskName: widget.todo.text,
+          focusDuration: focusSeconds,
+          breakDuration: breakSeconds,
+          plannedDuration: plannedDuration,
+          totalCycles: cycles,
+        );
+        if (kDebugMode) {
+          debugPrint(
+            'OVERDUE_CONTINUE: Started new session after overdue. started=$started',
+          );
+        }
+      }
     }
   }
 
@@ -3808,68 +4018,106 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
     WidgetRef ref,
     TimerNotifier timerNotifier,
   ) {
-    timerNotifier.deactivate();
-    if (context.mounted && Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
+    if (kDebugMode) {
+      debugPrint('UI: Showing progress-bar-full dialog');
     }
+    // Pause timer UI but keep sheet visible so dialog can sit on top
+    timerNotifier.deactivate();
 
-    Future.microtask(() {
-      if (context.mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            title: const Text('Progress Bar Full!'),
-            content: const Text(
-              'You have completed your planned time for this task. The timer has been reset. What would you like to do?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  _handleContinueWorking(context, ref, timerNotifier);
-                },
-                child: const Text('Continue Working'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  _handleMarkComplete(context, ref, timerNotifier);
-                },
-                child: const Text('Mark Complete'),
-              ),
-            ],
+    // Use root navigator to ensure dialog shows even if this sheet later closes
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+
+    showDialog(
+      context: rootNavigator.context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Planned Time Reached'),
+        content: const Text(
+          'You have completed the planned focus time for this task. Would you like to continue working (overtime) or mark the task as complete?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogCtx).pop();
+              _handleContinueOvertime(context, ref, timerNotifier);
+            },
+            child: const Text('Continue (Overtime)'),
           ),
-        );
-      }
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(dialogCtx).pop();
+              _handleMarkCompleteOverdue(context, ref, timerNotifier);
+            },
+            child: const Text('Mark Complete'),
+          ),
+        ],
+      ),
+    ).whenComplete(() {
+      // Clear flag to prevent repeated dialogs
+      timerNotifier.clearProgressBarFullFlag();
     });
   }
 
-  void _handleContinueWorking(
+  void _handleContinueOvertime(
     BuildContext context,
     WidgetRef ref,
     TimerNotifier timerNotifier,
   ) {
-    final timerState = ref.read(timerProvider);
+    final taskName = widget.todo.text;
+
+    // Mark this task as continued in overtime
+    timerNotifier.markOverdueContinued(taskName);
+
+    if (kDebugMode) {
+      debugPrint(
+        'DEBUG: User chose to continue in overtime for task: $taskName',
+      );
+    }
+
+    // Reset the timer to setup screen - this provides the "HARD reset" behavior
     timerNotifier.resetForSetupWithTask(
-      taskName: widget.todo.text,
-      focusDuration: timerState.focusDurationSeconds ?? 25 * 60,
-      breakDuration: timerState.breakDurationSeconds ?? 5 * 60,
-      totalCycles: timerState.totalCycles,
+      taskName: taskName,
+      focusDuration: 25 * 60, // Default 25 minutes
+      breakDuration: 5 * 60, // Default 5 minutes
+      totalCycles: 1, // Single cycle for overtime
       plannedDuration:
           (widget.todo.durationHours * 3600) +
           (widget.todo.durationMinutes * 60),
     );
+
+    // Pop back to the timer setup view
+    if (context.mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
   }
 
-  void _handleMarkComplete(
+  void _handleMarkCompleteOverdue(
     BuildContext context,
     WidgetRef ref,
     TimerNotifier timerNotifier,
   ) {
+    final taskName = widget.todo.text;
+    final focusedTime = timerNotifier.getFocusedTime(taskName);
+    final plannedTime =
+        (widget.todo.durationHours * 3600) + (widget.todo.durationMinutes * 60);
+    final overdueTime = (focusedTime - plannedTime)
+        .clamp(0, double.infinity)
+        .toInt();
+
+    if (kDebugMode) {
+      debugPrint(
+        'DEBUG: Marking task complete with overdue flag. Focused: ${focusedTime}s, Planned: ${plannedTime}s, Overdue: ${overdueTime}s',
+      );
+    }
+
     timerNotifier.clear();
-    widget.onTaskCompleted();
-    Navigator.of(context).pop();
+
+    // Call completion callback with overdue information
+    widget.onTaskCompleted(wasOverdue: true, overdueTime: overdueTime);
+
+    if (context.mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
   }
 
   void _showSessionCompletionDialog(
@@ -3879,6 +4127,9 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
   ) async {
     final timerState = ref.read(timerProvider);
     timerNotifier.stop();
+
+    // Reset the allSessionsComplete flag immediately to prevent dialog re-triggering
+    timerNotifier.clearAllSessionsCompleteFlag();
 
     if (!context.mounted) return;
 
@@ -4253,21 +4504,50 @@ class _TodoListState extends ConsumerState<_TodoList> {
           );
 
           if (shouldSwitch != true || !mounted) return;
-
-          // Stop current session and switch
-          ref.read(timerProvider.notifier).stop();
+          // Mark previous inactive & clear running state cleanly
+          final notifier = ref.read(timerProvider.notifier);
+          // Clear active session but preserve accumulated focused progress
+          notifier.clearPreserveProgress();
         }
 
-        // Start new session for this task
+        // Pre-initialize provider with this task's planned details for setup UI
+        final plannedSeconds =
+            (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+        final defaultFocus = 25 * 60;
+        final defaultBreak = 5 * 60;
+        // Calculate cycles = ceil(planned / focus) if planned > 0
+        final cycles = plannedSeconds > 0
+            ? (plannedSeconds / defaultFocus).ceil().clamp(1, 1000)
+            : 4;
+        final notifier = ref.read(timerProvider.notifier);
+        notifier.resetForSetupWithTask(
+          taskName: todo.text,
+          focusDuration: defaultFocus,
+          breakDuration: defaultBreak,
+          totalCycles: cycles,
+          plannedDuration: plannedSeconds,
+        );
+
+        // Show sheet (user can adjust durations before starting)
         await PomodoroScreen.showAsBottomSheet(
           context,
           widget.api,
           todo,
           widget.notificationService,
-          () async {
+          ({bool wasOverdue = false, int overdueTime = 0}) async {
             if (!mounted) return;
             try {
-              await ref.read(todosProvider.notifier).toggleTodo(todo.id);
+              if (wasOverdue) {
+                await ref
+                    .read(todosProvider.notifier)
+                    .toggleTodoWithOverdue(
+                      todo.id,
+                      wasOverdue: wasOverdue,
+                      overdueTime: overdueTime,
+                    );
+              } else {
+                await ref.read(todosProvider.notifier).toggleTodo(todo.id);
+              }
             } catch (e) {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -4291,6 +4571,11 @@ class _TodoListState extends ConsumerState<_TodoList> {
             debugPrint('DEBUG: Attempting to delete task with id: ${t.id}');
           }
           try {
+            // If deleting the active task, clear timer first
+            final timerState = ref.read(timerProvider);
+            if (timerState.activeTaskName == t.text) {
+              ref.read(timerProvider.notifier).clear();
+            }
             await ref.read(todosProvider.notifier).deleteTodo(t.id);
             if (kDebugMode) {
               debugPrint('DEBUG: Successfully deleted task with id: ${t.id}');
@@ -4317,6 +4602,11 @@ class _TodoListState extends ConsumerState<_TodoList> {
       onToggle: () async {
         if (!mounted) return;
         try {
+          // If completing the active task, clear timer (per UX: minibar hidden)
+          final timerState = ref.read(timerProvider);
+          if (!t.completed && timerState.activeTaskName == t.text) {
+            ref.read(timerProvider.notifier).clear();
+          }
           await ref.read(todosProvider.notifier).toggleTodo(t.id);
         } catch (e) {
           if (mounted) {
@@ -4518,6 +4808,20 @@ class ApiService {
 
   Future<dynamic> toggleTodo(int id) async {
     final resp = await _withRetry(() => _dio.post('/toggle', data: {'id': id}));
+    return resp.data;
+  }
+
+  Future<dynamic> toggleTodoWithOverdue(
+    int id, {
+    bool wasOverdue = false,
+    int overdueTime = 0,
+  }) async {
+    final payload = {
+      'id': id,
+      'was_overdue': wasOverdue ? 1 : 0,
+      'overdue_time': overdueTime,
+    };
+    final resp = await _withRetry(() => _dio.post('/toggle', data: payload));
     return resp.data;
   }
 
@@ -5442,6 +5746,14 @@ void debugLog(String tag, String message) {
 }
 </file>
 
+<file path="lib/utils/helpers.dart">
+String formatTime(int seconds) {
+  final minutes = (seconds / 60).floor().toString().padLeft(2, '0');
+  final remainingSeconds = (seconds % 60).toString().padLeft(2, '0');
+  return '$minutes:$remainingSeconds';
+}
+</file>
+
 <file path="lib/widgets/auth_wrapper.dart">
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -6123,9 +6435,8 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                         ),
                       ),
                     ),
-                    // Status badge for overdue tasks
-                    if (!widget.todo.completed &&
-                        (isOverdue || isContinuedOverdue))
+                    // Overdue tag (dynamic time) for incomplete tasks
+                    if (!widget.todo.completed && isOverdue)
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -6136,35 +6447,81 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          isContinuedOverdue
-                              ? 'Overdue: ${_formatOverdueTime(widget.todo.overdueTime)}'
-                              : 'Overdue',
+                          'Overdue: ${_formatOverdueTime((cachedFocused - plannedSeconds).clamp(0, double.infinity).toInt())}',
                           style: TextStyle(
                             color: AppColors.priorityHigh,
                             fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
+                    // Completed / Underdue tags
                     if (widget.todo.completed)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'Completed',
-                          style: TextStyle(
-                            color: AppColors.priorityLow,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                      () {
+                        final hadPlan = plannedSeconds > 0;
+                        if (!hadPlan) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Completed',
+                              style: TextStyle(
+                                color: AppColors.priorityLow,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          );
+                        }
+                        // Underdue if completed early
+                        final isUnderdue = cachedFocused < plannedSeconds;
+                        if (isUnderdue) {
+                          final pct = ((cachedFocused / plannedSeconds) * 100)
+                              .clamp(0, 100);
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Underdue task ${pct.toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                color: Colors.orangeAccent,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          );
+                        }
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
                           ),
-                        ),
-                      ),
+                          decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'Completed',
+                            style: TextStyle(
+                              color: AppColors.priorityLow,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        );
+                      }(),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -6223,23 +6580,37 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                             minHeight: 32,
                           ),
                         ),
-                        // Play button (disabled for completed tasks)
-                        IconButton(
-                          onPressed: widget.todo.completed
-                              ? null
-                              : () => widget.onPlay(widget.todo),
-                          icon: Icon(
-                            Icons.play_arrow,
-                            color: widget.todo.completed
-                                ? AppColors.mediumGray
-                                : AppColors.lightGray,
-                            size: 20,
-                          ),
-                          padding: const EdgeInsets.all(4),
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
-                          ),
+                        // Play/Pause button (disabled for completed tasks)
+                        Builder(
+                          builder: (context) {
+                            final timerState = ref.watch(timerProvider);
+                            final isThisActive =
+                                timerState.activeTaskName == widget.todo.text &&
+                                timerState.isTimerActive;
+                            final isRunning =
+                                isThisActive && timerState.isRunning;
+                            return IconButton(
+                              onPressed: widget.todo.completed
+                                  ? null
+                                  : () => widget.onPlay(widget.todo),
+                              icon: Icon(
+                                isThisActive
+                                    ? (isRunning
+                                          ? Icons.pause
+                                          : Icons.play_arrow)
+                                    : Icons.play_arrow,
+                                color: widget.todo.completed
+                                    ? AppColors.mediumGray
+                                    : AppColors.lightGray,
+                                size: 20,
+                              ),
+                              padding: const EdgeInsets.all(4),
+                              constraints: const BoxConstraints(
+                                minWidth: 32,
+                                minHeight: 32,
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -6283,6 +6654,21 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ),
+        // Overdue time display (replaces progress bar for overdue tasks)
+        if (!widget.todo.completed &&
+            (widget.todo.wasOverdue == 1 || isContinuedOverdue || isOverdue) &&
+            totalMins > 0)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text(
+              'OVERDUE TIME: ${_formatOverdueTime((cachedFocused - plannedSeconds).clamp(0, double.infinity).toInt())}',
+              style: TextStyle(
+                color: AppColors.priorityHigh,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
