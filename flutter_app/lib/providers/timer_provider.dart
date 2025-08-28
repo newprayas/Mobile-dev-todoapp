@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/timer_session_controller.dart';
 
 class TimerState {
   final String? activeTaskName;
@@ -93,9 +94,13 @@ class TimerState {
 class TimerNotifier extends Notifier<TimerState> {
   Timer? _ticker;
   bool _processingOverdue = false;
+  TimerSessionController? _sessionController;
+  DateTime? _lastStartAttempt;
 
   @override
   TimerState build() {
+    // Only create session controller once
+    _sessionController ??= TimerSessionController();
     ref.onDispose(() {
       _ticker?.cancel();
     });
@@ -274,6 +279,14 @@ class TimerNotifier extends Notifier<TimerState> {
   }
 
   void _markOverdueAndFreeze(String task) {
+    // Use FSM to handle overdue transition
+    final success =
+        _sessionController?.handleEvent(TimerSessionEvent.overdueReached) ??
+        false;
+    if (success && kDebugMode) {
+      debugPrint('TIMER_FSM: Task $task reached overdue state');
+    }
+
     // Freeze timer but keep mini-bar visible for one frame so UI can prompt.
     _ticker?.cancel();
     _ticker = null;
@@ -289,6 +302,46 @@ class TimerNotifier extends Notifier<TimerState> {
       currentCycle: 1,
       totalCycles: 1,
     );
+  }
+
+  /// Trigger overdue dialog from UI
+  Future<String?> triggerOverdueDialog() async {
+    final taskName = state.overdueCrossedTaskName;
+    if (taskName == null) return null;
+
+    final focusedTime = getFocusedTime(taskName);
+    final plannedTime = state.plannedDurationSeconds ?? 0;
+
+    if (kDebugMode) {
+      debugPrint('TIMER_FSM: Triggering overdue dialog for $taskName');
+      debugPrint(
+        'TIMER_FSM: Focused: ${focusedTime}s, Planned: ${plannedTime}s',
+      );
+    }
+
+    return taskName; // Return task name to trigger dialog in UI
+  }
+
+  /// Handle overdue dialog response
+  void handleOverdueResponse(String response, String taskName) {
+    if (kDebugMode) {
+      debugPrint(
+        'TIMER_FSM: Handling overdue response: $response for $taskName',
+      );
+    }
+
+    if (response == 'continue') {
+      markOverdueContinued(taskName);
+      // Resume timer in overdue mode
+      state = state.copyWith(
+        isRunning: true,
+        overdueCrossedTaskName: null, // Clear the trigger
+      );
+      startTicker();
+    } else if (response == 'stop') {
+      // Stop and clear everything
+      clear();
+    }
   }
 
   void logStateSnapshot(String prefix) {
@@ -317,11 +370,56 @@ class TimerNotifier extends Notifier<TimerState> {
 
   void reset() {
     stopTicker();
+    // Force reset the session controller instead of just sending abort event
+    _sessionController?.forceReset();
     state = const TimerState();
+  }
+
+  // UX Flow: Reset current phase only and subtract elapsed time from focused time cache
+  void resetCurrentPhase() {
+    if (state.activeTaskName == null) return;
+
+    if (kDebugMode) {
+      debugPrint('RESET: Resetting current phase for ${state.activeTaskName}');
+    }
+
+    // Calculate elapsed time in current phase
+    final currentPhaseDuration = state.currentMode == 'focus'
+        ? (state.focusDurationSeconds ?? 25 * 60)
+        : (state.breakDurationSeconds ?? 5 * 60);
+    final elapsedTime = currentPhaseDuration - state.timeRemaining;
+
+    // Only subtract time if we're in focus mode and time has elapsed
+    if (state.currentMode == 'focus' && elapsedTime > 0) {
+      final taskName = state.activeTaskName!;
+      final currentFocusedTime = getFocusedTime(taskName);
+      final newFocusedTime = (currentFocusedTime - elapsedTime)
+          .clamp(0, double.infinity)
+          .toInt();
+
+      if (kDebugMode) {
+        debugPrint('RESET: Subtracting $elapsedTime seconds from focused time');
+        debugPrint(
+          'RESET: Previous focused time: $currentFocusedTime, New: $newFocusedTime',
+        );
+      }
+
+      updateFocusedTime(taskName, newFocusedTime);
+    }
+
+    // Reset the current phase timer to full duration
+    state = state.copyWith(
+      timeRemaining: currentPhaseDuration,
+      isRunning: false,
+    );
+
+    stopTicker();
   }
 
   void clear() {
     stopTicker();
+    // Force reset the session controller instead of just sending abort event
+    _sessionController?.forceReset();
     state = const TimerState();
   }
 
@@ -335,13 +433,49 @@ class TimerNotifier extends Notifier<TimerState> {
     }
   }
 
-  void startTask({
+  bool startTask({
     required String taskName,
     required int focusDuration,
     required int breakDuration,
     required int plannedDuration,
     required int totalCycles,
   }) {
+    // Debounce rapid start attempts (prevent multiple calls within 500ms)
+    final now = DateTime.now();
+    if (_lastStartAttempt != null &&
+        now.difference(_lastStartAttempt!).inMilliseconds < 500) {
+      if (kDebugMode) {
+        debugPrint('TIMER_FSM: Debouncing rapid start attempt for $taskName');
+      }
+      return false;
+    }
+    _lastStartAttempt = now;
+
+    // Force reset if session controller is stuck
+    if (_sessionController?.currentState != TimerSessionState.idle) {
+      if (kDebugMode) {
+        debugPrint('TIMER_FSM: Force resetting stuck session controller');
+      }
+      _sessionController?.forceReset();
+    }
+
+    // Start FSM session
+    final success =
+        _sessionController?.startSession(
+          taskName: taskName,
+          focusDurationSeconds: focusDuration,
+          breakDurationSeconds: breakDuration,
+          totalCycles: totalCycles,
+        ) ??
+        false;
+
+    if (!success) {
+      if (kDebugMode) {
+        debugPrint('TIMER_FSM: Failed to start session for $taskName');
+      }
+      return false;
+    }
+
     state = state.copyWith(
       activeTaskName: taskName,
       focusDurationSeconds: focusDuration,
@@ -355,6 +489,7 @@ class TimerNotifier extends Notifier<TimerState> {
       isRunning: true,
     );
     startTicker();
+    return true;
   }
 
   void pauseTask() {

@@ -11,56 +11,10 @@ import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/task_card.dart';
 import '../widgets/mini_timer_bar.dart';
+import '../widgets/inline_task_input.dart';
+import '../utils/app_dialogs.dart';
 import 'pomodoro_screen.dart';
 import 'dart:math';
-
-// Reusable styled dialog function for consistent appearance
-Future<bool?> _showStyledConfirmDialog({
-  required BuildContext context,
-  required String title,
-  required String content,
-  String confirmText = 'Confirm',
-  String cancelText = 'Cancel',
-  Color? confirmButtonColor,
-}) {
-  return showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      backgroundColor: AppColors.cardBg,
-      title: Text(
-        title,
-        style: const TextStyle(
-          color: AppColors.lightGray,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      content: Text(
-        content,
-        style: TextStyle(color: AppColors.lightGray.withOpacity(0.8)),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Text(
-            cancelText,
-            style: TextStyle(color: AppColors.lightGray.withOpacity(0.7)),
-          ),
-        ),
-        ElevatedButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: confirmButtonColor ?? AppColors.brightYellow,
-            foregroundColor: Colors.black,
-          ),
-          child: Text(
-            confirmText,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-        ),
-      ],
-    ),
-  );
-}
 
 class TodoListScreen extends ConsumerWidget {
   const TodoListScreen({super.key});
@@ -105,7 +59,7 @@ class TodoListScreen extends ConsumerWidget {
                       Text(
                         authState.value!.email,
                         style: TextStyle(
-                          color: AppColors.lightGray.withOpacity(0.7),
+                          color: AppColors.lightGray.withValues(alpha: 0.7),
                           fontSize: 10,
                         ),
                       ),
@@ -115,7 +69,9 @@ class TodoListScreen extends ConsumerWidget {
                   PopupMenuButton<String>(
                     icon: CircleAvatar(
                       radius: 16,
-                      backgroundColor: AppColors.brightYellow.withOpacity(0.2),
+                      backgroundColor: AppColors.brightYellow.withValues(
+                        alpha: 0.2,
+                      ),
                       child: Icon(
                         Icons.person,
                         size: 18,
@@ -144,12 +100,8 @@ class TodoListScreen extends ConsumerWidget {
                     ],
                     onSelected: (value) async {
                       if (value == 'logout') {
-                        final shouldLogout = await _showStyledConfirmDialog(
+                        final shouldLogout = await AppDialogs.showSignOutDialog(
                           context: context,
-                          title: 'Sign Out',
-                          content: 'Are you sure you want to sign out?',
-                          confirmText: 'Sign Out',
-                          confirmButtonColor: AppColors.brightYellow,
                         );
 
                         if (shouldLogout == true && context.mounted) {
@@ -206,52 +158,26 @@ class _TodoListContent extends ConsumerStatefulWidget {
 }
 
 class _TodoListContentState extends ConsumerState<_TodoListContent> {
-  late final TextEditingController _newText;
-  late final TextEditingController _hours;
-  late final TextEditingController _mins;
-
-  @override
-  void initState() {
-    super.initState();
-    _newText = TextEditingController();
-    _hours = TextEditingController(text: '0');
-    _mins = TextEditingController(text: '25');
-  }
-
-  @override
-  void dispose() {
-    _newText.dispose();
-    _hours.dispose();
-    _mins.dispose();
-    super.dispose();
-  }
-
-  Future<void> _addTodo() async {
+  Future<void> _addTodo(String taskName, int hours, int minutes) async {
     if (!mounted) return;
 
-    final text = _newText.text.trim();
-    final h = int.tryParse(_hours.text) ?? 0;
-    final m = int.tryParse(_mins.text) ?? 0;
-    if (text.isEmpty) return;
-
-    if (kDebugMode)
+    if (kDebugMode) {
       debugPrint(
-        'DEBUG: _addTodo attempting to add task: "$text" with duration $h:$m',
+        'DEBUG: _addTodo attempting to add task: "$taskName" with duration $hours:$minutes',
       );
+    }
 
     try {
-      await ref.read(todosProvider.notifier).addTodo(text, h, m);
+      await ref.read(todosProvider.notifier).addTodo(taskName, hours, minutes);
       if (!mounted) return;
 
-      if (kDebugMode)
-        debugPrint('DEBUG: _addTodo success - clearing form fields');
-      _newText.clear();
-      _hours.text = '0';
-      _mins.text = '25';
-      // Hide keyboard after adding
-      FocusScope.of(context).unfocus();
+      if (kDebugMode) {
+        debugPrint('DEBUG: _addTodo success');
+      }
     } catch (e) {
-      if (kDebugMode) debugPrint('DEBUG: _addTodo failed with error: $e');
+      if (kDebugMode) {
+        debugPrint('DEBUG: _addTodo failed with error: $e');
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -309,107 +235,8 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 22),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.midGray,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: TextField(
-                controller: _newText,
-                keyboardType: TextInputType.multiline,
-                minLines: 1,
-                maxLines: null,
-                style: const TextStyle(
-                  color: AppColors.lightGray,
-                  fontSize: 16,
-                ),
-                decoration: const InputDecoration(
-                  hintText: 'What do you need to do?',
-                  hintStyle: TextStyle(color: AppColors.mediumGray),
-                  border: InputBorder.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                SizedBox(
-                  width: 100,
-                  child: TextField(
-                    controller: _hours,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: AppColors.midGray,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
-                      ),
-                      hintText: '0',
-                      suffixText: 'h',
-                    ),
-                    style: const TextStyle(
-                      color: AppColors.lightGray,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                SizedBox(
-                  width: 100,
-                  child: TextField(
-                    controller: _mins,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: AppColors.midGray,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
-                      ),
-                      hintText: '25',
-                      suffixText: 'm',
-                    ),
-                    style: const TextStyle(
-                      color: AppColors.lightGray,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                SizedBox(
-                  height: 44,
-                  child: ElevatedButton(
-                    onPressed: _addTodo,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.brightYellow,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        'Add',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            // Inline task input form
+            InlineTaskInput(onAddTask: _addTodo),
             const SizedBox(height: 18),
             Expanded(
               child: todosAsync.when(
@@ -449,7 +276,7 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
                 try {
                   await ref.read(todosProvider.notifier).toggleTodo(id);
                 } catch (e) {
-                  if (mounted) {
+                  if (mounted && context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(
@@ -493,6 +320,37 @@ class _TodoListState extends ConsumerState<_TodoList> {
       todo: t,
       isActive: isActive,
       onPlay: (todo) async {
+        final timerState = ref.watch(timerProvider);
+        final isThisTaskActive = timerState.activeTaskName == todo.text;
+        final isAnyTimerActive = timerState.isTimerActive;
+
+        if (kDebugMode) {
+          debugPrint(
+            'PLAY_BUTTON: Task=${todo.text}, isThisTaskActive=$isThisTaskActive, isAnyTimerActive=$isAnyTimerActive',
+          );
+        }
+
+        if (isThisTaskActive) {
+          // This task's timer is active - toggle pause/resume
+          ref.read(timerProvider.notifier).toggleRunning();
+          return;
+        }
+
+        if (isAnyTimerActive && timerState.activeTaskName != null) {
+          // Another task's timer is active - show switch confirmation
+          final shouldSwitch = await AppDialogs.showSwitchTaskDialog(
+            context: context,
+            currentTaskName: timerState.activeTaskName!,
+            newTaskName: todo.text,
+          );
+
+          if (shouldSwitch != true || !mounted) return;
+
+          // Stop current session and switch
+          ref.read(timerProvider.notifier).stop();
+        }
+
+        // Start new session for this task
         await PomodoroScreen.showAsBottomSheet(
           context,
           widget.api,
@@ -516,25 +374,25 @@ class _TodoListState extends ConsumerState<_TodoList> {
         );
       },
       onDelete: () async {
-        final confirm = await _showStyledConfirmDialog(
+        final confirm = await AppDialogs.showDeleteTaskDialog(
           context: context,
-          title: 'Delete task?',
-          content: 'This will remove the task permanently.',
-          confirmText: 'Delete',
-          confirmButtonColor: Colors.redAccent,
+          taskName: t.text,
         );
         if (confirm == true && mounted) {
-          if (kDebugMode)
+          if (kDebugMode) {
             debugPrint('DEBUG: Attempting to delete task with id: ${t.id}');
+          }
           try {
             await ref.read(todosProvider.notifier).deleteTodo(t.id);
-            if (kDebugMode)
+            if (kDebugMode) {
               debugPrint('DEBUG: Successfully deleted task with id: ${t.id}');
+            }
           } catch (e) {
-            if (kDebugMode)
+            if (kDebugMode) {
               debugPrint(
                 'DEBUG: Failed to delete task with id: ${t.id}, error: $e',
               );
+            }
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -558,42 +416,6 @@ class _TodoListState extends ConsumerState<_TodoList> {
               const SnackBar(
                 content: Text(
                   'Failed to toggle task. Please check your connection.',
-                ),
-                backgroundColor: Colors.redAccent,
-              ),
-            );
-          }
-        }
-      },
-      onUpdateText: (newText) async {
-        if (!mounted) return;
-        try {
-          await ref
-              .read(todosProvider.notifier)
-              .updateTodo(t.id, text: newText);
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Failed to update task text. Please try again.'),
-                backgroundColor: Colors.redAccent,
-              ),
-            );
-          }
-        }
-      },
-      onUpdateDuration: (h, m) async {
-        if (!mounted) return;
-        try {
-          await ref
-              .read(todosProvider.notifier)
-              .updateTodo(t.id, hours: h, minutes: m);
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Failed to update task duration. Please try again.',
                 ),
                 backgroundColor: Colors.redAccent,
               ),
@@ -658,14 +480,10 @@ class _TodoListState extends ConsumerState<_TodoList> {
                       message: 'Clear completed',
                       child: ElevatedButton(
                         onPressed: () async {
-                          final confirm = await _showStyledConfirmDialog(
-                            context: context,
-                            title: 'Clear completed?',
-                            content:
-                                'This will permanently delete all completed tasks.',
-                            confirmText: 'Clear',
-                            confirmButtonColor: Colors.redAccent,
-                          );
+                          final confirm =
+                              await AppDialogs.showClearCompletedDialog(
+                                context: context,
+                              );
                           if (confirm == true) {
                             await ref
                                 .read(todosProvider.notifier)

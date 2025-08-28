@@ -18,4 +18,7 @@ class AppColors {
   static const focusBorder = Color(0xFF6FB3FF);
   // Input fill color for fields
   static const inputFill = Color(0xFF333333);
+  // Timer colors
+  static const focusRed = Color(0xFFFF5252);
+  static const breakGreen = Color(0xFF69F0AE);
 }

@@ -51,16 +51,22 @@ class NotificationService {
       }
       await _audioPlayer.stop();
 
-      // Handle both cases: 'filename.wav' and 'sounds/filename.wav'
-      final assetPath = soundFileName.startsWith('sounds/')
-          ? soundFileName.substring(7) // Remove 'sounds/' prefix
-          : soundFileName;
+      // Ensure we use the correct asset path - remove any 'assets/' prefix
+      String assetPath = soundFileName;
+      if (assetPath.startsWith('assets/sounds/')) {
+        assetPath = assetPath.substring(14); // Remove 'assets/sounds/' prefix
+      } else if (assetPath.startsWith('assets/')) {
+        assetPath = assetPath.substring(7); // Remove 'assets/' prefix
+      } else if (assetPath.startsWith('sounds/')) {
+        assetPath = assetPath.substring(7); // Remove 'sounds/' prefix
+      }
 
       if (kDebugMode) {
         debugPrint('DEBUG: Processed asset path: $assetPath');
       }
 
-      await _audioPlayer.play(AssetSource(assetPath));
+      // AssetSource expects just the filename since we declared 'assets/sounds/' in pubspec.yaml
+      await _audioPlayer.play(AssetSource('sounds/$assetPath'));
       if (kDebugMode) {
         debugPrint('DEBUG: Sound played successfully: $soundFileName');
       }
