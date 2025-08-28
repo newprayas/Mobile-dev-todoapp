@@ -345,12 +345,31 @@ class _TodoListState extends ConsumerState<_TodoList> {
           );
 
           if (shouldSwitch != true || !mounted) return;
-
-          // Stop current session and switch
-          ref.read(timerProvider.notifier).stop();
+          // Mark previous inactive & clear running state cleanly
+          final notifier = ref.read(timerProvider.notifier);
+          // Clear active session but preserve accumulated focused progress
+          notifier.clearPreserveProgress();
         }
 
-        // Start new session for this task
+        // Pre-initialize provider with this task's planned details for setup UI
+        final plannedSeconds =
+            (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+        final defaultFocus = 25 * 60;
+        final defaultBreak = 5 * 60;
+        // Calculate cycles = ceil(planned / focus) if planned > 0
+        final cycles = plannedSeconds > 0
+            ? (plannedSeconds / defaultFocus).ceil().clamp(1, 1000)
+            : 4;
+        final notifier = ref.read(timerProvider.notifier);
+        notifier.resetForSetupWithTask(
+          taskName: todo.text,
+          focusDuration: defaultFocus,
+          breakDuration: defaultBreak,
+          totalCycles: cycles,
+          plannedDuration: plannedSeconds,
+        );
+
+        // Show sheet (user can adjust durations before starting)
         await PomodoroScreen.showAsBottomSheet(
           context,
           widget.api,
@@ -383,6 +402,11 @@ class _TodoListState extends ConsumerState<_TodoList> {
             debugPrint('DEBUG: Attempting to delete task with id: ${t.id}');
           }
           try {
+            // If deleting the active task, clear timer first
+            final timerState = ref.read(timerProvider);
+            if (timerState.activeTaskName == t.text) {
+              ref.read(timerProvider.notifier).clear();
+            }
             await ref.read(todosProvider.notifier).deleteTodo(t.id);
             if (kDebugMode) {
               debugPrint('DEBUG: Successfully deleted task with id: ${t.id}');
@@ -409,6 +433,11 @@ class _TodoListState extends ConsumerState<_TodoList> {
       onToggle: () async {
         if (!mounted) return;
         try {
+          // If completing the active task, clear timer (per UX: minibar hidden)
+          final timerState = ref.read(timerProvider);
+          if (!t.completed && timerState.activeTaskName == t.text) {
+            ref.read(timerProvider.notifier).clear();
+          }
           await ref.read(todosProvider.notifier).toggleTodo(t.id);
         } catch (e) {
           if (mounted) {

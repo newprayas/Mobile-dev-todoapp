@@ -105,9 +105,8 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                         ),
                       ),
                     ),
-                    // Status badge for overdue tasks
-                    if (!widget.todo.completed &&
-                        (isOverdue || isContinuedOverdue))
+                    // Overdue tag (dynamic time) for incomplete tasks
+                    if (!widget.todo.completed && isOverdue)
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -118,35 +117,81 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          isContinuedOverdue
-                              ? 'Overdue: ${_formatOverdueTime(widget.todo.overdueTime)}'
-                              : 'Overdue',
+                          'Overdue: ${_formatOverdueTime((cachedFocused - plannedSeconds).clamp(0, double.infinity).toInt())}',
                           style: TextStyle(
                             color: AppColors.priorityHigh,
                             fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
+                    // Completed / Underdue tags
                     if (widget.todo.completed)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'Completed',
-                          style: TextStyle(
-                            color: AppColors.priorityLow,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                      () {
+                        final hadPlan = plannedSeconds > 0;
+                        if (!hadPlan) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Completed',
+                              style: TextStyle(
+                                color: AppColors.priorityLow,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          );
+                        }
+                        // Underdue if completed early
+                        final isUnderdue = cachedFocused < plannedSeconds;
+                        if (isUnderdue) {
+                          final pct = ((cachedFocused / plannedSeconds) * 100)
+                              .clamp(0, 100);
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Underdue task ${pct.toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                color: Colors.orangeAccent,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          );
+                        }
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
                           ),
-                        ),
-                      ),
+                          decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'Completed',
+                            style: TextStyle(
+                              color: AppColors.priorityLow,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        );
+                      }(),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -205,23 +250,37 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                             minHeight: 32,
                           ),
                         ),
-                        // Play button (disabled for completed tasks)
-                        IconButton(
-                          onPressed: widget.todo.completed
-                              ? null
-                              : () => widget.onPlay(widget.todo),
-                          icon: Icon(
-                            Icons.play_arrow,
-                            color: widget.todo.completed
-                                ? AppColors.mediumGray
-                                : AppColors.lightGray,
-                            size: 20,
-                          ),
-                          padding: const EdgeInsets.all(4),
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
-                          ),
+                        // Play/Pause button (disabled for completed tasks)
+                        Builder(
+                          builder: (context) {
+                            final timerState = ref.watch(timerProvider);
+                            final isThisActive =
+                                timerState.activeTaskName == widget.todo.text &&
+                                timerState.isTimerActive;
+                            final isRunning =
+                                isThisActive && timerState.isRunning;
+                            return IconButton(
+                              onPressed: widget.todo.completed
+                                  ? null
+                                  : () => widget.onPlay(widget.todo),
+                              icon: Icon(
+                                isThisActive
+                                    ? (isRunning
+                                          ? Icons.pause
+                                          : Icons.play_arrow)
+                                    : Icons.play_arrow,
+                                color: widget.todo.completed
+                                    ? AppColors.mediumGray
+                                    : AppColors.lightGray,
+                                size: 20,
+                              ),
+                              padding: const EdgeInsets.all(4),
+                              constraints: const BoxConstraints(
+                                minWidth: 32,
+                                minHeight: 32,
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),

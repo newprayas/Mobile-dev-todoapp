@@ -23,6 +23,7 @@ class TimerState {
   final Set<String> overdueContinued;
   final Map<String, int> focusedTimeCache;
   final bool suppressNextActivation;
+  final bool cycleOverflowBlocked;
 
   const TimerState({
     this.activeTaskName,
@@ -43,6 +44,7 @@ class TimerState {
     this.overdueContinued = const {},
     this.focusedTimeCache = const {},
     this.suppressNextActivation = false,
+    this.cycleOverflowBlocked = false,
   });
 
   TimerState copyWith({
@@ -64,6 +66,7 @@ class TimerState {
     Set<String>? overdueContinued,
     Map<String, int>? focusedTimeCache,
     bool? suppressNextActivation,
+    bool? cycleOverflowBlocked,
   }) {
     return TimerState(
       activeTaskName: activeTaskName ?? this.activeTaskName,
@@ -87,6 +90,7 @@ class TimerState {
       focusedTimeCache: focusedTimeCache ?? this.focusedTimeCache,
       suppressNextActivation:
           suppressNextActivation ?? this.suppressNextActivation,
+      cycleOverflowBlocked: cycleOverflowBlocked ?? this.cycleOverflowBlocked,
     );
   }
 }
@@ -240,10 +244,14 @@ class TimerNotifier extends Notifier<TimerState> {
           if (completed >= state.totalCycles && !state.isProgressBarFull) {
             state = state.copyWith(allSessionsComplete: true);
           }
+          // Increment cycle but cap at totalCycles (no 3/2 situations)
+          final nextCycle = (state.currentCycle + 1) <= state.totalCycles
+              ? state.currentCycle + 1
+              : state.totalCycles;
           state = state.copyWith(
             currentMode: 'break',
             timeRemaining: state.breakDurationSeconds,
-            currentCycle: state.currentCycle + 1,
+            currentCycle: nextCycle,
           );
         } else if (state.currentMode == 'break' &&
             state.focusDurationSeconds != null) {
@@ -423,6 +431,14 @@ class TimerNotifier extends Notifier<TimerState> {
     state = const TimerState();
   }
 
+  /// Clear active session while preserving historical focused time cache so task progress bars remain.
+  void clearPreserveProgress() {
+    stopTicker();
+    _sessionController?.forceReset();
+    final preserved = state.focusedTimeCache;
+    state = TimerState(focusedTimeCache: preserved);
+  }
+
   void toggleRunning() {
     final nextRunning = !state.isRunning;
     state = state.copyWith(isRunning: nextRunning);
@@ -513,11 +529,12 @@ class TimerNotifier extends Notifier<TimerState> {
       focusDurationSeconds: focusDuration ?? state.focusDurationSeconds,
       breakDurationSeconds: breakDuration ?? state.breakDurationSeconds,
       totalCycles: totalCycles ?? state.totalCycles,
-      // Keep timeRemaining aligned with focus duration if currently in setup (not running)
+      // Only realign remaining time if user is still in initial setup (cycle 0)
       timeRemaining:
           (!state.isRunning &&
               state.currentMode == 'focus' &&
-              focusDuration != null)
+              focusDuration != null &&
+              state.currentCycle == 0)
           ? focusDuration
           : state.timeRemaining,
     );
@@ -525,6 +542,21 @@ class TimerNotifier extends Notifier<TimerState> {
 
   void markProgressBarFull() {
     state = state.copyWith(isProgressBarFull: true);
+  }
+
+  void clearProgressBarFullFlag() {
+    if (state.isProgressBarFull) {
+      if (kDebugMode) {
+        debugPrint('TIMER: Clearing progressBarFull flag');
+      }
+      state = state.copyWith(isProgressBarFull: false);
+    }
+  }
+
+  void clearCycleOverflowBlockedFlag() {
+    if (state.cycleOverflowBlocked) {
+      state = state.copyWith(cycleOverflowBlocked: false);
+    }
   }
 
   void resetForSetup({
@@ -555,6 +587,8 @@ class TimerNotifier extends Notifier<TimerState> {
     required int plannedDuration,
   }) {
     stopTicker();
+    // Preserve focusedTimeCache so progress bars retain prior accumulated time when revisiting a task
+    final cache = state.focusedTimeCache;
     state = state.copyWith(
       activeTaskName: taskName,
       focusDurationSeconds: focusDuration,
@@ -568,17 +602,24 @@ class TimerNotifier extends Notifier<TimerState> {
       completedSessions: 0,
       isProgressBarFull: false,
       allSessionsComplete: false,
+      focusedTimeCache: cache, // re-apply preserved cache
     );
   }
 
   void skipPhase() {
     if (state.currentMode == 'focus') {
+      // Prevent going beyond total cycles
+      if (state.currentCycle >= state.totalCycles) {
+        state = state.copyWith(cycleOverflowBlocked: true);
+        return;
+      }
       final completed = state.completedSessions + 1;
+      final nextCycle = state.currentCycle + 1;
       state = state.copyWith(
         currentMode: 'break',
         timeRemaining: state.breakDurationSeconds ?? state.timeRemaining,
         completedSessions: completed,
-        currentCycle: state.currentCycle + 1,
+        currentCycle: nextCycle,
       );
     } else if (state.currentMode == 'break') {
       state = state.copyWith(
@@ -593,6 +634,10 @@ class TimerNotifier extends Notifier<TimerState> {
   bool hasUserContinuedOverdue(String task) =>
       state.overdueContinued.contains(task);
   void markUserContinuedOverdue(String task) => markOverdueContinued(task);
+
+  void clearAllSessionsCompleteFlag() {
+    state = state.copyWith(allSessionsComplete: false);
+  }
 }
 
 // The main timer provider
