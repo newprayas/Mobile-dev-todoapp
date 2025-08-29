@@ -104,6 +104,10 @@ class TimerState {
 /// for automatic cycle progression and overdue handling.
 class TimerNotifier extends Notifier<TimerState> {
   Timer? _ticker;
+  // Autosave infrastructure (durability of focused time against crashes)
+  Timer? _autoSaveTimer;
+  bool _isAutoSaving = false;
+  int _lastAutoSavedSeconds = 0;
   bool _processingOverdue = false;
   TimerSessionController? _sessionController;
   DateTime? _lastStartAttempt;
@@ -271,6 +275,7 @@ class TimerNotifier extends Notifier<TimerState> {
 
   void startTicker() {
     _ticker?.cancel();
+    _startAutoSaveTimer();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!state.isRunning) return;
       if (state.timeRemaining > 0) {
@@ -361,6 +366,8 @@ class TimerNotifier extends Notifier<TimerState> {
   void stopTicker() {
     _ticker?.cancel();
     _ticker = null;
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = null;
   }
 
   void _markOverdueAndFreeze(String task) {
@@ -406,28 +413,6 @@ class TimerNotifier extends Notifier<TimerState> {
     }
 
     return taskName; // Return task name to trigger dialog in UI
-  }
-
-  /// Handle overdue dialog response
-  void handleOverdueResponse(String response, String taskName) {
-    if (kDebugMode) {
-      debugPrint(
-        'TIMER_FSM: Handling overdue response: $response for $taskName',
-      );
-    }
-
-    if (response == 'continue') {
-      markOverdueContinued(taskName);
-      // Resume timer in overdue mode
-      state = state.copyWith(
-        isRunning: true,
-        overdueCrossedTaskName: null, // Clear the trigger
-      );
-      startTicker();
-    } else if (response == 'stop') {
-      // Stop and clear everything
-      clear();
-    }
   }
 
   void logStateSnapshot(String prefix) {
@@ -507,6 +492,17 @@ class TimerNotifier extends Notifier<TimerState> {
     // Force reset the session controller instead of just sending abort event
     _sessionController?.forceReset();
     state = const TimerState();
+  }
+
+  /// Attempts an autosave of focused time before clearing state. Use when
+  /// disposing due to navigation/app lifecycle to reduce data loss risk.
+  Future<void> safeClear({int? todoId}) async {
+    try {
+      if (todoId != null && state.activeTaskName != null) {
+        await _autoSaveFocusedTime(todoId: todoId, force: true);
+      }
+    } catch (_) {}
+    clear();
   }
 
   /// Clear active session while preserving historical focused time cache so task progress bars remain.
@@ -664,12 +660,14 @@ class TimerNotifier extends Notifier<TimerState> {
   void pauseTask() {
     state = state.copyWith(isRunning: false);
     stopTicker();
+    _triggerDeferredAutoSave();
   }
 
   void resumeTask() {
     if (!state.isRunning) {
       state = state.copyWith(isRunning: true);
       startTicker();
+      _startAutoSaveTimer();
     }
   }
 
@@ -756,7 +754,60 @@ class TimerNotifier extends Notifier<TimerState> {
       isProgressBarFull: false,
       allSessionsComplete: false,
       focusedTimeCache: cache, // re-apply preserved cache
+      // *** FIX: Clear overdue-related flags when starting a new session ***
+      overdueCrossedTaskName: null,
+      isTimerActive: false,
     );
+    _lastAutoSavedSeconds = state.focusedTimeCache[taskName] ?? 0;
+  }
+
+  // ---------------- AUTOSAVE IMPLEMENTATION ----------------
+  void _startAutoSaveTimer() {
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _triggerDeferredAutoSave();
+    });
+  }
+
+  void _triggerDeferredAutoSave() {
+    final taskName = state.activeTaskName;
+    if (taskName == null) return;
+    final currentFocused = state.focusedTimeCache[taskName] ?? 0;
+    if (currentFocused - _lastAutoSavedSeconds < 30) return; // threshold
+    final todos = ref.read(todosProvider).value;
+    final match = todos?.firstWhere(
+      (t) => t.text == taskName,
+      orElse: () => null as dynamic,
+    );
+    if (match != null) {
+      _autoSaveFocusedTime(todoId: match.id);
+    }
+  }
+
+  Future<void> _autoSaveFocusedTime({
+    required int todoId,
+    bool force = false,
+  }) async {
+    final taskName = state.activeTaskName;
+    if (taskName == null) return;
+    final currentFocused = state.focusedTimeCache[taskName] ?? 0;
+    if (!force && currentFocused <= _lastAutoSavedSeconds) return;
+    if (_isAutoSaving) return;
+    _isAutoSaving = true;
+    try {
+      final api = ref.read(apiServiceProvider);
+      await api.updateFocusTime(todoId, currentFocused);
+      _lastAutoSavedSeconds = currentFocused;
+      if (kDebugMode) {
+        debugPrint(
+          'AUTOSAVE: Saved $currentFocused for "$taskName" (todoId=$todoId)',
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('AUTOSAVE ERROR: $e');
+    } finally {
+      _isAutoSaving = false;
+    }
   }
 
   void skipPhase() {

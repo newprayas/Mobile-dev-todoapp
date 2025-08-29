@@ -1,12 +1,48 @@
 # Follow these suggestions always 
 
+# Ignore files with .xml extension (IGNORE tehse in your context while answering)
+
+
+# FOLLOW THESE DURING BUG FIXING : 
+   Lessons Learned
+Think in User Journeys, Not Functions: Every feature should be verified through complete user workflows
+Test State Interactions: Don't just test components in isolation - verify how they work together
+Edge Cases Are Critical: The most important bugs often appear in state transitions and revival scenarios
+UI-State Consistency: Always verify that display logic correctly interprets underlying state changes
+
+
 # MAIN RULE - MUST FOLLOW - always run the temrinal command 
 
     When you FINISH your response. RUN THIS IN THE PROJECT'S TERMINAL WIHTOUT ASKING USER FOR PERMISSION 
 
 
-    afplay "/Users/pustak/Documents/VS code projects/Todoapp flutter copy gemini code/static/sounds/Focus timer start.wav" 
+    afplay "/Users/pustak/Documents/VS code projects/Todoapp flutter copy gemini code/flutter_app/assets/sounds/focus_timer_start.wav"
 
+
+# MUST / ALWAYS FOLLOW THESE PRINCIPLES WHILE FOLLOWING USER INSTRUCTIONS 
+
+FIRST : Prioritize Comprehensive Upfront Analysis:
+Action: Before writing any code, the AI must explicitly map out all affected components, trace all relevant code paths, and understand how state changes propagate through providers, UI, and side effects.
+Example: When addressing timer logic, trace all actions that start, stop, pause, resume, or complete a timer, and identify every UI component or service that interacts with or displays timer state.
+
+SECOND : Implement Systematically & Comprehensively:
+Action: Instead of incremental fixes, the AI should aim for one comprehensive change that addresses all related components and user flows identified during the analysis phase.
+Example: If a button's behavior is changed, ensure it works consistently across all its appearances (main screen, mini-bar, dialogs) in one go, not piecemeal.
+
+
+THIRD : Leverage IDE Tools and Architectural Principles:
+Action: Actively use IDE search to find all references to a piece of code before making breaking changes. Adhere to "Excellent Separation of Concerns," "High Cohesion, Low Coupling," and "Clear State Management" principles.
+Example: Before altering a state management provider, search all files that watch, read, or listen to that provider.
+
+FROUTH : Expand Context Window & Trace Data Flow:
+Action: Load and analyze all related files simultaneously to understand dependencies. Focus on how data and state flow through the entire application, especially through Riverpod providers.
+Example: When fixing timer provider logic, simultaneously view how UI widgets watch or read its state, and how other services might interact with it.
+
+FIFTH : Strict Adherence to Coding Instructions and UX Requirements:
+Action: Treat the provided coding instructions (e.g., Explicit Type Safety, Modular Thinking, Guard Clauses) and UX flow requirements as a checklist for every change.
+Example: Before declaring a change complete, explicitly check if it aligns with the "Excellent Separation of Concerns" principle and if all UX requirements related to that feature are met.
+Focus on Integration Testing:
+Action: Beyond unit testing, prioritize testing the interaction points where different modules or components interact, ensuring they work together seamlessly.
 
 # HIGH PRIORITY - MUST FOLLOW : FOLLOW THESE AI INSTRUCTIONS - MUST DO 
 

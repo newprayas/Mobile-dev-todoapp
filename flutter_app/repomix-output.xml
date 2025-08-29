@@ -1843,6 +1843,11 @@ import 'package:flutter/foundation.dart';
 // ApiService is constructed with a local baseUrl we add that header so the
 // client can talk to the Dart server without an OAuth flow.
 
+/// HTTP API client for todo management with automatic retry logic.
+///
+/// Provides a complete REST API interface for todo CRUD operations,
+/// authentication, and focus time tracking. Includes automatic retry
+/// logic for connection errors and local development authentication.
 class ApiService {
   final Dio _dio;
   // configurable retry attempts for transient connection errors (e.g. server
@@ -1866,6 +1871,13 @@ class ApiService {
     }
   }
 
+  /// Sets the authentication token for API requests.
+  ///
+  /// Configures the Authorization header for authenticated requests.
+  /// Pass null to remove authentication.
+  ///
+  /// Parameters:
+  /// - [token]: JWT token or null to remove authentication
   void setAuthToken(String? token) {
     if (token != null) {
       _dio.options.headers['Authorization'] = 'Bearer $token';
@@ -1874,16 +1886,33 @@ class ApiService {
     }
   }
 
+  /// Authenticates with Google ID token and returns user data.
+  ///
+  /// Parameters:
+  /// - [idToken]: Google OAuth ID token
+  ///
+  /// Returns: Map containing user authentication data
   Future<Map<String, dynamic>> authWithIdToken(String idToken) async {
     final resp = await _dio.post('/api/auth', data: {'id_token': idToken});
     return resp.data as Map<String, dynamic>;
   }
 
+  /// Fetches all todos for the authenticated user.
+  ///
+  /// Returns: List of todo objects as dynamic maps
   Future<List<dynamic>> fetchTodos() async {
     final resp = await _withRetry(() => _dio.get('/api/todos'));
     return resp.data as List<dynamic>;
   }
 
+  /// Creates a new todo with specified duration.
+  ///
+  /// Parameters:
+  /// - [text]: Todo description text
+  /// - [hours]: Planned duration hours (0-23)
+  /// - [minutes]: Planned duration minutes (0-59)
+  ///
+  /// Returns: Server response containing the created todo data
   Future<dynamic> addTodo(String text, int hours, int minutes) async {
     final resp = await _withRetry(
       () => _dio.post(
@@ -1902,11 +1931,28 @@ class ApiService {
     return resp.data;
   }
 
+  /// Deletes a todo by ID.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to delete
+  ///
+  /// Returns: Server response confirming deletion
   Future<dynamic> deleteTodo(int id) async {
     final resp = await _withRetry(() => _dio.post('/delete', data: {'id': id}));
     return resp.data;
   }
 
+  /// Updates todo properties.
+  ///
+  /// Allows partial updates of todo text and/or duration.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to update
+  /// - [text]: New description text (optional)
+  /// - [hours]: New planned duration hours (optional)
+  /// - [minutes]: New planned duration minutes (optional)
+  ///
+  /// Returns: Server response containing updated todo data
   Future<dynamic> updateTodo(
     int id, {
     String? text,
@@ -1940,6 +1986,15 @@ class ApiService {
     return resp.data;
   }
 
+  /// Updates the focused time for a specific todo.
+  ///
+  /// Critical for progress tracking and Pomodoro timer integration.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to update
+  /// - [focusedTime]: Total focused time in seconds
+  ///
+  /// Returns: Server response confirming the update
   Future<dynamic> updateFocusTime(int id, int focusedTime) async {
     final resp = await _withRetry(
       () => _dio.post(
@@ -3411,6 +3466,11 @@ class TimerState {
   }
 }
 
+/// Core timer state management provider for the Pomodoro application.
+///
+/// Manages timer lifecycle, state transitions, sound/notification integration,
+/// progress tracking, and API synchronization. Provides smart business logic
+/// for automatic cycle progression and overdue handling.
 class TimerNotifier extends Notifier<TimerState> {
   Timer? _ticker;
   bool _processingOverdue = false;
@@ -3427,6 +3487,22 @@ class TimerNotifier extends Notifier<TimerState> {
     return const TimerState();
   }
 
+  /// Updates timer state with provided parameters.
+  ///
+  /// Only updates fields that have changed to minimize unnecessary rebuilds.
+  /// Logs state changes in debug mode for development tracking.
+  ///
+  /// Parameters:
+  /// - [taskName]: Name of the active task
+  /// - [remaining]: Time remaining in seconds
+  /// - [running]: Whether timer is currently running
+  /// - [active]: Whether timer session is active
+  /// - [plannedDuration]: Planned duration for the task in seconds
+  /// - [mode]: Current timer mode ('focus' or 'break')
+  /// - [focusDuration]: Duration of focus periods in seconds
+  /// - [breakDuration]: Duration of break periods in seconds
+  /// - [setTotalCycles]: Total number of focus/break cycles
+  /// - [setCurrentCycle]: Current cycle number
   void update({
     String? taskName,
     int? remaining,
@@ -3502,24 +3578,54 @@ class TimerNotifier extends Notifier<TimerState> {
     }
   }
 
+  /// Marks that an overdue prompt has been shown for a specific task.
+  ///
+  /// Prevents duplicate overdue prompts for the same task during a session.
+  ///
+  /// Parameters:
+  /// - [taskName]: Name of the task that triggered the overdue prompt
   void markOverduePromptShown(String taskName) {
     final newPromptShown = Set<String>.from(state.overduePromptShown)
       ..add(taskName);
     state = state.copyWith(overduePromptShown: newPromptShown);
   }
 
+  /// Marks that a user chose to continue working on an overdue task.
+  ///
+  /// Tracks which tasks have been continued past their planned duration
+  /// for analytics and UI state management.
+  ///
+  /// Parameters:
+  /// - [taskName]: Name of the task that was continued past its planned time
   void markOverdueContinued(String taskName) {
     final newOverdueContinued = Set<String>.from(state.overdueContinued)
       ..add(taskName);
     state = state.copyWith(overdueContinued: newOverdueContinued);
   }
 
+  /// Updates the total focused time for a specific task.
+  ///
+  /// Maintains a cache of focused time per task for progress tracking
+  /// and progress bar calculations.
+  ///
+  /// Parameters:
+  /// - [taskName]: Name of the task to update
+  /// - [seconds]: Total focused time in seconds
   void updateFocusedTime(String taskName, int seconds) {
     final newFocusedTimeCache = Map<String, int>.from(state.focusedTimeCache);
     newFocusedTimeCache[taskName] = seconds;
     state = state.copyWith(focusedTimeCache: newFocusedTimeCache);
   }
 
+  /// Gets the total focused time for a specific task.
+  ///
+  /// Returns the cumulative focused time from the cache or 0 if no
+  /// time has been tracked for the task.
+  ///
+  /// Parameters:
+  /// - [taskName]: Name of the task to query
+  ///
+  /// Returns: Total focused time in seconds
   int getFocusedTime(String taskName) {
     return state.focusedTimeCache[taskName] ?? 0;
   }
@@ -3671,28 +3777,6 @@ class TimerNotifier extends Notifier<TimerState> {
     return taskName; // Return task name to trigger dialog in UI
   }
 
-  /// Handle overdue dialog response
-  void handleOverdueResponse(String response, String taskName) {
-    if (kDebugMode) {
-      debugPrint(
-        'TIMER_FSM: Handling overdue response: $response for $taskName',
-      );
-    }
-
-    if (response == 'continue') {
-      markOverdueContinued(taskName);
-      // Resume timer in overdue mode
-      state = state.copyWith(
-        isRunning: true,
-        overdueCrossedTaskName: null, // Clear the trigger
-      );
-      startTicker();
-    } else if (response == 'stop') {
-      // Stop and clear everything
-      clear();
-    }
-  }
-
   void logStateSnapshot(String prefix) {
     if (kDebugMode) {
       debugPrint('$prefix: TimerState(');
@@ -3780,7 +3864,15 @@ class TimerNotifier extends Notifier<TimerState> {
     state = TimerState(focusedTimeCache: preserved);
   }
 
-  /// *** CRITICAL FEATURE: Save progress and stop session safely ***
+  /// Saves current progress and safely stops the timer session.
+  ///
+  /// Critical feature that ensures no progress is lost when stopping a session.
+  /// Updates the backend with current focused time and gracefully clears the session.
+  ///
+  /// Parameters:
+  /// - [todoId]: Database ID of the todo item to update
+  ///
+  /// Returns: true if progress was saved successfully, false if an error occurred
   Future<bool> stopAndSaveProgress(int todoId) async {
     if (state.activeTaskName == null) {
       // No active session to save
@@ -3831,6 +3923,20 @@ class TimerNotifier extends Notifier<TimerState> {
     }
   }
 
+  /// Starts a new Pomodoro timer session with smart business logic.
+  ///
+  /// Initializes a new timer session with the specified parameters, plays
+  /// notification sounds, and starts the focus timer. Includes debouncing
+  /// to prevent rapid start attempts.
+  ///
+  /// Parameters:
+  /// - [taskName]: Name of the task to focus on
+  /// - [focusDuration]: Duration of focus periods in seconds
+  /// - [breakDuration]: Duration of break periods in seconds
+  /// - [plannedDuration]: Planned total duration for the task in seconds
+  /// - [totalCycles]: Total number of focus/break cycles to complete
+  ///
+  /// Returns: true if session started successfully, false if start was prevented
   bool startTask({
     required String taskName,
     required int focusDuration,
@@ -4051,6 +4157,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../todo/models/todo.dart';
+import '../../todo/providers/todos_provider.dart';
 import '../pomodoro_router.dart';
 
 class MiniTimerBar extends ConsumerWidget {
@@ -4164,77 +4271,126 @@ class MiniTimerBar extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _format(timer.timeRemaining),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
+            // This makes the text section take up all available space, pushing buttons to the right.
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _format(timer.timeRemaining),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                SizedBox(
-                  width: 200,
-                  child: Text(
+                  const SizedBox(height: 6),
+                  // No need for a SizedBox, Text will now truncate automatically.
+                  Text(
                     timer.activeTaskName ?? '',
                     style: const TextStyle(
                       color: Color(0xFFFFD54F),
                       fontWeight: FontWeight.w700,
                     ),
                     overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ],
+              ),
+            ),
+            // This Row ensures all buttons stay grouped together without extra space.
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  onPressed: () {
+                    if (kDebugMode) {
+                      debugPrint('MINI BAR: play/pause via legacy service');
+                    }
+                    notifier.toggleRunning();
+                  },
+                  icon: Icon(
+                    timer.isRunning
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
+                    color: AppColors.brightYellow,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () async {
+                    if (kDebugMode) debugPrint('MINI BAR: expand pressed');
+                    await PomodoroRouter.showPomodoroSheet(
+                      context,
+                      api,
+                      activeTodo ??
+                          Todo(
+                            id: 0,
+                            userId: '',
+                            text: timer.activeTaskName ?? '',
+                            completed: false,
+                            durationHours: 0,
+                            durationMinutes: 0,
+                            focusedTime: 0,
+                            wasOverdue: 0,
+                            overdueTime: 0,
+                          ),
+                      notificationService,
+                      ({bool wasOverdue = false, int overdueTime = 0}) async {
+                        if (activeTodo != null) {
+                          await onComplete(activeTodo!.id);
+                        }
+                      },
+                    );
+                    notifier.update(active: false);
+                  },
+                  icon: const Icon(
+                    Icons.keyboard_arrow_up_rounded,
+                    color: Colors.white,
+                  ),
+                ),
+                // *** UX ENHANCEMENT: Quick stop/close button ***
+                IconButton(
+                  onPressed: () async {
+                    if (kDebugMode) {
+                      debugPrint('MINI BAR: stop session pressed');
+                    }
+
+                    // Save progress if there's an active todo
+                    if (activeTodo != null) {
+                      final success = await notifier.stopAndSaveProgress(
+                        activeTodo!.id,
+                      );
+
+                      // Show feedback
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              success
+                                  ? 'Session stopped and progress saved ✓'
+                                  : 'Session stopped (save failed)',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            backgroundColor: success
+                                ? Colors.green[700]
+                                : Colors.orange[700],
+                            duration: const Duration(seconds: 2),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    } else {
+                      // No active todo, just clear the session
+                      notifier.clear();
+                    }
+                  },
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Colors.red,
+                    size: 20,
                   ),
                 ),
               ],
-            ),
-            const Spacer(),
-            IconButton(
-              onPressed: () {
-                if (kDebugMode) {
-                  debugPrint('MINI BAR: play/pause via legacy service');
-                }
-                notifier.toggleRunning();
-              },
-              icon: Icon(
-                timer.isRunning
-                    ? Icons.pause_rounded
-                    : Icons.play_arrow_rounded,
-                color: AppColors.brightYellow,
-              ),
-            ),
-            IconButton(
-              onPressed: () async {
-                if (kDebugMode) debugPrint('MINI BAR: expand pressed');
-                await PomodoroRouter.showPomodoroSheet(
-                  context,
-                  api,
-                  activeTodo ??
-                      Todo(
-                        id: 0,
-                        userId: '',
-                        text: timer.activeTaskName ?? '',
-                        completed: false,
-                        durationHours: 0,
-                        durationMinutes: 0,
-                        focusedTime: 0,
-                        wasOverdue: 0,
-                        overdueTime: 0,
-                      ),
-                  notificationService,
-                  ({bool wasOverdue = false, int overdueTime = 0}) async {
-                    if (activeTodo != null) {
-                      await onComplete(activeTodo!.id);
-                    }
-                  },
-                );
-                notifier.update(active: false);
-              },
-              icon: const Icon(
-                Icons.keyboard_arrow_up_rounded,
-                color: Colors.white,
-              ),
             ),
           ],
         ),
@@ -4267,6 +4423,10 @@ Future<void> _showOverduePromptFromMiniBar(
     notificationService.playSound('progress_bar_full.wav');
   } catch (_) {}
 
+  // *** PAUSE TIMER DURING DIALOG ***
+  final wasRunning = timer.isRunning;
+  if (wasRunning) notifier.pauseTask();
+
   final res = await showDialog<String>(
     context: context,
     barrierDismissible: false,
@@ -4288,11 +4448,60 @@ Future<void> _showOverduePromptFromMiniBar(
     ),
   );
 
+  // If dialog is dismissed without a choice, resume timer if it was running.
+  if (res == null) {
+    if (wasRunning) notifier.resumeTask();
+    return;
+  }
+
   if (res == 'complete') {
-    await onComplete(todo.id);
-    notifier.clear();
-  } else {
+    final focusedTime = notifier.getFocusedTime(todo.text);
+    final plannedTime =
+        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+    final overdueTime = (focusedTime - plannedTime)
+        .clamp(0, double.infinity)
+        .toInt();
+
+    try {
+      await ref
+          .read(todosProvider.notifier)
+          .completeTodoWithOverdue(todo.id, overdueTime: overdueTime);
+      notifier.clear();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to complete task. Please try again.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  } else if (res == 'continue') {
+    // *** THIS IS THE CORRECTED LOGIC ALIGNED WITH THE UX FLOWCHART ***
+    // 1. Mark the task as having been continued in an overdue state.
     notifier.markOverdueContinued(taskName);
+
+    // 2. Stop the session and save the progress.
+    final success = await notifier.stopAndSaveProgress(todo.id);
+
+    // 3. Completely clear the timer state, which will make the mini-bar disappear.
+    notifier.clear();
+
+    // 4. Provide feedback to the user.
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? 'Progress saved. Press play on the task to continue.'
+                : 'Session stopped (save failed).',
+            style: const TextStyle(color: Colors.white),
+          ),
+          backgroundColor: success ? Colors.green[700] : Colors.orange[700],
+        ),
+      );
+    }
   }
 }
 </file>
@@ -4816,6 +5025,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/widgets/progress_bar.dart';
 import '../../core/utils/app_dialogs.dart';
 import '../todo/models/todo.dart';
+import '../todo/providers/todos_provider.dart';
 import 'providers/timer_provider.dart';
 import 'widgets/pomodoro_action_buttons.dart';
 import 'widgets/pomodoro_overdue_display.dart';
@@ -4915,13 +5125,29 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
     final notifier = ref.read(timerProvider.notifier);
     final timerState = ref.read(timerProvider);
     if (!timerState.isRunning && timerState.currentCycle == 0) {
+      // *** CRITICAL UX VALIDATION: Focus duration cannot exceed task duration ***
+      final focusDurationMinutes = int.tryParse(_focusController.text) ?? 25;
+      final focusDurationSeconds = focusDurationMinutes * 60;
+      final plannedDurationSeconds =
+          (widget.todo.durationHours * 3600) +
+          (widget.todo.durationMinutes * 60);
+
+      if (plannedDurationSeconds > 0 &&
+          focusDurationSeconds > plannedDurationSeconds) {
+        // Show validation error dialog
+        _showFocusDurationValidationError(
+          focusDurationMinutes,
+          widget.todo.durationHours,
+          widget.todo.durationMinutes,
+        );
+        return;
+      }
+
       notifier.startTask(
         taskName: widget.todo.text,
-        focusDuration: (int.tryParse(_focusController.text) ?? 25) * 60,
+        focusDuration: focusDurationSeconds,
         breakDuration: (int.tryParse(_breakController.text) ?? 5) * 60,
-        plannedDuration:
-            (widget.todo.durationHours * 3600) +
-            (widget.todo.durationMinutes * 60),
+        plannedDuration: plannedDurationSeconds,
         totalCycles: int.tryParse(_cyclesController.text) ?? 4,
       );
     } else {
@@ -4939,11 +5165,18 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
 
   void _handleStop() async {
     final timerState = ref.read(timerProvider);
+    final notifier = ref.read(timerProvider.notifier);
 
     // Calculate minutes worked in current session
     final totalFocusDuration = timerState.focusDurationSeconds ?? 1500;
     final timeRemaining = timerState.timeRemaining;
     final minutesWorked = ((totalFocusDuration - timeRemaining) / 60).round();
+
+    // *** UX POLISH: Pause timer during dialog interaction ***
+    final wasRunning = timerState.isRunning;
+    if (wasRunning) {
+      notifier.pauseTask();
+    }
 
     // Show stop confirmation dialog
     final shouldStop = await AppDialogs.showStopSessionDialog(
@@ -4952,6 +5185,12 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
       minutesWorked: minutesWorked,
     );
 
+    // *** UX POLISH: Resume timer if user cancels ***
+    if (shouldStop != true && wasRunning) {
+      notifier.resumeTask();
+      return;
+    }
+
     if (shouldStop == true) {
       // Save progress and stop the session
       final success = await ref
@@ -4959,6 +5198,21 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
           .stopAndSaveProgress(widget.todo.id);
 
       if (success) {
+        // *** UX FEEDBACK: Show progress saved confirmation ***
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Progress saved for "${widget.todo.text}" ✓',
+                style: const TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.green[700],
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+
         // Close the Pomodoro screen after successful save
         if (mounted && Navigator.of(context).canPop()) {
           Navigator.of(context).pop();
@@ -4976,6 +5230,109 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
           );
         }
       }
+    }
+  }
+
+  /// Shows validation error when focus duration exceeds task duration
+  void _showFocusDurationValidationError(
+    int focusMinutes,
+    int taskHours,
+    int taskMinutes,
+  ) {
+    final totalTaskMinutes = (taskHours * 60) + taskMinutes;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'Invalid Focus Duration',
+          style: TextStyle(color: Colors.red),
+        ),
+        content: Text(
+          'Focus duration ($focusMinutes minutes) cannot be longer than the total task duration ($totalTaskMinutes minutes).\n\n'
+          'Please reduce the focus duration or increase the task duration.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Shows overdue prompt when task exceeds planned duration with new UX flow
+  void _showOverduePrompt(
+    BuildContext context,
+    WidgetRef ref,
+    TimerNotifier timerNotifier,
+  ) async {
+    // Mark prompt as shown to prevent re-triggering
+    timerNotifier.markOverduePromptShown(widget.todo.text);
+
+    final wasRunning = ref.read(timerProvider).isRunning;
+    if (wasRunning) timerNotifier.pauseTask();
+
+    final result = await AppDialogs.showOverdueDialog(
+      context: context,
+      taskName: widget.todo.text,
+    );
+
+    if (!mounted) return;
+
+    if (result == true) {
+      // User chose "Mark Complete"
+      final focusedTime = timerNotifier.getFocusedTime(widget.todo.text);
+      final plannedTime =
+          (widget.todo.durationHours * 3600) +
+          (widget.todo.durationMinutes * 60);
+      final overdueTime = (focusedTime - plannedTime)
+          .clamp(0, double.infinity)
+          .toInt();
+
+      // Use the dedicated completion method instead of the callback
+      try {
+        await ref
+            .read(todosProvider.notifier)
+            .completeTodoWithOverdue(widget.todo.id, overdueTime: overdueTime);
+        timerNotifier.clear();
+        Navigator.of(context).pop();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to complete task. Please try again.'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      }
+    } else if (result == false) {
+      // User chose "Continue"
+      // *** FIXED UX FLOW: Stop timer completely and hide minibar ***
+      final success = await timerNotifier.stopAndSaveProgress(widget.todo.id);
+
+      // Clear the timer completely to hide minibar
+      timerNotifier.clear();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success
+                  ? 'Progress saved. Press play on the task to continue.'
+                  : 'Session stopped (save failed).',
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: success ? Colors.green[700] : Colors.orange[700],
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    } else {
+      // Dialog was dismissed
+      if (wasRunning) timerNotifier.resumeTask();
     }
   }
 
@@ -5008,12 +5365,38 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // *** SMART BUSINESS LOGIC: Listen for all sessions complete ***
+    // *** SMART BUSINESS LOGIC: Listen for timer state changes ***
     ref.listen<TimerState>(timerProvider, (previous, next) {
       // Show dialog when all sessions complete
       if (next.allSessionsComplete &&
           !(previous?.allSessionsComplete ?? false)) {
         _showAllSessionsCompleteDialog(context, next.totalCycles);
+      }
+
+      // *** UX FEEDBACK: Show blocked action feedback ***
+      if (next.cycleOverflowBlocked &&
+          !(previous?.cycleOverflowBlocked ?? false)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Cannot set more than ${next.totalCycles} cycles for this task duration',
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.orange[700],
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+
+      // *** NEW UX FLOW: Handle overdue prompt ***
+      if (next.overdueCrossedTaskName == widget.todo.text &&
+          !next.overduePromptShown.contains(widget.todo.text)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            _showOverduePrompt(context, ref, ref.read(timerProvider.notifier));
+          }
+        });
       }
     });
 
@@ -5201,6 +5584,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/todo.dart';
 import '../../../core/services/api_service.dart';
 
+/// Todo list state management provider with optimistic updates.
+///
+/// Manages the complete todo lifecycle including creation, updates, deletion,
+/// and completion. Implements optimistic UI updates for immediate feedback
+/// with automatic rollback on API errors.
 class TodosNotifier extends AsyncNotifier<List<Todo>> {
   @override
   Future<List<Todo>> build() async {
@@ -5232,6 +5620,18 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
     }
   }
 
+  /// Adds a new todo with optimistic updates.
+  ///
+  /// Creates a temporary todo with a local ID for immediate UI feedback,
+  /// then replaces it with the server-generated todo on successful creation.
+  /// Automatically reverts on API errors.
+  ///
+  /// Parameters:
+  /// - [text]: Todo description text
+  /// - [hours]: Planned duration hours (0-23)
+  /// - [minutes]: Planned duration minutes (0-59)
+  ///
+  /// Throws: API exceptions if the server request fails
   Future<void> addTodo(String text, int hours, int minutes) async {
     // Optimistic update
     final localId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -5264,6 +5664,13 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
     }
   }
 
+  /// Deletes a todo with optimistic updates.
+  ///
+  /// Immediately removes the todo from the UI, then calls the API.
+  /// Automatically reverts the list if the API call fails.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to delete
   Future<void> deleteTodo(int id) async {
     // Optimistic update
     final currentTodos = state.value ?? [];
@@ -5280,6 +5687,18 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
     }
   }
 
+  /// Updates todo properties via API.
+  ///
+  /// Modifies text content and/or planned duration for an existing todo.
+  /// Refreshes the full list after successful update.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to update
+  /// - [text]: New description text (optional)
+  /// - [hours]: New planned duration hours (optional)
+  /// - [minutes]: New planned duration minutes (optional)
+  ///
+  /// Throws: API exceptions if the server request fails
   Future<void> updateTodo(
     int id, {
     String? text,
@@ -5296,12 +5715,32 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
     }
   }
 
+  /// Toggles todo completion status with optimistic updates.
+  ///
+  /// Immediately flips the completed status in the UI, then syncs with API.
+  /// Automatically reverts on API errors.
+  ///
+  /// **IMPORTANT UX BEHAVIOR:** When a completed task is revived (toggled back to incomplete),
+  /// this method preserves its `wasOverdue` status. This ensures that a task that was
+  /// completed overdue will correctly display its persistent overdue status when
+  /// it is returned to the active list, aligning with the UX flowchart.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to toggle
   Future<void> toggleTodo(int id) async {
     // Optimistic update
     final currentTodos = state.value ?? [];
     final updatedTodos = currentTodos.map((todo) {
       if (todo.id == id) {
-        return todo.copyWith(completed: !todo.completed);
+        // *** FIXED REVIVAL LOGIC ***
+        if (todo.completed) {
+          // Task is being revived from completed list
+          // Keep existing wasOverdue status - don't change it during revival
+          return todo.copyWith(completed: false);
+        } else {
+          // Task is being completed normally.
+          return todo.copyWith(completed: true);
+        }
       }
       return todo;
     }).toList();
@@ -5317,6 +5756,52 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
     }
   }
 
+  /// Marks a todo as completed with overdue information.
+  ///
+  /// Unlike toggleTodoWithOverdue, this method specifically marks the task as completed
+  /// and is used when completing tasks from the overdue dialog.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to complete
+  /// - [overdueTime]: Additional time spent beyond planned duration in seconds
+  Future<void> completeTodoWithOverdue(int id, {int overdueTime = 0}) async {
+    // Optimistic update - mark as completed with overdue information
+    final currentTodos = state.value ?? [];
+    final updatedTodos = currentTodos.map((todo) {
+      if (todo.id == id) {
+        return todo.copyWith(
+          completed: true,
+          wasOverdue: 1,
+          overdueTime: overdueTime,
+        );
+      }
+      return todo;
+    }).toList();
+    state = AsyncValue.data(updatedTodos);
+
+    try {
+      final api = ref.read(apiServiceProvider);
+      await api.toggleTodoWithOverdue(
+        id,
+        wasOverdue: true,
+        overdueTime: overdueTime,
+      );
+      // No full refresh needed, optimistic update is usually enough
+    } catch (e) {
+      // Revert on error
+      state = AsyncValue.data(currentTodos);
+    }
+  }
+
+  /// Toggles todo completion with overdue tracking information.
+  ///
+  /// Enhanced version of toggleTodo that also tracks overdue completion.
+  /// Used when a task is completed after exceeding its planned duration.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to toggle
+  /// - [wasOverdue]: Whether the task was completed past its planned time
+  /// - [overdueTime]: Additional time spent beyond planned duration in seconds
   Future<void> toggleTodoWithOverdue(
     int id, {
     bool wasOverdue = false,
@@ -5350,6 +5835,10 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
     }
   }
 
+  /// Removes all completed todos with optimistic updates.
+  ///
+  /// Immediately hides completed todos from the UI, then batch-deletes them
+  /// via the API. Automatically reverts the full list on API errors.
   Future<void> clearCompleted() async {
     final currentTodos = state.value ?? [];
     final completedTodos = currentTodos
@@ -5582,6 +6071,19 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
     int overdueTime = 0,
   }) async {
     if (!mounted) return;
+
+    // Check if this is the active timer task and stop it silently
+    final timerState = ref.read(timerProvider);
+    final currentTodos = ref.read(todosProvider).value ?? [];
+    final currentTodo = currentTodos.where((t) => t.id == id).firstOrNull;
+
+    if (currentTodo != null &&
+        timerState.activeTaskName == currentTodo.text &&
+        timerState.isTimerActive) {
+      // Stop and save the timer silently (no dialog/snackbar)
+      await ref.read(timerProvider.notifier).stopAndSaveProgress(id);
+    }
+
     try {
       if (wasOverdue) {
         await ref
@@ -5608,6 +6110,19 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
 
   Future<void> _handleTaskDeletion(int id) async {
     if (!mounted) return;
+
+    // Check if this is the active timer task and stop it
+    final timerState = ref.read(timerProvider);
+    final currentTodos = ref.read(todosProvider).value ?? [];
+    final currentTodo = currentTodos.where((t) => t.id == id).firstOrNull;
+
+    if (currentTodo != null &&
+        timerState.activeTaskName == currentTodo.text &&
+        timerState.isTimerActive) {
+      // Clear the timer completely since task is being deleted
+      ref.read(timerProvider.notifier).clear();
+    }
+
     try {
       await ref.read(todosProvider.notifier).deleteTodo(id);
     } catch (e) {
@@ -5624,6 +6139,25 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
 
   Future<void> _handleTaskToggle(int id) async {
     if (!mounted) return;
+
+    // Check if we're toggling the active timer task
+    final timerState = ref.read(timerProvider);
+    final currentTodos = ref.read(todosProvider).value ?? [];
+    final currentTodo = currentTodos.where((t) => t.id == id).firstOrNull;
+
+    if (currentTodo != null &&
+        timerState.activeTaskName == currentTodo.text &&
+        timerState.isTimerActive) {
+      // If task is being completed, stop and save. If being revived, just clear.
+      if (!currentTodo.completed) {
+        // Task is being completed - stop and save
+        await ref.read(timerProvider.notifier).stopAndSaveProgress(id);
+      } else {
+        // Task is being revived - just clear the timer
+        ref.read(timerProvider.notifier).clear();
+      }
+    }
+
     try {
       await ref.read(todosProvider.notifier).toggleTodo(id);
     } catch (e) {
@@ -5863,6 +6397,31 @@ class _TaskCardState extends ConsumerState<TaskCard> {
     }
   }
 
+  // Add this helper method inside the state for reusable tag UI
+  Widget _buildOverdueTag(Todo todo, int cachedFocused) {
+    final plannedSeconds =
+        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+    final overdueSeconds = (cachedFocused - plannedSeconds)
+        .clamp(0, double.infinity)
+        .toInt();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        'Overdue: ${_formatOverdueTime(overdueSeconds)}',
+        style: TextStyle(
+          color: AppColors.priorityHigh,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Only watch timer state for the specific values we need, not the entire state
@@ -5912,97 +6471,66 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        widget.todo.text,
-                        style: TextStyle(
-                          color: AppColors.lightGray,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          decoration: widget.todo.completed
-                              ? TextDecoration.lineThrough
-                              : TextDecoration.none,
-                          fontStyle: widget.todo.completed
-                              ? FontStyle.italic
-                              : FontStyle.normal,
-                        ),
+                      child: Row(
+                        children: [
+                          // Red emoji for overdue tasks (completed and revived)
+                          if ((widget.todo.completed &&
+                                  widget.todo.wasOverdue == 1) ||
+                              (!widget.todo.completed &&
+                                  widget.todo.wasOverdue == 1) ||
+                              isOverdue ||
+                              isContinuedOverdue)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: Text('🔴', style: TextStyle(fontSize: 14)),
+                            ),
+                          Expanded(
+                            child: Text(
+                              widget.todo.text,
+                              style: TextStyle(
+                                color: AppColors.lightGray,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                decoration: widget.todo.completed
+                                    ? TextDecoration.lineThrough
+                                    : TextDecoration.none,
+                                fontStyle: widget.todo.completed
+                                    ? FontStyle.italic
+                                    : FontStyle.normal,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    // Overdue tag (dynamic time) for incomplete tasks
-                    if (!widget.todo.completed && isOverdue)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'Overdue: ${_formatOverdueTime((cachedFocused - plannedSeconds).clamp(0, double.infinity).toInt())}',
-                          style: TextStyle(
-                            color: AppColors.priorityHigh,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    // Completed / Underdue tags
-                    if (widget.todo.completed)
-                      () {
-                        final hadPlan = plannedSeconds > 0;
-                        if (!hadPlan) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.transparent,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'Completed',
-                              style: TextStyle(
-                                color: AppColors.priorityLow,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          );
-                        }
-                        // Underdue if completed early
-                        final isUnderdue = cachedFocused < plannedSeconds;
-                        if (isUnderdue) {
-                          final pct = ((cachedFocused / plannedSeconds) * 100)
-                              .clamp(0, 100);
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.transparent,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'Underdue task ${pct.toStringAsFixed(0)}%',
-                              style: TextStyle(
-                                color: Colors.orangeAccent,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          );
-                        }
-                        return Container(
+                    // *** REVISED TAG LOGIC ***
+                    if (widget.todo.completed) ...[
+                      if (widget.todo.wasOverdue == 1)
+                        // Case: Completed AND was overdue. Show ONLY overdue tag.
+                        _buildOverdueTag(widget.todo, widget.todo.focusedTime)
+                      else if (plannedSeconds > 0 &&
+                          cachedFocused < plannedSeconds)
+                        // Case: Completed and Underdue.
+                        Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
                             vertical: 4,
                           ),
-                          decoration: BoxDecoration(
-                            color: Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
+                          child: Text(
+                            'Underdue task ${((cachedFocused / plannedSeconds) * 100).clamp(0, 100).toStringAsFixed(0)}%',
+                            style: TextStyle(
+                              color: Colors.orangeAccent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        )
+                      else
+                        // Case: Completed normally.
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
                           ),
                           child: Text(
                             'Completed',
@@ -6012,8 +6540,11 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                        );
-                      }(),
+                        ),
+                    ] else if (isOverdue) ...[
+                      // Case: Incomplete and currently overdue.
+                      _buildOverdueTag(widget.todo, cachedFocused),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -6112,7 +6643,7 @@ class _TaskCardState extends ConsumerState<TaskCard> {
             ),
           ),
         ),
-        // Progress bar (only for non-completed and non-overdue tasks)
+        // Progress bar (for non-completed tasks that aren't currently overdue)
         if (!widget.todo.completed &&
             !isOverdue &&
             !isContinuedOverdue &&
@@ -6149,9 +6680,9 @@ class _TaskCardState extends ConsumerState<TaskCard> {
               ),
             ),
           ),
-        // Overdue time display (replaces progress bar for overdue tasks)
+        // Overdue time display (only for currently overdue or continued overdue tasks)
         if (!widget.todo.completed &&
-            (widget.todo.wasOverdue == 1 || isContinuedOverdue || isOverdue) &&
+            (isContinuedOverdue || isOverdue) &&
             totalMins > 0)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
@@ -6314,17 +6845,89 @@ class _TaskListState extends ConsumerState<TaskList> {
 
     if (isAnyTimerActive && timerState.activeTaskName != null) {
       // Another task's timer is active - show switch confirmation
+      final notifier = ref.read(timerProvider.notifier);
+
+      // *** UX POLISH: Pause timer during dialog interaction ***
+      final wasRunning = timerState.isRunning;
+      if (wasRunning) {
+        notifier.pauseTask();
+      }
+
       final shouldSwitch = await AppDialogs.showSwitchTaskDialog(
         context: context,
         currentTaskName: timerState.activeTaskName!,
         newTaskName: todo.text,
       );
 
-      if (shouldSwitch != true || !mounted) return;
+      // *** UX POLISH: Resume timer if user cancels switch ***
+      if (shouldSwitch != true) {
+        if (wasRunning) {
+          notifier.resumeTask();
+        }
+        return;
+      }
 
-      // Mark previous inactive & clear running state cleanly
-      final notifier = ref.read(timerProvider.notifier);
-      notifier.clearPreserveProgress();
+      if (!mounted) return;
+
+      // *** CRITICAL BUG FIX: Save progress before switching tasks ***
+      // Find the current active todo by matching task name
+      final currentActiveTodo = widget.todos.firstWhere(
+        (t) => t.text == timerState.activeTaskName,
+        orElse: () => Todo(
+          id: 0,
+          userId: '',
+          text: timerState.activeTaskName!,
+          completed: false,
+          durationHours: 0,
+          durationMinutes: 0,
+          focusedTime: 0,
+          wasOverdue: 0,
+          overdueTime: 0,
+        ),
+      );
+
+      // Save progress for the current active task
+      // (notifier already defined above)
+      if (currentActiveTodo.id > 0) {
+        try {
+          final success = await notifier.stopAndSaveProgress(
+            currentActiveTodo.id,
+          );
+          if (kDebugMode) {
+            debugPrint(
+              'TASK_SWITCH: Progress save ${success ? 'successful' : 'failed'} for ${currentActiveTodo.text}',
+            );
+          }
+
+          // Show feedback to user
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  success
+                      ? 'Progress saved for "${currentActiveTodo.text}" ✓'
+                      : 'Failed to save progress for "${currentActiveTodo.text}"',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                backgroundColor: success
+                    ? Colors.green[700]
+                    : Colors.orange[700],
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('TASK_SWITCH: Error saving progress: $e');
+          }
+          // Still clear the session even if save fails
+          notifier.clearPreserveProgress();
+        }
+      } else {
+        // No valid todo ID, just clear
+        notifier.clearPreserveProgress();
+      }
     }
 
     // Pre-initialize provider with this task's planned details for setup UI

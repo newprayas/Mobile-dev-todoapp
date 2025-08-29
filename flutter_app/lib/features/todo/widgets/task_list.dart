@@ -141,13 +141,29 @@ class _TaskListState extends ConsumerState<TaskList> {
 
     if (isAnyTimerActive && timerState.activeTaskName != null) {
       // Another task's timer is active - show switch confirmation
+      final notifier = ref.read(timerProvider.notifier);
+
+      // *** UX POLISH: Pause timer during dialog interaction ***
+      final wasRunning = timerState.isRunning;
+      if (wasRunning) {
+        notifier.pauseTask();
+      }
+
       final shouldSwitch = await AppDialogs.showSwitchTaskDialog(
         context: context,
         currentTaskName: timerState.activeTaskName!,
         newTaskName: todo.text,
       );
 
-      if (shouldSwitch != true || !mounted) return;
+      // *** UX POLISH: Resume timer if user cancels switch ***
+      if (shouldSwitch != true) {
+        if (wasRunning) {
+          notifier.resumeTask();
+        }
+        return;
+      }
+
+      if (!mounted) return;
 
       // *** CRITICAL BUG FIX: Save progress before switching tasks ***
       // Find the current active todo by matching task name
@@ -167,7 +183,7 @@ class _TaskListState extends ConsumerState<TaskList> {
       );
 
       // Save progress for the current active task
-      final notifier = ref.read(timerProvider.notifier);
+      // (notifier already defined above)
       if (currentActiveTodo.id > 0) {
         try {
           final success = await notifier.stopAndSaveProgress(

@@ -41,15 +41,41 @@ class _TaskCardState extends ConsumerState<TaskCard> {
     }
   }
 
+  // Add this helper method inside the state for reusable tag UI
+  Widget _buildOverdueTag(Todo todo, int cachedFocused) {
+    final plannedSeconds =
+        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+    final overdueSeconds = (cachedFocused - plannedSeconds)
+        .clamp(0, double.infinity)
+        .toInt();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        'Overdue: ${_formatOverdueTime(overdueSeconds)}',
+        style: TextStyle(
+          color: AppColors.priorityHigh,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Only watch timer state for the specific values we need, not the entire state
+    // Watch timer state for the specific values we need
     final focusedTimeCache = ref.watch(
       timerProvider.select((state) => state.focusedTimeCache),
     );
     final overdueContinued = ref.watch(
       timerProvider.select((state) => state.overdueContinued),
     );
+    final timerState = ref.watch(timerProvider);
 
     final totalMins =
         (widget.todo.durationHours * 60) + widget.todo.durationMinutes;
@@ -60,12 +86,20 @@ class _TaskCardState extends ConsumerState<TaskCard> {
     final progress = totalMins == 0
         ? 0.0
         : (cachedFocused / (totalMins * 60)).clamp(0.0, 1.0);
-    final isOverdue = plannedSeconds > 0 && cachedFocused >= plannedSeconds;
-    final isContinuedOverdue = overdueContinued.contains(widget.todo.text);
+
+    // *** FIX: Only show as overdue if currently active AND crossed planned time in current session ***
+    final isCurrentlyActive =
+        timerState.activeTaskName == widget.todo.text &&
+        timerState.isTimerActive;
+    final hasOverdueCrossed =
+        timerState.overdueCrossedTaskName == widget.todo.text;
+    final bool isOverdue = isCurrentlyActive && hasOverdueCrossed;
+    final bool isContinuedOverdue = overdueContinued.contains(widget.todo.text);
+    final bool isPermanentlyOverdue = widget.todo.wasOverdue == 1;
 
     if (kDebugMode) {
       debugPrint(
-        'TASK_CARD: id=${widget.todo.id} cachedFocused=$cachedFocused planned=$plannedSeconds isOverdue=$isOverdue',
+        'TASK_CARD: id=${widget.todo.id} cachedFocused=$cachedFocused planned=$plannedSeconds isOverdue=$isOverdue isActive=$isCurrentlyActive hasOverdueCrossed=$hasOverdueCrossed',
       );
     }
 
@@ -90,97 +124,85 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        widget.todo.text,
-                        style: TextStyle(
-                          color: AppColors.lightGray,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          decoration: widget.todo.completed
-                              ? TextDecoration.lineThrough
-                              : TextDecoration.none,
-                          fontStyle: widget.todo.completed
-                              ? FontStyle.italic
-                              : FontStyle.normal,
-                        ),
+                      child: Row(
+                        children: [
+                          // Red emoji for overdue tasks (completed and revived)
+                          if (isPermanentlyOverdue ||
+                              isOverdue ||
+                              isContinuedOverdue)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: Text('🔴', style: TextStyle(fontSize: 14)),
+                            ),
+                          Expanded(
+                            child: Text(
+                              widget.todo.text,
+                              style: TextStyle(
+                                color: AppColors.lightGray,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                decoration: widget.todo.completed
+                                    ? TextDecoration.lineThrough
+                                    : TextDecoration.none,
+                                fontStyle: widget.todo.completed
+                                    ? FontStyle.italic
+                                    : FontStyle.normal,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    // Overdue tag (dynamic time) for incomplete tasks
-                    if (!widget.todo.completed && isOverdue)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'Overdue: ${_formatOverdueTime((cachedFocused - plannedSeconds).clamp(0, double.infinity).toInt())}',
-                          style: TextStyle(
-                            color: AppColors.priorityHigh,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    // Completed / Underdue tags
-                    if (widget.todo.completed)
-                      () {
-                        final hadPlan = plannedSeconds > 0;
-                        if (!hadPlan) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.transparent,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'Completed',
-                              style: TextStyle(
-                                color: AppColors.priorityLow,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
+                    // *** REVISED TAG LOGIC ***
+                    if (widget.todo.completed) ...[
+                      if (widget.todo.wasOverdue == 1)
+                        // Case: Completed AND was overdue. Show completed with overdue info.
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              child: Text(
+                                'Completed',
+                                style: TextStyle(
+                                  color: AppColors.priorityLow,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
-                          );
-                        }
-                        // Underdue if completed early
-                        final isUnderdue = cachedFocused < plannedSeconds;
-                        if (isUnderdue) {
-                          final pct = ((cachedFocused / plannedSeconds) * 100)
-                              .clamp(0, 100);
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
+                            const SizedBox(width: 4),
+                            _buildOverdueTag(
+                              widget.todo,
+                              widget.todo.focusedTime,
                             ),
-                            decoration: BoxDecoration(
-                              color: Colors.transparent,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'Underdue task ${pct.toStringAsFixed(0)}%',
-                              style: TextStyle(
-                                color: Colors.orangeAccent,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          );
-                        }
-                        return Container(
+                          ],
+                        )
+                      else if (plannedSeconds > 0 &&
+                          cachedFocused < plannedSeconds)
+                        // Case: Completed and Underdue.
+                        Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
                             vertical: 4,
                           ),
-                          decoration: BoxDecoration(
-                            color: Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
+                          child: Text(
+                            'Underdue task ${((cachedFocused / plannedSeconds) * 100).clamp(0, 100).toStringAsFixed(0)}%',
+                            style: TextStyle(
+                              color: Colors.orangeAccent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        )
+                      else
+                        // Case: Completed normally.
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
                           ),
                           child: Text(
                             'Completed',
@@ -190,8 +212,11 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                        );
-                      }(),
+                        ),
+                    ] else if (isOverdue && !isPermanentlyOverdue) ...[
+                      // Case: Incomplete and JUST crossed overdue in this session (not yet permanent)
+                      _buildOverdueTag(widget.todo, cachedFocused),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -290,8 +315,9 @@ class _TaskCardState extends ConsumerState<TaskCard> {
             ),
           ),
         ),
-        // Progress bar (only for non-completed and non-overdue tasks)
+        // Progress bar (for non-completed tasks that aren't currently overdue)
         if (!widget.todo.completed &&
+            !isPermanentlyOverdue &&
             !isOverdue &&
             !isContinuedOverdue &&
             totalMins > 0)
@@ -327,9 +353,9 @@ class _TaskCardState extends ConsumerState<TaskCard> {
               ),
             ),
           ),
-        // Overdue time display (replaces progress bar for overdue tasks)
+        // Overdue time display (only for currently overdue or continued overdue tasks)
         if (!widget.todo.completed &&
-            (widget.todo.wasOverdue == 1 || isContinuedOverdue || isOverdue) &&
+            (isPermanentlyOverdue || isContinuedOverdue || isOverdue) &&
             totalMins > 0)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),

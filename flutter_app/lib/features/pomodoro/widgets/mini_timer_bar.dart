@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../todo/models/todo.dart';
+import '../../todo/providers/todos_provider.dart';
 import '../pomodoro_router.dart';
 
 class MiniTimerBar extends ConsumerWidget {
@@ -119,117 +120,126 @@ class MiniTimerBar extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _format(timer.timeRemaining),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
+            // This makes the text section take up all available space, pushing buttons to the right.
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _format(timer.timeRemaining),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                SizedBox(
-                  width: 200,
-                  child: Text(
+                  const SizedBox(height: 6),
+                  // No need for a SizedBox, Text will now truncate automatically.
+                  Text(
                     timer.activeTaskName ?? '',
                     style: const TextStyle(
                       color: Color(0xFFFFD54F),
                       fontWeight: FontWeight.w700,
                     ),
                     overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ],
+              ),
+            ),
+            // This Row ensures all buttons stay grouped together without extra space.
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  onPressed: () {
+                    if (kDebugMode) {
+                      debugPrint('MINI BAR: play/pause via legacy service');
+                    }
+                    notifier.toggleRunning();
+                  },
+                  icon: Icon(
+                    timer.isRunning
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
+                    color: AppColors.brightYellow,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () async {
+                    if (kDebugMode) debugPrint('MINI BAR: expand pressed');
+                    await PomodoroRouter.showPomodoroSheet(
+                      context,
+                      api,
+                      activeTodo ??
+                          Todo(
+                            id: 0,
+                            userId: '',
+                            text: timer.activeTaskName ?? '',
+                            completed: false,
+                            durationHours: 0,
+                            durationMinutes: 0,
+                            focusedTime: 0,
+                            wasOverdue: 0,
+                            overdueTime: 0,
+                          ),
+                      notificationService,
+                      ({bool wasOverdue = false, int overdueTime = 0}) async {
+                        if (activeTodo != null) {
+                          await onComplete(activeTodo!.id);
+                        }
+                      },
+                    );
+                    notifier.update(active: false);
+                  },
+                  icon: const Icon(
+                    Icons.keyboard_arrow_up_rounded,
+                    color: Colors.white,
+                  ),
+                ),
+                // *** UX ENHANCEMENT: Quick stop/close button ***
+                IconButton(
+                  onPressed: () async {
+                    if (kDebugMode) {
+                      debugPrint('MINI BAR: stop session pressed');
+                    }
+
+                    // Save progress if there's an active todo
+                    if (activeTodo != null) {
+                      final success = await notifier.stopAndSaveProgress(
+                        activeTodo!.id,
+                      );
+
+                      // Show feedback
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              success
+                                  ? 'Session stopped and progress saved ✓'
+                                  : 'Session stopped (save failed)',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            backgroundColor: success
+                                ? Colors.green[700]
+                                : Colors.orange[700],
+                            duration: const Duration(seconds: 2),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    } else {
+                      // No active todo, just clear the session
+                      notifier.clear();
+                    }
+                  },
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Colors.red,
+                    size: 20,
                   ),
                 ),
               ],
-            ),
-            const Spacer(),
-            IconButton(
-              onPressed: () {
-                if (kDebugMode) {
-                  debugPrint('MINI BAR: play/pause via legacy service');
-                }
-                notifier.toggleRunning();
-              },
-              icon: Icon(
-                timer.isRunning
-                    ? Icons.pause_rounded
-                    : Icons.play_arrow_rounded,
-                color: AppColors.brightYellow,
-              ),
-            ),
-            IconButton(
-              onPressed: () async {
-                if (kDebugMode) debugPrint('MINI BAR: expand pressed');
-                await PomodoroRouter.showPomodoroSheet(
-                  context,
-                  api,
-                  activeTodo ??
-                      Todo(
-                        id: 0,
-                        userId: '',
-                        text: timer.activeTaskName ?? '',
-                        completed: false,
-                        durationHours: 0,
-                        durationMinutes: 0,
-                        focusedTime: 0,
-                        wasOverdue: 0,
-                        overdueTime: 0,
-                      ),
-                  notificationService,
-                  ({bool wasOverdue = false, int overdueTime = 0}) async {
-                    if (activeTodo != null) {
-                      await onComplete(activeTodo!.id);
-                    }
-                  },
-                );
-                notifier.update(active: false);
-              },
-              icon: const Icon(
-                Icons.keyboard_arrow_up_rounded,
-                color: Colors.white,
-              ),
-            ),
-            // *** UX ENHANCEMENT: Quick stop/close button ***
-            IconButton(
-              onPressed: () async {
-                if (kDebugMode) debugPrint('MINI BAR: stop session pressed');
-
-                // Save progress if there's an active todo
-                if (activeTodo != null) {
-                  final success = await notifier.stopAndSaveProgress(
-                    activeTodo!.id,
-                  );
-
-                  // Show feedback
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          success
-                              ? 'Session stopped and progress saved ✓'
-                              : 'Session stopped (save failed)',
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                        backgroundColor: success
-                            ? Colors.green[700]
-                            : Colors.orange[700],
-                        duration: const Duration(seconds: 2),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  }
-                } else {
-                  // No active todo, just clear the session
-                  notifier.clear();
-                }
-              },
-              icon: const Icon(
-                Icons.close_rounded,
-                color: Colors.red,
-                size: 20,
-              ),
             ),
           ],
         ),
@@ -262,6 +272,10 @@ Future<void> _showOverduePromptFromMiniBar(
     notificationService.playSound('progress_bar_full.wav');
   } catch (_) {}
 
+  // *** PAUSE TIMER DURING DIALOG ***
+  final wasRunning = timer.isRunning;
+  if (wasRunning) notifier.pauseTask();
+
   final res = await showDialog<String>(
     context: context,
     barrierDismissible: false,
@@ -283,10 +297,72 @@ Future<void> _showOverduePromptFromMiniBar(
     ),
   );
 
+  // If dialog is dismissed without a choice, resume timer if it was running.
+  if (res == null) {
+    if (wasRunning) notifier.resumeTask();
+    return;
+  }
+
   if (res == 'complete') {
-    await onComplete(todo.id);
-    notifier.clear();
-  } else {
+    final focusedTime = notifier.getFocusedTime(todo.text);
+    final plannedTime =
+        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+    final overdueTime = (focusedTime - plannedTime)
+        .clamp(0, double.infinity)
+        .toInt();
+
+    try {
+      await ref
+          .read(todosProvider.notifier)
+          .completeTodoWithOverdue(todo.id, overdueTime: overdueTime);
+      notifier.clear();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to complete task. Please try again.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  } else if (res == 'continue') {
+    // *** THIS IS THE CORRECTED LOGIC ALIGNED WITH THE UX FLOWCHART ***
+    // 1. Mark the task as having been continued in an overdue state.
     notifier.markOverdueContinued(taskName);
+
+    // 2. Stop the session and save the progress.
+    final success = await notifier.stopAndSaveProgress(todo.id);
+
+    // 2b. After saving, we know backend updated focused_time which may set
+    // was_overdue + overdue_time. We compute overdue locally and optimistically
+    // mark task permanently overdue so UI updates immediately.
+    final focusedTime = notifier.getFocusedTime(todo.text);
+    final plannedTime =
+        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+    final overdueTime = (focusedTime - plannedTime)
+        .clamp(0, double.infinity)
+        .toInt();
+    ref
+        .read(todosProvider.notifier)
+        .markTaskPermanentlyOverdue(todo.id, overdueTime: overdueTime);
+
+    // 3. Completely clear the timer state, which will make the mini-bar disappear.
+    notifier.clear();
+
+    // 4. Provide feedback to the user.
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? 'Progress saved. Press play on the task to continue.'
+                : 'Session stopped (save failed).',
+            style: const TextStyle(color: Colors.white),
+          ),
+          backgroundColor: success ? Colors.green[700] : Colors.orange[700],
+        ),
+      );
+    }
   }
 }

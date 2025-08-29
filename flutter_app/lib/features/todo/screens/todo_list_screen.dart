@@ -189,6 +189,19 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
     int overdueTime = 0,
   }) async {
     if (!mounted) return;
+
+    // Check if this is the active timer task and stop it silently
+    final timerState = ref.read(timerProvider);
+    final currentTodos = ref.read(todosProvider).value ?? [];
+    final currentTodo = currentTodos.where((t) => t.id == id).firstOrNull;
+
+    if (currentTodo != null &&
+        timerState.activeTaskName == currentTodo.text &&
+        timerState.isTimerActive) {
+      // Stop and save the timer silently (no dialog/snackbar)
+      await ref.read(timerProvider.notifier).stopAndSaveProgress(id);
+    }
+
     try {
       if (wasOverdue) {
         await ref
@@ -215,6 +228,19 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
 
   Future<void> _handleTaskDeletion(int id) async {
     if (!mounted) return;
+
+    // Check if this is the active timer task and stop it
+    final timerState = ref.read(timerProvider);
+    final currentTodos = ref.read(todosProvider).value ?? [];
+    final currentTodo = currentTodos.where((t) => t.id == id).firstOrNull;
+
+    if (currentTodo != null &&
+        timerState.activeTaskName == currentTodo.text &&
+        timerState.isTimerActive) {
+      // Clear the timer completely since task is being deleted
+      ref.read(timerProvider.notifier).clear();
+    }
+
     try {
       await ref.read(todosProvider.notifier).deleteTodo(id);
     } catch (e) {
@@ -231,6 +257,25 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
 
   Future<void> _handleTaskToggle(int id) async {
     if (!mounted) return;
+
+    // Check if we're toggling the active timer task
+    final timerState = ref.read(timerProvider);
+    final currentTodos = ref.read(todosProvider).value ?? [];
+    final currentTodo = currentTodos.where((t) => t.id == id).firstOrNull;
+
+    if (currentTodo != null &&
+        timerState.activeTaskName == currentTodo.text &&
+        timerState.isTimerActive) {
+      // If task is being completed, stop and save. If being revived, just clear.
+      if (!currentTodo.completed) {
+        // Task is being completed - stop and save
+        await ref.read(timerProvider.notifier).stopAndSaveProgress(id);
+      } else {
+        // Task is being revived - just clear the timer
+        ref.read(timerProvider.notifier).clear();
+      }
+    }
+
     try {
       await ref.read(todosProvider.notifier).toggleTodo(id);
     } catch (e) {
