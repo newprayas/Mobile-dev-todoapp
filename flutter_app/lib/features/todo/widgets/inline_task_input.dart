@@ -44,7 +44,6 @@ class _InlineTaskInputState extends State<InlineTaskInput> {
 
     widget.onAddTask(taskName, hours, minutes);
 
-    // Clear the task input but keep duration values
     _taskController.clear();
     _taskFocusNode.requestFocus();
   }
@@ -63,111 +62,38 @@ class _InlineTaskInputState extends State<InlineTaskInput> {
     return Column(
       children: [
         // Task text input
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.midGray,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: TextField(
-            controller: _taskController,
-            focusNode: _taskFocusNode,
-            style: TextStyle(color: AppColors.lightGray, fontSize: 16),
-            decoration: InputDecoration(
-              hintText: 'What do you need to do?',
-              hintStyle: TextStyle(color: AppColors.mediumGray, fontSize: 16),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.all(12),
+        TextField(
+          controller: _taskController,
+          focusNode: _taskFocusNode,
+          style: TextStyle(color: AppColors.lightGray, fontSize: 16),
+          decoration: InputDecoration(
+            hintText: 'What do you need to do?',
+            hintStyle: TextStyle(color: AppColors.mediumGray, fontSize: 16),
+            filled: true,
+            fillColor: AppColors.midGray,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
             ),
-            onSubmitted: (_) => _handleSubmit(),
-            maxLines: null,
-            textInputAction: TextInputAction.done,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
           ),
+          onSubmitted: (_) => _handleSubmit(),
+          textInputAction: TextInputAction.done,
         ),
         const SizedBox(height: 12),
         // Duration and Add button row
         Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Hours input
-            Container(
-              width: 100,
-              decoration: BoxDecoration(
-                color: AppColors.midGray,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Stack(
-                children: [
-                  TextField(
-                    controller: _hoursController,
-                    style: TextStyle(
-                      color: AppColors.lightGray,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.fromLTRB(12, 12, 30, 12),
-                    ),
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.left,
-                  ),
-                  Positioned(
-                    right: 12,
-                    top: 12,
-                    child: Text(
-                      'h',
-                      style: TextStyle(
-                        color: AppColors.mediumGray,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _DurationInputBox(controller: _hoursController, unit: 'h'),
             const SizedBox(width: 12),
-            // Minutes input
-            Container(
-              width: 100,
-              decoration: BoxDecoration(
-                color: AppColors.midGray,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Stack(
-                children: [
-                  TextField(
-                    controller: _minutesController,
-                    style: TextStyle(
-                      color: AppColors.lightGray,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.fromLTRB(12, 12, 30, 12),
-                    ),
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.left,
-                  ),
-                  Positioned(
-                    right: 12,
-                    top: 12,
-                    child: Text(
-                      'm',
-                      style: TextStyle(
-                        color: AppColors.mediumGray,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _DurationInputBox(controller: _minutesController, unit: 'm'),
             const Spacer(),
-            // Add button
             SizedBox(
-              height: 44,
+              height: 48,
               child: ElevatedButton(
                 onPressed: _handleSubmit,
                 style: ElevatedButton.styleFrom(
@@ -190,6 +116,56 @@ class _InlineTaskInputState extends State<InlineTaskInput> {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// A specialized, styled input box for duration values (hours or minutes).
+class _DurationInputBox extends StatelessWidget {
+  final TextEditingController controller;
+  final String unit;
+
+  const _DurationInputBox({required this.controller, required this.unit});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 80,
+      height: 48,
+      decoration: BoxDecoration(
+        color: AppColors.midGray,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              style: TextStyle(
+                color: AppColors.lightGray,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.start,
+            ),
+          ),
+          Text(
+            unit,
+            style: TextStyle(
+              color: AppColors.mediumGray,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

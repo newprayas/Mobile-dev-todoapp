@@ -207,13 +207,10 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
     Todo? activeTodo;
     if (activeTaskId != null && todosAsync.hasValue) {
       try {
-        // --- THIS IS THE FIX ---
-        // Safely find the active todo without crashing if the list is temporarily out of sync.
         activeTodo = todosAsync.value!.firstWhere(
           (todo) => todo.id == activeTaskId,
         );
       } catch (e) {
-        // This is expected if the todos haven't loaded yet. Safely ignore.
         activeTodo = null;
       }
     }
@@ -283,7 +280,14 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
                         ),
                         const SizedBox(height: 22),
                         InlineTaskInput(onAddTask: _addTodo),
-                        const SizedBox(height: 18),
+                        // --- THIS IS THE NEW DIVIDER ---
+                        const Divider(
+                          color: AppColors.brightYellow,
+                          thickness: 1.5,
+                          height: 36, // Provides vertical spacing
+                          indent: 20, // Makes it incomplete from the left
+                          endIndent: 20, // Makes it incomplete from the right
+                        ),
                         Expanded(
                           child: todosAsync.when(
                             loading: () => const Center(
