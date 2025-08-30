@@ -22,8 +22,9 @@ class PomodoroSetupView extends StatelessWidget {
   });
 
   static const double _moduleWidth = 88.0;
-  static const double _connectorHeight = 56.0;
-  static const double _gap = 12.0;
+  static const double _connectorHeight =
+      130.0; // Further increased from 80.0 for better vertical fill
+  static const double _gap = 16.0; // Increased from 12.0
 
   @override
   Widget build(BuildContext context) {

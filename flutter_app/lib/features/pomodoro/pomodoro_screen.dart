@@ -8,7 +8,6 @@ import '../../core/utils/app_dialogs.dart';
 import '../todo/models/todo.dart';
 import 'providers/timer_provider.dart';
 import 'widgets/pomodoro_action_buttons.dart';
-import 'widgets/pomodoro_overdue_display.dart';
 import 'widgets/pomodoro_setup_view.dart';
 import 'widgets/pomodoro_timer_view.dart';
 
@@ -107,7 +106,6 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
           (widget.todo.durationHours * 3600) +
           (widget.todo.durationMinutes * 60);
 
-      // Only validate focus duration against planned duration for non-overdue tasks.
       final isPermanentOverdueMode = widget.todo.wasOverdue == 1;
       if (!isPermanentOverdueMode &&
           plannedDurationSeconds > 0 &&
@@ -212,6 +210,46 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
     });
   }
 
+  Widget _buildStatusIndicator({
+    required bool isPermanentOverdue,
+    required bool isSetupMode,
+    required int focusedSeconds,
+    required int plannedSeconds,
+  }) {
+    final content = isPermanentOverdue
+        ? _buildOverdueText(focusedSeconds, plannedSeconds)
+        : ProgressBar(
+            focusedSeconds: focusedSeconds,
+            plannedSeconds: plannedSeconds,
+            barHeight: 24.0, // Thicker
+          );
+
+    return Padding(
+      // Move down in setup mode
+      padding: EdgeInsets.only(top: isSetupMode ? 16.0 : 0),
+      child: SizedBox(height: 28.0, child: content),
+    );
+  }
+
+  Widget _buildOverdueText(int focusedSeconds, int plannedSeconds) {
+    final overdueSeconds = (focusedSeconds - plannedSeconds)
+        .clamp(0, 99999)
+        .toInt();
+    final minutes = (overdueSeconds ~/ 60).toString();
+    final seconds = (overdueSeconds % 60).toString().padLeft(2, '0');
+
+    return Center(
+      child: Text(
+        'OVERDUE TIME: $minutes:$seconds',
+        style: const TextStyle(
+          color: AppColors.priorityHigh,
+          fontSize: 18.0,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<TimerState>(timerProvider, (previous, next) {
@@ -219,7 +257,6 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
           !(previous?.allSessionsComplete ?? false)) {
         _showAllSessionsCompleteDialog(context, next.totalCycles);
       }
-
       if (next.cycleOverflowBlocked &&
           !(previous?.cycleOverflowBlocked ?? false)) {
         showDialog(
@@ -270,7 +307,7 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 50), // Increased top space from 32
               Text(
                 widget.todo.text,
                 textAlign: TextAlign.center,
@@ -281,21 +318,14 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
                   letterSpacing: 0.6,
                 ),
               ),
-              const SizedBox(height: 28),
-              SizedBox(
-                height: 20.0,
-                child: isPermanentOverdueMode
-                    ? PomodoroOverdueDisplay(
-                        focusedSeconds: focusedSeconds,
-                        plannedSeconds: plannedSeconds,
-                      )
-                    : ProgressBar(
-                        focusedSeconds: focusedSeconds,
-                        plannedSeconds: plannedSeconds,
-                        barHeight: 20.0,
-                      ),
+              const SizedBox(height: 20),
+              _buildStatusIndicator(
+                isPermanentOverdue: isPermanentOverdueMode,
+                isSetupMode: isSetupMode,
+                focusedSeconds: focusedSeconds,
+                plannedSeconds: plannedSeconds,
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 30),
               Expanded(
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),

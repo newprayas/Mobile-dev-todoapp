@@ -7,7 +7,7 @@ import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/app_dialogs.dart';
 import '../models/todo.dart';
-import '../widgets/task_card.dart';
+import './task_card.dart';
 import '../providers/todos_provider.dart';
 import '../../pomodoro/providers/timer_provider.dart';
 import '../../pomodoro/pomodoro_router.dart';

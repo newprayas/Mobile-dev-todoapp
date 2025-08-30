@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/todo.dart';
-import '../../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../pomodoro/providers/timer_provider.dart';
+import '../../../core/theme/app_colors.dart';
+import '../models/todo.dart';
 
 typedef PlayCallback = Future<void> Function(Todo todo);
 
@@ -26,23 +25,11 @@ class TaskCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return todo.completed
         ? _buildCompletedTask(context)
-        : _buildIncompleteTask(context, ref);
+        : _buildIncompleteTask(context);
   }
 
-  Widget _buildIncompleteTask(BuildContext context, WidgetRef ref) {
-    final timerState = ref.watch(timerProvider);
-    final focusedSeconds =
-        timerState.focusedTimeCache[todo.id] ?? todo.focusedTime;
-    final plannedSeconds =
-        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+  Widget _buildIncompleteTask(BuildContext context) {
     final isPermanentlyOverdue = todo.wasOverdue == 1;
-    final isActivelyOverdue =
-        !isPermanentlyOverdue &&
-        plannedSeconds > 0 &&
-        focusedSeconds > plannedSeconds;
-    final activeOverdueSeconds = isActivelyOverdue
-        ? focusedSeconds - plannedSeconds
-        : 0;
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -77,18 +64,6 @@ class TaskCard extends ConsumerWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                if (isActivelyOverdue)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4.0),
-                    child: Text(
-                      'Overdue: ${_formatOverdueDuration(activeOverdueSeconds)}',
-                      style: const TextStyle(
-                        color: AppColors.priorityHigh,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
                 if (isPermanentlyOverdue)
                   Padding(
                     padding: const EdgeInsets.only(top: 4.0),
@@ -104,7 +79,7 @@ class TaskCard extends ConsumerWidget {
               ],
             ),
           ),
-          _buildActionButtons(context, ref),
+          _buildActionButtons(),
         ],
       ),
     );
@@ -121,6 +96,7 @@ class TaskCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
@@ -132,7 +108,8 @@ class TaskCard extends ConsumerWidget {
                         color: AppColors.mediumGray,
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        decoration: TextDecoration.lineThrough,
+                        fontStyle: FontStyle.italic, // Set to italic
+                        decoration: TextDecoration.none, // Remove strikethrough
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -147,22 +124,30 @@ class TaskCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              IconButton(
-                onPressed: onToggle,
-                icon: Icon(Icons.replay, color: AppColors.mediumGray, size: 20),
-                padding: const EdgeInsets.all(4),
-                constraints: const BoxConstraints(),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: onDelete,
-                icon: Icon(
-                  Icons.delete_outline,
-                  color: AppColors.mediumGray,
-                  size: 20,
-                ),
-                padding: const EdgeInsets.all(4),
-                constraints: const BoxConstraints(),
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: onToggle,
+                    icon: const Icon(
+                      Icons.replay,
+                      color: AppColors.mediumGray,
+                      size: 20,
+                    ),
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: onDelete,
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: AppColors.mediumGray,
+                      size: 20,
+                    ),
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
               ),
             ],
           ),
@@ -176,6 +161,7 @@ class TaskCard extends ConsumerWidget {
   Widget _buildCompletionStatus() {
     final plannedSeconds =
         (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+
     if (todo.wasOverdue == 1) {
       final formattedDuration = _formatOverdueDuration(todo.overdueTime);
       return Text(
@@ -187,6 +173,7 @@ class TaskCard extends ConsumerWidget {
         ),
       );
     }
+
     if (plannedSeconds > 0 && todo.focusedTime < plannedSeconds) {
       final percent = ((todo.focusedTime / plannedSeconds) * 100)
           .toStringAsFixed(0);
@@ -199,6 +186,7 @@ class TaskCard extends ConsumerWidget {
         ),
       );
     }
+
     return const Text(
       'Completed task',
       style: TextStyle(
@@ -221,7 +209,7 @@ class TaskCard extends ConsumerWidget {
     }
   }
 
-  Widget _buildActionButtons(BuildContext context, WidgetRef ref) {
+  Widget _buildActionButtons() {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

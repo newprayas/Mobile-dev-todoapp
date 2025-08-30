@@ -7,6 +7,9 @@ import '../todo/models/todo.dart';
 import 'pomodoro_screen.dart'; // Import the new screen
 import 'providers/timer_provider.dart';
 
+typedef TaskCompletedCallback =
+    Future<void> Function({bool wasOverdue, int overdueTime});
+
 class PomodoroRouter {
   static Future<void> showPomodoroSheet(
     BuildContext context,
@@ -30,7 +33,7 @@ class PomodoroRouter {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => FractionallySizedBox(
-        heightFactor: 0.8,
+        heightFactor: 0.85, // Increased from 0.8
         alignment: Alignment.bottomCenter,
         child: Container(
           decoration: const BoxDecoration(
