@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/todo.dart';
+import '../../pomodoro/providers/timer_provider.dart';
 
 typedef PlayCallback = Future<void> Function(Todo todo);
 
@@ -25,11 +26,16 @@ class TaskCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return todo.completed
         ? _buildCompletedTask(context)
-        : _buildIncompleteTask(context);
+        : _buildIncompleteTask(context, ref);
   }
 
-  Widget _buildIncompleteTask(BuildContext context) {
+  Widget _buildIncompleteTask(BuildContext context, WidgetRef ref) {
     final isPermanentlyOverdue = todo.wasOverdue == 1;
+
+    // Watch the timer state to get live updates for focused time.
+    final timerState = ref.watch(timerProvider);
+    final focusedSeconds =
+        timerState.focusedTimeCache[todo.id] ?? todo.focusedTime;
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -68,7 +74,7 @@ class TaskCard extends ConsumerWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 4.0),
                     child: Text(
-                      'Overdue: ${_formatOverdueDuration(todo.overdueTime)}',
+                      'Overdue: ${_formatOverdueDuration((focusedSeconds - ((todo.durationHours * 3600) + (todo.durationMinutes * 60))).clamp(0, 999999).toInt())}',
                       style: const TextStyle(
                         color: AppColors.priorityHigh,
                         fontSize: 12,
@@ -79,7 +85,7 @@ class TaskCard extends ConsumerWidget {
               ],
             ),
           ),
-          _buildActionButtons(),
+          _buildActionButtons(context, ref),
         ],
       ),
     );
@@ -209,14 +215,26 @@ class TaskCard extends ConsumerWidget {
     }
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(BuildContext context, WidgetRef ref) {
+    final timerState = ref.watch(timerProvider);
+    final isThisTaskActive = timerState.activeTaskId == todo.id;
+    final isThisTaskRunning = isThisTaskActive && timerState.isRunning;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
-          onPressed: () => onPlay(todo),
+          onPressed: () {
+            if (isThisTaskActive) {
+              // If this task is already active, just toggle the timer.
+              ref.read(timerProvider.notifier).toggleRunning();
+            } else {
+              // Otherwise, initiate the full play flow.
+              onPlay(todo);
+            }
+          },
           icon: Icon(
-            Icons.play_arrow,
+            isThisTaskRunning ? Icons.pause : Icons.play_arrow,
             color: todo.completed ? AppColors.mediumGray : AppColors.lightGray,
             size: 24,
           ),

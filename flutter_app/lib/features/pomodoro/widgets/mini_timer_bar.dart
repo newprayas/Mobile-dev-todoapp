@@ -48,7 +48,6 @@ class MiniTimerBar extends ConsumerWidget {
 
     return GestureDetector(
       onTap: () async {
-        notifier.update(active: false);
         await PomodoroRouter.showPomodoroSheet(
           context,
           api,

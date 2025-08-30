@@ -42,6 +42,7 @@ class PomodoroRouter {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black,
       builder: (context) => FractionallySizedBox(
         heightFactor: 0.85, // Increased from 0.8
         alignment: Alignment.bottomCenter,
