@@ -20,7 +20,7 @@ class PomodoroRouter {
       final timerState = container.read(timerProvider);
       final timerNotifier = container.read(timerProvider.notifier);
 
-      if (timerState.activeTaskName != null) {
+      if (timerState.activeTaskId != null) {
         timerNotifier.update(active: true);
       }
     }

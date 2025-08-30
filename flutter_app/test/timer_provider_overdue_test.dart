@@ -9,7 +9,7 @@ void main() {
     final notifier = container.read(timerProvider.notifier);
 
     notifier.update(
-      taskName: 'taskA',
+      taskId: 1,
       active: true,
       running: true,
       mode: 'focus',
@@ -22,7 +22,7 @@ void main() {
 
     await Future.delayed(const Duration(seconds: 4));
 
-    final focused = notifier.getFocusedTime('taskA');
+    final focused = notifier.getFocusedTime(1);
     expect(
       focused >= 3,
       isTrue,
@@ -38,7 +38,7 @@ void main() {
       final notifier = container.read(timerProvider.notifier);
 
       notifier.update(
-        taskName: 'taskB',
+        taskId: 2,
         active: true,
         running: true,
         mode: 'focus',

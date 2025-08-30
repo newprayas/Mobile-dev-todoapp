@@ -1,27 +1,23 @@
 import 'package:flutter/material.dart';
 
 /// Widget responsible for displaying the formatted "OVERDUE TIME" text.
-/// Shows how much time has been spent beyond the planned duration.
-/// In permanent overdue mode, shows total focused time.
+/// It correctly calculates and shows the time spent beyond the planned duration.
 class PomodoroOverdueDisplay extends StatelessWidget {
   final int focusedSeconds;
   final int plannedSeconds;
-  final bool isPermanentOverdueMode;
 
   const PomodoroOverdueDisplay({
     required this.focusedSeconds,
     required this.plannedSeconds,
-    this.isPermanentOverdueMode = false,
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
-    // In permanent overdue mode, show total focused time as overdue
-    // In normal overdue mode, show time beyond planned duration
-    final overdueSeconds = isPermanentOverdueMode
-        ? focusedSeconds
-        : (focusedSeconds - plannedSeconds).clamp(0, double.infinity).toInt();
+    // Correctly calculate overdue time as the difference between focused and planned time.
+    final overdueSeconds = (focusedSeconds - plannedSeconds)
+        .clamp(0, double.infinity)
+        .toInt();
 
     final hours = overdueSeconds ~/ 3600;
     final minutes = (overdueSeconds % 3600) ~/ 60;
@@ -36,7 +32,7 @@ class PomodoroOverdueDisplay extends StatelessWidget {
     }
 
     return Container(
-      height: 28.0,
+      height: 28.0, // Match ProgressBar height for visual consistency
       decoration: BoxDecoration(
         color: Colors.red.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(14.0),

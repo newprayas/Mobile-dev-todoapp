@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math';
 import '../../../core/providers/notification_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/app_dialogs.dart';
 import '../models/todo.dart';
 import '../providers/todos_provider.dart';
 import '../widgets/todo_list_app_bar.dart';
@@ -90,6 +91,54 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
     }
   }
 
+  void _showOverduePrompt(BuildContext context, Todo todo) async {
+    final timerNotifier = ref.read(timerProvider.notifier);
+    timerNotifier.markOverduePromptShown(todo.id);
+
+    final wasRunning = ref.read(timerProvider).isRunning;
+    if (wasRunning) timerNotifier.pauseTask();
+
+    final result = await AppDialogs.showOverdueDialog(
+      context: context,
+      taskName: todo.text,
+    );
+
+    if (!mounted) return;
+
+    if (result == true) {
+      // Mark Complete
+      final focusedTime = timerNotifier.getFocusedTime(todo.id);
+      final plannedTime =
+          (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+      final overdueTime = (focusedTime - plannedTime)
+          .clamp(0, double.infinity)
+          .toInt();
+
+      await ref
+          .read(todosProvider.notifier)
+          .completeTodoWithOverdue(todo.id, overdueTime: overdueTime);
+      timerNotifier.clear();
+    } else if (result == false) {
+      // Continue
+      await timerNotifier.stopAndSaveProgress(todo.id);
+
+      final focusedTime = timerNotifier.getFocusedTime(todo.id);
+      final plannedTime =
+          (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+      final overdueTime = (focusedTime - plannedTime)
+          .clamp(0, double.infinity)
+          .toInt();
+      ref
+          .read(todosProvider.notifier)
+          .markTaskPermanentlyOverdue(todo.id, overdueTime: overdueTime);
+
+      timerNotifier.clear();
+    } else {
+      // Dialog dismissed
+      if (wasRunning) timerNotifier.resumeTask();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final api = ref.watch(apiServiceProvider);
@@ -102,16 +151,38 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
         ? authState.value!.userName
         : 'User';
 
-    final activeTaskName = ref.watch(timerProvider).activeTaskName;
+    final activeTaskId = ref.watch(timerProvider).activeTaskId;
     Todo? activeTodo;
-    if (activeTaskName != null && todosAsync.hasValue) {
+    if (activeTaskId != null && todosAsync.hasValue) {
       for (final todo in todosAsync.value!) {
-        if (todo.text == activeTaskName) {
+        if (todo.id == activeTaskId) {
           activeTodo = todo;
           break;
         }
       }
     }
+
+    ref.listen<TimerState>(timerProvider, (previous, next) {
+      final overdueTaskId = next.overdueCrossedTaskId;
+      // Trigger if a task has crossed into overdue, and we haven't shown the prompt for it yet.
+      if (overdueTaskId != null &&
+          !next.overduePromptShown.contains(overdueTaskId)) {
+        // Find the corresponding todo object from the currently loaded list.
+        final overdueTodo = todosAsync.value?.firstWhere(
+          (todo) => todo.id == overdueTaskId,
+          orElse: () => null as dynamic,
+        );
+
+        if (overdueTodo != null) {
+          // Schedule the dialog to show after the build is complete.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _showOverduePrompt(context, overdueTodo);
+            }
+          });
+        }
+      }
+    });
 
     return Stack(
       children: [
@@ -193,10 +264,16 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
     // Check if this is the active timer task and stop it silently
     final timerState = ref.read(timerProvider);
     final currentTodos = ref.read(todosProvider).value ?? [];
-    final currentTodo = currentTodos.where((t) => t.id == id).firstOrNull;
+    Todo? currentTodo;
+    for (final t in currentTodos) {
+      if (t.id == id) {
+        currentTodo = t;
+        break;
+      }
+    }
 
     if (currentTodo != null &&
-        timerState.activeTaskName == currentTodo.text &&
+        timerState.activeTaskId == currentTodo.id &&
         timerState.isTimerActive) {
       // Stop and save the timer silently (no dialog/snackbar)
       await ref.read(timerProvider.notifier).stopAndSaveProgress(id);
@@ -232,11 +309,27 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
     // Check if this is the active timer task and stop it
     final timerState = ref.read(timerProvider);
     final currentTodos = ref.read(todosProvider).value ?? [];
-    final currentTodo = currentTodos.where((t) => t.id == id).firstOrNull;
+    Todo? currentTodo;
+    for (final t in currentTodos) {
+      if (t.id == id) {
+        currentTodo = t;
+        break;
+      }
+    }
 
-    if (currentTodo != null &&
-        timerState.activeTaskName == currentTodo.text &&
-        timerState.isTimerActive) {
+    if (currentTodo == null) return;
+
+    // Confirm deletion with the user
+    final shouldDelete = await AppDialogs.showDeleteTaskDialog(
+      context: context,
+      taskName: currentTodo.text,
+    );
+
+    if (shouldDelete != true) {
+      return;
+    }
+
+    if (timerState.activeTaskId == currentTodo.id && timerState.isTimerActive) {
       // Clear the timer completely since task is being deleted
       ref.read(timerProvider.notifier).clear();
     }
@@ -261,10 +354,16 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
     // Check if we're toggling the active timer task
     final timerState = ref.read(timerProvider);
     final currentTodos = ref.read(todosProvider).value ?? [];
-    final currentTodo = currentTodos.where((t) => t.id == id).firstOrNull;
+    Todo? currentTodo;
+    for (final t in currentTodos) {
+      if (t.id == id) {
+        currentTodo = t;
+        break;
+      }
+    }
 
     if (currentTodo != null &&
-        timerState.activeTaskName == currentTodo.text &&
+        timerState.activeTaskId == currentTodo.id &&
         timerState.isTimerActive) {
       // If task is being completed, stop and save. If being revived, just clear.
       if (!currentTodo.completed) {

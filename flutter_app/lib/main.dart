@@ -3,11 +3,9 @@ import 'dart:io'
     show Platform, HttpClient; // Added HttpClient for backend readiness check
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'app.dart'; // Import the new root widget
 import 'core/services/api_service.dart';
-import 'core/theme/app_colors.dart';
 import 'core/services/notification_service.dart';
-import 'core/widgets/auth_wrapper.dart';
 import 'features/todo/providers/todos_provider.dart';
 import 'core/providers/notification_provider.dart';
 
@@ -53,7 +51,7 @@ void main() async {
         // Override notification service provider
         notificationServiceProvider.overrideWithValue(notificationService),
       ],
-      child: const MyApp(),
+      child: const App(), // Run the new App widget
     ),
   );
 }
@@ -105,25 +103,6 @@ Future<void> _waitForBackend(
   if (kDebugMode) {
     debugPrint(
       'BACKEND WAIT: Proceeding without positive health confirmation.',
-    );
-  }
-}
-
-class MyApp extends ConsumerWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return MaterialApp(
-      title: 'Todo Flutter',
-      theme: ThemeData.dark().copyWith(
-        primaryColor: AppColors.brightYellow,
-        scaffoldBackgroundColor: AppColors.scaffoldBg,
-        textTheme: GoogleFonts.interTextTheme(
-          ThemeData.dark().textTheme,
-        ).apply(bodyColor: AppColors.lightGray),
-      ),
-      home: const AuthWrapper(),
     );
   }
 }

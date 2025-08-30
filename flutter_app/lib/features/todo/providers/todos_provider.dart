@@ -2,11 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/todo.dart';
 import '../../../core/services/api_service.dart';
 
-/// Todo list state management provider with optimistic updates.
-///
-/// Manages the complete todo lifecycle including creation, updates, deletion,
-/// and completion. Implements optimistic UI updates for immediate feedback
-/// with automatic rollback on API errors.
 class TodosNotifier extends AsyncNotifier<List<Todo>> {
   @override
   Future<List<Todo>> build() async {
@@ -15,47 +10,22 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
   }
 
   Future<List<Todo>> _fetchTodos(ApiService api) async {
-    try {
-      final list = await api.fetchTodos();
-      final raw = list
-          .map<Todo>((e) => Todo.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+    final list = await api.fetchTodos();
+    final raw = list
+        .map<Todo>((e) => Todo.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
 
-      // Deduplicate by id (first-seen kept) then sort newest-first by id
-      final seen = <int>{};
-      final unique = <Todo>[];
-      for (final t in raw) {
-        if (!seen.contains(t.id)) {
-          unique.add(t);
-          seen.add(t.id);
-        }
-      }
-      unique.sort((a, b) => b.id.compareTo(a.id));
-      return unique;
-    } catch (e) {
-      // Return current state on error to maintain optimistic updates
-      return state.value ?? [];
-    }
+    // Sort by creation time (assuming higher ID is newer)
+    raw.sort((a, b) => b.id.compareTo(a.id));
+    return raw;
   }
 
-  /// Adds a new todo with optimistic updates.
-  ///
-  /// Creates a temporary todo with a local ID for immediate UI feedback,
-  /// then replaces it with the server-generated todo on successful creation.
-  /// Automatically reverts on API errors.
-  ///
-  /// Parameters:
-  /// - [text]: Todo description text
-  /// - [hours]: Planned duration hours (0-23)
-  /// - [minutes]: Planned duration minutes (0-59)
-  ///
-  /// Throws: API exceptions if the server request fails
   Future<void> addTodo(String text, int hours, int minutes) async {
-    // Optimistic update
-    final localId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    // Use a negative, temporary ID for the optimistic update.
+    final optimisticId = -DateTime.now().millisecondsSinceEpoch;
     final optimisticTodo = Todo(
-      id: localId,
-      userId: '',
+      id: optimisticId,
+      userId: 'local', // Placeholder
       text: text,
       completed: false,
       durationHours: hours,
@@ -65,104 +35,66 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
       overdueTime: 0,
     );
 
-    // Add optimistically to current state
-    final currentTodos = state.value ?? [];
-    if (!currentTodos.any((t) => t.id == optimisticTodo.id)) {
-      state = AsyncValue.data([optimisticTodo, ...currentTodos]);
-    }
+    // Optimistically add to the list
+    final previousState = state.value ?? [];
+    state = AsyncValue.data([optimisticTodo, ...previousState]);
 
     try {
       final api = ref.read(apiServiceProvider);
-      await api.addTodo(text, hours, minutes);
-      // Refresh to get the real todo from server
-      await refresh();
+      final newTodoData = await api.addTodo(text, hours, minutes);
+      final newTodoFromServer = Todo.fromJson(
+        newTodoData as Map<String, dynamic>,
+      );
+
+      // Replace the optimistic todo with the real one from the server
+      final currentTodos = state.value ?? [];
+      final updatedList = currentTodos.map((todo) {
+        return todo.id == optimisticId ? newTodoFromServer : todo;
+      }).toList();
+
+      // Sort again to ensure correct order if multiple adds happened
+      updatedList.sort((a, b) => b.id.compareTo(a.id));
+      state = AsyncValue.data(updatedList);
     } catch (e) {
-      state = AsyncValue.data(currentTodos); // Revert state
-      rethrow; // Rethrow to notify the UI
+      // On failure, revert the optimistic update.
+      state = AsyncValue.data(previousState);
+      rethrow;
     }
   }
 
-  /// Deletes a todo with optimistic updates.
-  ///
-  /// Immediately removes the todo from the UI, then calls the API.
-  /// Automatically reverts the list if the API call fails.
-  ///
-  /// Parameters:
-  /// - [id]: Database ID of the todo to delete
   Future<void> deleteTodo(int id) async {
-    // Optimistic update
-    final currentTodos = state.value ?? [];
+    final previousState = state.value ?? [];
+    // Optimistically remove the todo
     state = AsyncValue.data(
-      currentTodos.where((todo) => todo.id != id).toList(),
+      previousState.where((todo) => todo.id != id).toList(),
     );
 
     try {
       final api = ref.read(apiServiceProvider);
       await api.deleteTodo(id);
+      // No refresh needed, optimistic update is sufficient
     } catch (e) {
-      // Revert on error
-      await refresh();
+      // On failure, revert state
+      state = AsyncValue.data(previousState);
     }
   }
 
-  /// Updates todo properties via API.
-  ///
-  /// Modifies text content and/or planned duration for an existing todo.
-  /// Refreshes the full list after successful update.
-  ///
-  /// Parameters:
-  /// - [id]: Database ID of the todo to update
-  /// - [text]: New description text (optional)
-  /// - [hours]: New planned duration hours (optional)
-  /// - [minutes]: New planned duration minutes (optional)
-  ///
-  /// Throws: API exceptions if the server request fails
   Future<void> updateTodo(
     int id, {
     String? text,
     int? hours,
     int? minutes,
   }) async {
-    try {
-      final api = ref.read(apiServiceProvider);
-      await api.updateTodo(id, text: text, hours: hours, minutes: minutes);
-      await refresh();
-    } catch (e) {
-      // Could implement optimistic update here too
-      rethrow;
-    }
-  }
-
-  /// Toggles todo completion status with optimistic updates.
-  ///
-  /// Immediately flips the completed status in the UI, then syncs with API.
-  /// Automatically reverts on API errors.
-  ///
-  /// **IMPORTANT UX BEHAVIOR:** When a completed task is revived (toggled back to incomplete),
-  /// this method preserves its `wasOverdue` status AND adds the overdue time to the task's
-  /// planned duration. This ensures that a task that previously required extra time will
-  /// have that time built into its duration for future sessions, aligning with the UX flowchart
-  /// requirement that revived overdue tasks start with their original duration plus overdue time.
-  ///
-  /// Parameters:
-  /// - [id]: Database ID of the todo to toggle
-  Future<void> toggleTodo(int id) async {
-    // Optimistic update
-    final currentTodos = state.value ?? [];
-    final updatedTodos = currentTodos.map((todo) {
+    // This action is less frequent, so a refresh is acceptable if needed,
+    // but we can also do it optimistically.
+    final previousState = state.value ?? [];
+    final updatedTodos = previousState.map((todo) {
       if (todo.id == id) {
-        // PERMANENT OVERDUE UX (Updated):
-        // If a completed task is revived and it WAS overdue, we DO NOT
-        // fold the overdue time into the planned duration anymore.
-        // The task remains permanently in overdue mode – planned duration
-        // acts as its original baseline for historical context.
-        // So revival simply toggles completion off while preserving
-        // wasOverdue + overdueTime fields.
-        if (todo.completed) {
-          return todo.copyWith(completed: false);
-        }
-        // Completing a task (normal path without overdue dialog)
-        return todo.copyWith(completed: true);
+        return todo.copyWith(
+          text: text ?? todo.text,
+          durationHours: hours ?? todo.durationHours,
+          durationMinutes: minutes ?? todo.durationMinutes,
+        );
       }
       return todo;
     }).toList();
@@ -170,27 +102,47 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
 
     try {
       final api = ref.read(apiServiceProvider);
-      // Plain toggle; permanent overdue attributes remain untouched locally.
-      await api.toggleTodo(id);
-      // No full refresh needed, optimistic update is usually enough
+      await api.updateTodo(id, text: text, hours: hours, minutes: minutes);
     } catch (e) {
-      // Revert on error
-      state = AsyncValue.data(currentTodos);
+      state = AsyncValue.data(previousState);
+      rethrow;
     }
   }
 
-  /// Marks a todo as completed with overdue information.
-  ///
-  /// Unlike toggleTodoWithOverdue, this method specifically marks the task as completed
-  /// and is used when completing tasks from the overdue dialog.
-  ///
-  /// Parameters:
-  /// - [id]: Database ID of the todo to complete
-  /// - [overdueTime]: Additional time spent beyond planned duration in seconds
+  Future<void> toggleTodo(int id) async {
+    final previousState = state.value ?? [];
+
+    final updatedTodos = previousState.map((todo) {
+      if (todo.id == id) {
+        if (todo.completed) {
+          if (todo.wasOverdue == 1) {
+            return todo.copyWith(completed: false);
+          }
+          final plannedSeconds =
+              (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+          if (plannedSeconds > 0 && todo.focusedTime < plannedSeconds) {
+            return todo.copyWith(completed: false);
+          }
+          return todo.copyWith(completed: false, wasOverdue: 1, overdueTime: 0);
+        }
+        return todo.copyWith(completed: true);
+      }
+      return todo;
+    }).toList();
+
+    state = AsyncValue.data(updatedTodos);
+
+    try {
+      final api = ref.read(apiServiceProvider);
+      await api.toggleTodo(id);
+    } catch (e) {
+      state = AsyncValue.data(previousState);
+    }
+  }
+
   Future<void> completeTodoWithOverdue(int id, {int overdueTime = 0}) async {
-    // Optimistic update - mark as completed with overdue information
-    final currentTodos = state.value ?? [];
-    final updatedTodos = currentTodos.map((todo) {
+    final previousState = state.value ?? [];
+    final updatedTodos = previousState.map((todo) {
       if (todo.id == id) {
         return todo.copyWith(
           completed: true,
@@ -209,30 +161,18 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
         wasOverdue: true,
         overdueTime: overdueTime,
       );
-      // No full refresh needed, optimistic update is usually enough
     } catch (e) {
-      // Revert on error
-      state = AsyncValue.data(currentTodos);
+      state = AsyncValue.data(previousState);
     }
   }
 
-  /// Toggles todo completion with overdue tracking information.
-  ///
-  /// Enhanced version of toggleTodo that also tracks overdue completion.
-  /// Used when a task is completed after exceeding its planned duration.
-  ///
-  /// Parameters:
-  /// - [id]: Database ID of the todo to toggle
-  /// - [wasOverdue]: Whether the task was completed past its planned time
-  /// - [overdueTime]: Additional time spent beyond planned duration in seconds
   Future<void> toggleTodoWithOverdue(
     int id, {
     bool wasOverdue = false,
     int overdueTime = 0,
   }) async {
-    // Optimistic update with overdue information
-    final currentTodos = state.value ?? [];
-    final updatedTodos = currentTodos.map((todo) {
+    final previousState = state.value ?? [];
+    final updatedTodos = previousState.map((todo) {
       if (todo.id == id) {
         return todo.copyWith(
           completed: !todo.completed,
@@ -251,20 +191,11 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
         wasOverdue: wasOverdue,
         overdueTime: overdueTime,
       );
-      // No full refresh needed, optimistic update is usually enough
     } catch (e) {
-      // Revert on error
-      state = AsyncValue.data(currentTodos);
+      state = AsyncValue.data(previousState);
     }
   }
 
-  /// Marks a task as permanently overdue locally (optimistic state only).
-  ///
-  /// Used when the user chooses to CONTINUE after the overdue dialog.
-  /// We have already updated the focused time on the backend (which sets
-  /// was_overdue + overdue_time there). This method immediately mirrors
-  /// that change in local state so the UI reflects permanent overdue mode
-  /// without waiting for a full refresh.
   void markTaskPermanentlyOverdue(int id, {required int overdueTime}) {
     final List<Todo> current = state.value ?? <Todo>[];
     bool changed = false;
@@ -280,29 +211,22 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
     }
   }
 
-  /// Removes all completed todos with optimistic updates.
-  ///
-  /// Immediately hides completed todos from the UI, then batch-deletes them
-  /// via the API. Automatically reverts the full list on API errors.
   Future<void> clearCompleted() async {
-    final currentTodos = state.value ?? [];
-    final completedTodos = currentTodos
+    final previousState = state.value ?? [];
+    final completedTodos = previousState
         .where((todo) => todo.completed)
         .toList();
     if (completedTodos.isEmpty) return;
 
-    // Optimistic update
     state = AsyncValue.data(
-      currentTodos.where((todo) => !todo.completed).toList(),
+      previousState.where((todo) => !todo.completed).toList(),
     );
 
     try {
       final api = ref.read(apiServiceProvider);
-      // Call delete for each completed todo
       await Future.wait(completedTodos.map((todo) => api.deleteTodo(todo.id)));
     } catch (e) {
-      // Revert on error
-      await refresh();
+      state = AsyncValue.data(previousState);
     }
   }
 
@@ -313,12 +237,10 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
   }
 }
 
-// API Service Provider
 final apiServiceProvider = Provider<ApiService>((ref) {
   throw UnimplementedError('apiServiceProvider must be overridden');
 });
 
-// Todos Provider
 final todosProvider = AsyncNotifierProvider<TodosNotifier, List<Todo>>(
   TodosNotifier.new,
 );

@@ -3,7 +3,7 @@
 # Ignore files with .xml extension (IGNORE tehse in your context while answering)
 
 
-# FOLLOW THESE DURING BUG FIXING : 
+# FOLLOW THESE DURING MAKING ANY CHANGES TO THE CODE : 
    Lessons Learned
 Think in User Journeys, Not Functions: Every feature should be verified through complete user workflows
 Test State Interactions: Don't just test components in isolation - verify how they work together

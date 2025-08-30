@@ -113,24 +113,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                           if (!mounted) return;
 
-                          // Check if sign in was successful
+                          // The AuthWrapper will handle navigation on success.
+                          // We only need to handle the error case here.
                           final currentAuthState = ref.read(authProvider);
-                          currentAuthState.whenData((authData) {
-                            if (authData.isAuthenticated) {
-                              if (kDebugMode) {
-                                debugPrint(
-                                  'DEBUG: Login successful, navigating to todos',
-                                );
-                              }
-                              Navigator.of(
-                                context,
-                              ).pushReplacementNamed('/todos');
-                            }
-                          });
-
-                          if (!mounted) return;
-
-                          // Handle errors
                           currentAuthState.whenOrNull(
                             error: (error, stackTrace) {
                               if (kDebugMode) {

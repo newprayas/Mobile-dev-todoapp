@@ -46,11 +46,9 @@ class PomodoroTimerView extends StatelessWidget {
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: (timerState.isRunning || timerState.isTimerActive)
-                        ? (timerState.currentMode == 'focus'
-                              ? Colors.redAccent
-                              : Colors.greenAccent)
-                        : Colors.transparent,
+                    color: timerState.currentMode == 'focus'
+                        ? Colors.redAccent
+                        : Colors.greenAccent,
                     width: 6.0,
                   ),
                   borderRadius: BorderRadius.circular(14.0),

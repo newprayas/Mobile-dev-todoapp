@@ -17,11 +17,30 @@ class _InlineTaskInputState extends State<InlineTaskInput> {
   final _taskFocusNode = FocusNode();
 
   void _handleSubmit() {
-    final taskName = _taskController.text.trim();
-    if (taskName.isEmpty) return;
+    final String taskName = _taskController.text.trim();
+    final int hours = int.tryParse(_hoursController.text) ?? 0;
+    final int minutes = int.tryParse(_minutesController.text) ?? 25;
 
-    final hours = int.tryParse(_hoursController.text) ?? 0;
-    final minutes = int.tryParse(_minutesController.text) ?? 25;
+    if (taskName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Task name cannot be empty.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      _taskFocusNode.requestFocus();
+      return;
+    }
+
+    if (hours == 0 && minutes == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Task duration must be greater than 0 minutes.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
 
     widget.onAddTask(taskName, hours, minutes);
 

@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import '../models/todo.dart';
 import '../../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../pomodoro/providers/timer_provider.dart';
+import '../../../core/widgets/progress_bar.dart';
+import '../../pomodoro/widgets/pomodoro_overdue_display.dart';
 
 typedef PlayCallback = Future<void> Function(Todo todo);
 
-class TaskCard extends ConsumerStatefulWidget {
+class TaskCard extends ConsumerWidget {
   final Todo todo;
   final PlayCallback onPlay;
   final Future<void> Function() onDelete;
   final Future<void> Function() onToggle;
-  // UI-only flag; parent can set this when the task is active (timer running)
   final bool isActive;
 
   const TaskCard({
@@ -25,349 +25,176 @@ class TaskCard extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<TaskCard> createState() => _TaskCardState();
-}
-
-class _TaskCardState extends ConsumerState<TaskCard> {
-  String _formatOverdueTime(int overdueSeconds) {
-    final hours = overdueSeconds ~/ 3600;
-    final minutes = (overdueSeconds % 3600) ~/ 60;
-    final seconds = overdueSeconds % 60;
-
-    if (hours > 0) {
-      return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-    } else {
-      return '$minutes:${seconds.toString().padLeft(2, '0')}';
-    }
-  }
-
-  // Add this helper method inside the state for reusable tag UI
-  Widget _buildOverdueTag(Todo todo, int cachedFocused) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final timerState = ref.watch(timerProvider);
+    final focusedSeconds =
+        timerState.focusedTimeCache[todo.id] ?? todo.focusedTime;
     final plannedSeconds =
         (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-    final overdueSeconds = (cachedFocused - plannedSeconds)
-        .clamp(0, double.infinity)
-        .toInt();
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        'Overdue: ${_formatOverdueTime(overdueSeconds)}',
-        style: TextStyle(
-          color: AppColors.priorityHigh,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Watch timer state for the specific values we need
-    final focusedTimeCache = ref.watch(
-      timerProvider.select((state) => state.focusedTimeCache),
-    );
-    final overdueContinued = ref.watch(
-      timerProvider.select((state) => state.overdueContinued),
-    );
-    final timerState = ref.watch(timerProvider);
-
-    final totalMins =
-        (widget.todo.durationHours * 60) + widget.todo.durationMinutes;
-    final plannedSeconds =
-        (widget.todo.durationHours * 3600) + (widget.todo.durationMinutes * 60);
-    final cachedFocused =
-        focusedTimeCache[widget.todo.text] ?? widget.todo.focusedTime;
-    final progress = totalMins == 0
-        ? 0.0
-        : (cachedFocused / (totalMins * 60)).clamp(0.0, 1.0);
-
-    // *** FIX: Only show as overdue if currently active AND crossed planned time in current session ***
-    final isCurrentlyActive =
-        timerState.activeTaskName == widget.todo.text &&
-        timerState.isTimerActive;
-    final hasOverdueCrossed =
-        timerState.overdueCrossedTaskName == widget.todo.text;
-    final bool isOverdue = isCurrentlyActive && hasOverdueCrossed;
-    final bool isContinuedOverdue = overdueContinued.contains(widget.todo.text);
-    final bool isPermanentlyOverdue = widget.todo.wasOverdue == 1;
-
-    if (kDebugMode) {
-      debugPrint(
-        'TASK_CARD: id=${widget.todo.id} cachedFocused=$cachedFocused planned=$plannedSeconds isOverdue=$isOverdue isActive=$isCurrentlyActive hasOverdueCrossed=$hasOverdueCrossed',
-      );
-    }
+    final isPermanentlyOverdue = todo.wasOverdue == 1;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Task card content container
         Container(
           decoration: BoxDecoration(
             color: AppColors.midGray,
             borderRadius: BorderRadius.circular(12),
-            border: widget.isActive
+            border: isActive
                 ? Border.all(color: AppColors.brightYellow, width: 1.5)
                 : null,
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 6, 4),
+            padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Main task row with text and status
                 Row(
                   children: [
                     Expanded(
                       child: Row(
                         children: [
-                          // Red emoji for overdue tasks (completed and revived)
-                          if (isPermanentlyOverdue ||
-                              isOverdue ||
-                              isContinuedOverdue)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 6),
+                          if (isPermanentlyOverdue && !todo.completed)
+                            const Padding(
+                              padding: EdgeInsets.only(right: 8.0),
                               child: Text('🔴', style: TextStyle(fontSize: 14)),
                             ),
                           Expanded(
                             child: Text(
-                              widget.todo.text,
+                              todo.text,
                               style: TextStyle(
                                 color: AppColors.lightGray,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
-                                decoration: widget.todo.completed
-                                    ? TextDecoration.lineThrough
-                                    : TextDecoration.none,
-                                fontStyle: widget.todo.completed
+                                fontStyle: todo.completed
                                     ? FontStyle.italic
                                     : FontStyle.normal,
+                                decoration: TextDecoration.none,
                               ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    // *** REVISED TAG LOGIC ***
-                    if (widget.todo.completed) ...[
-                      if (widget.todo.wasOverdue == 1)
-                        // Case: Completed AND was overdue. Show completed with overdue info.
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              child: Text(
-                                'Completed',
-                                style: TextStyle(
-                                  color: AppColors.priorityLow,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            _buildOverdueTag(
-                              widget.todo,
-                              widget.todo.focusedTime,
-                            ),
-                          ],
-                        )
-                      else if (plannedSeconds > 0 &&
-                          cachedFocused < plannedSeconds)
-                        // Case: Completed and Underdue.
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          child: Text(
-                            'Underdue task ${((cachedFocused / plannedSeconds) * 100).clamp(0, 100).toStringAsFixed(0)}%',
-                            style: TextStyle(
-                              color: Colors.orangeAccent,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        )
-                      else
-                        // Case: Completed normally.
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          child: Text(
-                            'Completed',
-                            style: TextStyle(
-                              color: AppColors.priorityLow,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                    ] else if (isOverdue && !isPermanentlyOverdue) ...[
-                      // Case: Incomplete and JUST crossed overdue in this session (not yet permanent)
-                      _buildOverdueTag(widget.todo, cachedFocused),
-                    ],
+                    if (todo.completed)
+                      _buildCompletionTags(focusedSeconds, plannedSeconds),
                   ],
                 ),
                 const SizedBox(height: 6),
-                // Task details row with duration, focused time, and actions
                 Row(
                   children: [
                     Text(
-                      '${widget.todo.durationHours}h ${widget.todo.durationMinutes}m',
+                      '${todo.durationHours}h ${todo.durationMinutes}m',
                       style: TextStyle(
                         color: AppColors.lightGray,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      '${(cachedFocused / 60).floor()}m',
-                      style: TextStyle(
-                        color: AppColors.brightYellow,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
                     const Spacer(),
-                    // Action buttons
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Complete/Uncomplete button
-                        IconButton(
-                          onPressed: widget.onToggle,
-                          icon: Icon(
-                            widget.todo.completed
-                                ? Icons.close
-                                : Icons.check_circle,
-                            color: AppColors.lightGray,
-                            size: 20,
-                          ),
-                          padding: const EdgeInsets.all(4),
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
-                          ),
-                        ),
-                        // Delete button
-                        IconButton(
-                          onPressed: widget.onDelete,
-                          icon: Icon(
-                            Icons.delete_outline,
-                            color: AppColors.lightGray,
-                            size: 20,
-                          ),
-                          padding: const EdgeInsets.all(4),
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
-                          ),
-                        ),
-                        // Play/Pause button (disabled for completed tasks)
-                        Builder(
-                          builder: (context) {
-                            final timerState = ref.watch(timerProvider);
-                            final isThisActive =
-                                timerState.activeTaskName == widget.todo.text &&
-                                timerState.isTimerActive;
-                            final isRunning =
-                                isThisActive && timerState.isRunning;
-                            return IconButton(
-                              onPressed: widget.todo.completed
-                                  ? null
-                                  : () => widget.onPlay(widget.todo),
-                              icon: Icon(
-                                isThisActive
-                                    ? (isRunning
-                                          ? Icons.pause
-                                          : Icons.play_arrow)
-                                    : Icons.play_arrow,
-                                color: widget.todo.completed
-                                    ? AppColors.mediumGray
-                                    : AppColors.lightGray,
-                                size: 20,
-                              ),
-                              padding: const EdgeInsets.all(4),
-                              constraints: const BoxConstraints(
-                                minWidth: 32,
-                                minHeight: 32,
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
+                    _buildActionButtons(context, ref),
                   ],
                 ),
               ],
             ),
           ),
         ),
-        // Progress bar (for non-completed tasks that aren't currently overdue)
-        if (!widget.todo.completed &&
-            !isPermanentlyOverdue &&
-            !isOverdue &&
-            !isContinuedOverdue &&
-            totalMins > 0)
+        if (!todo.completed)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Container(
-              height: 14,
-              decoration: BoxDecoration(
-                color: AppColors.inputFill,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Stack(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    height: double.infinity,
-                    decoration: BoxDecoration(
-                      color: AppColors.inputFill,
-                      borderRadius: BorderRadius.circular(16),
+            padding: const EdgeInsets.only(top: 8.0),
+            child: SizedBox(
+              height: 20.0, // Reduced from 28.0 for thinner progress bar
+              child: isPermanentlyOverdue
+                  ? PomodoroOverdueDisplay(
+                      focusedSeconds: focusedSeconds,
+                      plannedSeconds: plannedSeconds,
+                    )
+                  : ProgressBar(
+                      focusedSeconds: focusedSeconds,
+                      plannedSeconds: plannedSeconds,
+                      barHeight: 20.0, // Reduced from 28.0
                     ),
-                  ),
-                  FractionallySizedBox(
-                    widthFactor: progress.clamp(0.0, 1.0),
-                    child: Container(
-                      height: double.infinity,
-                      decoration: BoxDecoration(
-                        color: AppColors.brightYellow,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
             ),
           ),
-        // Overdue time display (only for currently overdue or continued overdue tasks)
-        if (!widget.todo.completed &&
-            (isPermanentlyOverdue || isContinuedOverdue || isOverdue) &&
-            totalMins > 0)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Text(
-              'OVERDUE TIME: ${_formatOverdueTime((cachedFocused - plannedSeconds).clamp(0, double.infinity).toInt())}',
-              style: TextStyle(
-                color: AppColors.priorityHigh,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+      ],
+    );
+  }
+
+  Widget _buildCompletionTags(int focusedSeconds, int plannedSeconds) {
+    // UX Spec: If a permanently overdue task is completed, show its final overdue time.
+    if (todo.wasOverdue == 1) {
+      final overdueSeconds = todo.overdueTime;
+      final minutes = (overdueSeconds ~/ 60).toString().padLeft(2, '0');
+      final seconds = (overdueSeconds % 60).toString().padLeft(2, '0');
+      return _buildTag('Overdue: $minutes:$seconds', AppColors.priorityHigh);
+    }
+
+    // UX Spec: If a task is completed under its planned time, show the underdue percentage.
+    if (plannedSeconds > 0 && focusedSeconds < plannedSeconds) {
+      final percent = ((focusedSeconds / plannedSeconds) * 100).toStringAsFixed(
+        0,
+      );
+      return _buildTag('Underdue task $percent%', Colors.orangeAccent);
+    }
+
+    // UX Spec: For a normal completion, show the "Completed" tag.
+    return _buildTag('Completed', AppColors.priorityLow);
+  }
+
+  Widget _buildTag(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Row _buildActionButtons(BuildContext context, WidgetRef ref) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          onPressed: onToggle,
+          icon: Icon(
+            // Use a "replay" or "revert" icon when completed, and a checkmark when incomplete.
+            todo.completed ? Icons.replay : Icons.check_circle_outline,
+            color: AppColors.lightGray,
+            size: 20,
           ),
+          padding: const EdgeInsets.all(4),
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
+        IconButton(
+          onPressed: onDelete,
+          icon: Icon(
+            Icons.delete_outline,
+            color: AppColors.lightGray,
+            size: 20,
+          ),
+          padding: const EdgeInsets.all(4),
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
+        IconButton(
+          onPressed: todo.completed ? null : () => onPlay(todo),
+          icon: Icon(
+            Icons.play_arrow,
+            color: todo.completed ? AppColors.mediumGray : AppColors.lightGray,
+            size: 20,
+          ),
+          padding: const EdgeInsets.all(4),
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
       ],
     );
   }

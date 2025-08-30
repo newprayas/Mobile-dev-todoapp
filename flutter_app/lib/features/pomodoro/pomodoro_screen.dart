@@ -1,5 +1,3 @@
-// SUGGESTED FILE: lib/features/pomodoro/pomodoro_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/api_service.dart';
@@ -8,14 +6,12 @@ import '../../core/theme/app_colors.dart';
 import '../../core/widgets/progress_bar.dart';
 import '../../core/utils/app_dialogs.dart';
 import '../todo/models/todo.dart';
-import '../todo/providers/todos_provider.dart';
 import 'providers/timer_provider.dart';
 import 'widgets/pomodoro_action_buttons.dart';
 import 'widgets/pomodoro_overdue_display.dart';
 import 'widgets/pomodoro_setup_view.dart';
 import 'widgets/pomodoro_timer_view.dart';
 
-// Define the callback here, making it the single source of truth.
 typedef TaskCompletedCallback =
     Future<void> Function({bool wasOverdue, int overdueTime});
 
@@ -67,10 +63,9 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
     final focusMinutes = int.tryParse(_focusController.text) ?? 25;
     final breakMinutes = int.tryParse(_breakController.text) ?? 5;
 
-    // *** SMART BUSINESS LOGIC: Auto-calculate cycles based on planned duration ***
     final plannedSeconds =
         (widget.todo.durationHours * 3600) + (widget.todo.durationMinutes * 60);
-    int calculatedCycles = 4; // Default cycles
+    int calculatedCycles = 4;
     if (plannedSeconds > 0 && focusMinutes > 0) {
       calculatedCycles = (plannedSeconds / (focusMinutes * 60)).ceil().clamp(
         1,
@@ -78,8 +73,6 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
       );
     }
 
-    // Update the text controller without triggering another listener event
-    // This prevents infinite loops while keeping UI in sync
     if (_cyclesController.text != calculatedCycles.toString()) {
       _cyclesController.text = calculatedCycles.toString();
     }
@@ -89,7 +82,7 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
         .updateDurations(
           focusDuration: focusMinutes * 60,
           breakDuration: breakMinutes * 60,
-          totalCycles: calculatedCycles, // Use calculated value
+          totalCycles: calculatedCycles,
         );
   }
 
@@ -108,16 +101,17 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
     final notifier = ref.read(timerProvider.notifier);
     final timerState = ref.read(timerProvider);
     if (!timerState.isRunning && timerState.currentCycle == 0) {
-      // *** CRITICAL UX VALIDATION: Focus duration cannot exceed task duration ***
       final focusDurationMinutes = int.tryParse(_focusController.text) ?? 25;
       final focusDurationSeconds = focusDurationMinutes * 60;
       final plannedDurationSeconds =
           (widget.todo.durationHours * 3600) +
           (widget.todo.durationMinutes * 60);
 
-      if (plannedDurationSeconds > 0 &&
+      // Only validate focus duration against planned duration for non-overdue tasks.
+      final isPermanentOverdueMode = widget.todo.wasOverdue == 1;
+      if (!isPermanentOverdueMode &&
+          plannedDurationSeconds > 0 &&
           focusDurationSeconds > plannedDurationSeconds) {
-        // Show validation error dialog
         _showFocusDurationValidationError(
           focusDurationMinutes,
           widget.todo.durationHours,
@@ -127,6 +121,7 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
       }
 
       notifier.startTask(
+        taskId: widget.todo.id,
         taskName: widget.todo.text,
         focusDuration: focusDurationSeconds,
         breakDuration: (int.tryParse(_breakController.text) ?? 5) * 60,
@@ -146,84 +141,47 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
     ref.read(timerProvider.notifier).skipPhase();
   }
 
-  void _handleStop() async {
-    final timerState = ref.read(timerProvider);
+  Future<void> _handleStop() async {
     final notifier = ref.read(timerProvider.notifier);
+    final timerState = ref.read(timerProvider);
 
-    // Calculate minutes worked in current session
-    final totalFocusDuration = timerState.focusDurationSeconds ?? 1500;
-    final timeRemaining = timerState.timeRemaining;
-    final minutesWorked = ((totalFocusDuration - timeRemaining) / 60).round();
-
-    // *** UX POLISH: Pause timer during dialog interaction ***
-    final wasRunning = timerState.isRunning;
-    if (wasRunning) {
-      notifier.pauseTask();
-    }
-
-    // Show stop confirmation dialog
-    final shouldStop = await AppDialogs.showStopSessionDialog(
-      context: context,
-      taskName: widget.todo.text,
-      minutesWorked: minutesWorked,
-    );
-
-    // *** UX POLISH: Resume timer if user cancels ***
-    if (shouldStop != true && wasRunning) {
-      notifier.resumeTask();
+    if (timerState.activeTaskId == null) {
+      notifier.clear();
+      if (mounted) Navigator.of(context).pop();
       return;
     }
 
+    final wasRunning = timerState.isRunning;
+    if (wasRunning) notifier.pauseTask();
+
+    final phaseDuration = timerState.currentMode == 'focus'
+        ? (timerState.focusDurationSeconds ?? 0)
+        : (timerState.breakDurationSeconds ?? 0);
+    final elapsedInPhase = phaseDuration - timerState.timeRemaining;
+    final minutesWorkedThisInterval = (elapsedInPhase / 60).round();
+
+    final shouldStop = await AppDialogs.showStopSessionDialog(
+      context: context,
+      taskName: widget.todo.text,
+      minutesWorked: minutesWorkedThisInterval,
+    );
+
+    if (!mounted) return;
+
     if (shouldStop == true) {
-      // Save progress and stop the session
-      final success = await ref
-          .read(timerProvider.notifier)
-          .stopAndSaveProgress(widget.todo.id);
-
-      if (success) {
-        // *** UX FEEDBACK: Show progress saved confirmation ***
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Progress saved for "${widget.todo.text}" ✓',
-                style: const TextStyle(color: Colors.white),
-              ),
-              backgroundColor: Colors.green[700],
-              duration: const Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-
-        // Close the Pomodoro screen after successful save
-        if (mounted && Navigator.of(context).canPop()) {
-          Navigator.of(context).pop();
-        }
-      } else {
-        // Show error message if save failed
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Failed to save progress, but session was stopped.',
-              ),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-      }
+      await notifier.stopAndSaveProgress(widget.todo.id);
+      Navigator.of(context).pop();
+    } else {
+      if (wasRunning) notifier.resumeTask();
     }
   }
 
-  /// Shows validation error when focus duration exceeds task duration
   void _showFocusDurationValidationError(
     int focusMinutes,
     int taskHours,
     int taskMinutes,
   ) {
     final totalTaskMinutes = (taskHours * 60) + taskMinutes;
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -232,8 +190,7 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
           style: TextStyle(color: Colors.red),
         ),
         content: Text(
-          'Focus duration ($focusMinutes minutes) cannot be longer than the total task duration ($totalTaskMinutes minutes).\n\n'
-          'Please reduce the focus duration or increase the task duration.',
+          'Focus duration ($focusMinutes minutes) cannot be longer than the total task duration ($totalTaskMinutes minutes).\n\nPlease reduce the focus duration or increase the task duration.',
         ),
         actions: [
           TextButton(
@@ -245,154 +202,45 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
     );
   }
 
-  /// Shows overdue prompt when task exceeds planned duration with new UX flow
-  void _showOverduePrompt(
-    BuildContext context,
-    WidgetRef ref,
-    TimerNotifier timerNotifier,
-  ) async {
-    // Mark prompt as shown to prevent re-triggering
-    timerNotifier.markOverduePromptShown(widget.todo.text);
-
-    final wasRunning = ref.read(timerProvider).isRunning;
-    if (wasRunning) timerNotifier.pauseTask();
-
-    final result = await AppDialogs.showOverdueDialog(
-      context: context,
-      taskName: widget.todo.text,
-    );
-
-    if (!mounted) return;
-
-    if (result == true) {
-      // User chose "Mark Complete"
-      final focusedTime = timerNotifier.getFocusedTime(widget.todo.text);
-      final plannedTime =
-          (widget.todo.durationHours * 3600) +
-          (widget.todo.durationMinutes * 60);
-      final overdueTime = (focusedTime - plannedTime)
-          .clamp(0, double.infinity)
-          .toInt();
-
-      // Use the dedicated completion method instead of the callback
-      try {
-        await ref
-            .read(todosProvider.notifier)
-            .completeTodoWithOverdue(widget.todo.id, overdueTime: overdueTime);
-        timerNotifier.clear();
-        Navigator.of(context).pop();
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to complete task. Please try again.'),
-              backgroundColor: Colors.redAccent,
-            ),
-          );
-        }
-      }
-    } else if (result == false) {
-      // User chose "Continue"
-      // *** FIXED UX FLOW: Stop timer completely and hide minibar ***
-      final success = await timerNotifier.stopAndSaveProgress(widget.todo.id);
-
-      // Clear the timer completely to hide minibar
-      timerNotifier.clear();
-
-      // Optimistically mark task permanently overdue in local state so when
-      // user returns to list it's already in overdue mode.
-      final focusedTime = timerNotifier.getFocusedTime(widget.todo.text);
-      final plannedTime =
-          (widget.todo.durationHours * 3600) +
-          (widget.todo.durationMinutes * 60);
-      final overdueTime = (focusedTime - plannedTime)
-          .clamp(0, double.infinity)
-          .toInt();
-      ref
-          .read(todosProvider.notifier)
-          .markTaskPermanentlyOverdue(widget.todo.id, overdueTime: overdueTime);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              success
-                  ? 'Progress saved. Press play on the task to continue.'
-                  : 'Session stopped (save failed).',
-              style: const TextStyle(color: Colors.white),
-            ),
-            backgroundColor: success ? Colors.green[700] : Colors.orange[700],
-          ),
-        );
-        Navigator.of(context).pop();
-      }
-    } else {
-      // Dialog was dismissed
-      if (wasRunning) timerNotifier.resumeTask();
-    }
-  }
-
   void _showAllSessionsCompleteDialog(BuildContext context, int totalCycles) {
-    showDialog(
+    AppDialogs.showAllSessionsCompleteDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Sessions Complete!'),
-        content: Text(
-          'Congratulations! You have completed all $totalCycles focus sessions for "${widget.todo.text}".',
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // Clear the flag after showing the dialog
-              ref.read(timerProvider.notifier).clearAllSessionsCompleteFlag();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.brightYellow,
-              foregroundColor: Colors.black,
-            ),
-            child: const Text('Great!'),
-          ),
-        ],
-      ),
-    );
+      totalCycles: totalCycles,
+    ).then((_) {
+      ref.read(timerProvider.notifier).clearAllSessionsCompleteFlag();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    // *** SMART BUSINESS LOGIC: Listen for timer state changes ***
     ref.listen<TimerState>(timerProvider, (previous, next) {
-      // Show dialog when all sessions complete
       if (next.allSessionsComplete &&
           !(previous?.allSessionsComplete ?? false)) {
         _showAllSessionsCompleteDialog(context, next.totalCycles);
       }
 
-      // *** UX FEEDBACK: Show blocked action feedback ***
       if (next.cycleOverflowBlocked &&
           !(previous?.cycleOverflowBlocked ?? false)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Action Not Allowed'),
             content: Text(
-              'Cannot set more than ${next.totalCycles} cycles for this task duration',
-              style: const TextStyle(color: Colors.white),
+              'Cannot set more than ${next.totalCycles} cycles for this task duration.',
             ),
-            backgroundColor: Colors.orange[700],
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  ref
+                      .read(timerProvider.notifier)
+                      .clearCycleOverflowBlockedFlag();
+                },
+                child: const Text('Dismiss'),
+              ),
+            ],
           ),
         );
-      }
-
-      // *** NEW UX FLOW: Handle overdue prompt ***
-      if (next.overdueCrossedTaskName == widget.todo.text &&
-          !next.overduePromptShown.contains(widget.todo.text)) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (context.mounted) {
-            _showOverduePrompt(context, ref, ref.read(timerProvider.notifier));
-          }
-        });
       }
     });
 
@@ -400,111 +248,91 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
     final isSetupMode = !timerState.isRunning && timerState.currentCycle == 0;
 
     final focusedSeconds =
-        timerState.focusedTimeCache[widget.todo.text] ??
-        widget.todo.focusedTime;
+        timerState.focusedTimeCache[widget.todo.id] ?? widget.todo.focusedTime;
     final plannedSeconds =
         (widget.todo.durationHours * 3600) + (widget.todo.durationMinutes * 60);
 
-    // *** NEW OVERDUE MODE LOGIC: Check for permanent overdue state ***
     final isPermanentOverdueMode = widget.todo.wasOverdue == 1;
-    final isCurrentSessionOverdue =
-        plannedSeconds > 0 && focusedSeconds >= plannedSeconds;
-    final shouldShowOverdueDisplay =
-        isPermanentOverdueMode || isCurrentSessionOverdue;
 
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          if (widget.asSheet)
-            Container(
-              width: 40,
-              height: 5,
-              decoration: BoxDecoration(
-                color: Colors.grey[600],
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          const SizedBox(height: 16),
-          Column(
+    return Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
             children: [
+              if (widget.asSheet)
+                Container(
+                  width: 40,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[600],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              const SizedBox(height: 16),
               Text(
                 widget.todo.text,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: AppColors.brightYellow,
-                  fontSize: 22.0,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 26.0,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.6,
                 ),
               ),
-              if (isPermanentOverdueMode) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.red, width: 1),
-                  ),
-                  child: const Text(
-                    '🔴 OVERDUE MODE',
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+              const SizedBox(height: 28),
+              SizedBox(
+                height: 20.0,
+                child: isPermanentOverdueMode
+                    ? PomodoroOverdueDisplay(
+                        focusedSeconds: focusedSeconds,
+                        plannedSeconds: plannedSeconds,
+                      )
+                    : ProgressBar(
+                        focusedSeconds: focusedSeconds,
+                        plannedSeconds: plannedSeconds,
+                        barHeight: 20.0,
+                      ),
+              ),
+              const SizedBox(height: 40),
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: isSetupMode
+                      ? PomodoroSetupView(
+                          key: const ValueKey('setup'),
+                          focusController: _focusController,
+                          breakController: _breakController,
+                          cyclesController: _cyclesController,
+                          onFocusChanged: (val) {},
+                          onBreakChanged: (val) {},
+                        )
+                      : PomodoroTimerView(
+                          key: const ValueKey('timer'),
+                          timerState: timerState,
+                        ),
                 ),
-              ],
+              ),
+              const SizedBox(height: 20),
+              PomodoroActionButtons(
+                timerState: timerState,
+                onPlayPause: _handlePlayPause,
+                onReset: _handleReset,
+                onSkip: _handleSkip,
+              ),
             ],
           ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 28,
-            child: shouldShowOverdueDisplay
-                ? PomodoroOverdueDisplay(
-                    focusedSeconds: focusedSeconds,
-                    plannedSeconds: plannedSeconds,
-                    isPermanentOverdueMode: isPermanentOverdueMode,
-                  )
-                : ProgressBar(
-                    focusedSeconds: focusedSeconds,
-                    plannedSeconds: plannedSeconds,
-                    barHeight: 28,
-                  ),
-          ),
-          const SizedBox(height: 40),
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: isSetupMode
-                  ? PomodoroSetupView(
-                      key: const ValueKey('setup'),
-                      focusController: _focusController,
-                      breakController: _breakController,
-                      cyclesController: _cyclesController,
-                      onFocusChanged: (val) {},
-                      onBreakChanged: (val) {},
-                    )
-                  : PomodoroTimerView(
-                      key: const ValueKey('timer'),
-                      timerState: timerState,
-                    ),
+        ),
+        if (!isSetupMode)
+          Positioned(
+            top: 10,
+            right: 10,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 28),
+              onPressed: _handleStop,
             ),
           ),
-          const SizedBox(height: 20),
-          PomodoroActionButtons(
-            timerState: timerState,
-            onPlayPause: _handlePlayPause,
-            onReset: _handleReset,
-            onSkip: _handleSkip,
-            onStop: _handleStop, // Add stop functionality
-          ),
-        ],
-      ),
+      ],
     );
   }
 }
