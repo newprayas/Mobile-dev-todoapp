@@ -280,13 +280,12 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
                         ),
                         const SizedBox(height: 22),
                         InlineTaskInput(onAddTask: _addTodo),
-                        // --- THIS IS THE NEW DIVIDER ---
                         const Divider(
                           color: AppColors.brightYellow,
                           thickness: 1.5,
-                          height: 36, // Provides vertical spacing
-                          indent: 20, // Makes it incomplete from the left
-                          endIndent: 20, // Makes it incomplete from the right
+                          height: 48, // Increased from 36
+                          indent: 20,
+                          endIndent: 20,
                         ),
                         Expanded(
                           child: todosAsync.when(

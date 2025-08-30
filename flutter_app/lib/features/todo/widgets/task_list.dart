@@ -84,7 +84,9 @@ class _TaskListState extends ConsumerState<TaskList> {
             const Divider(
               color: AppColors.brightYellow,
               thickness: 1.5,
-              height: 24,
+              height: 48,
+              indent: 20,
+              endIndent: 20,
             ),
             Theme(
               data: Theme.of(

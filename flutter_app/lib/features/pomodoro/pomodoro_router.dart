@@ -23,8 +23,18 @@ class PomodoroRouter {
       final timerState = container.read(timerProvider);
       final timerNotifier = container.read(timerProvider.notifier);
 
+      final bool isSetupMode =
+          !timerState.isRunning && timerState.currentCycle == 0;
+
       if (timerState.activeTaskId != null) {
-        timerNotifier.update(active: true);
+        if (isSetupMode) {
+          // User closed the sheet from the setup screen without starting.
+          // We should reset the timer state to avoid side effects, but preserve progress.
+          timerNotifier.clearPreserveProgress();
+        } else {
+          // Timer has been started, so activate the mini-bar.
+          timerNotifier.update(active: true);
+        }
       }
     }
 
