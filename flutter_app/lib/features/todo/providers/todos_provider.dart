@@ -109,57 +109,64 @@ class TodosNotifier extends AsyncNotifier<List<Todo>> {
     }
   }
 
-  Future<void> toggleTodo(int id) async {
+  Future<void> toggleTodo(int id, {int? liveFocusedTime}) async {
     final previousState = state.value ?? [];
+    Todo? toggledTodo;
 
     final updatedTodos = previousState.map((todo) {
-      if (todo.id == id) {
-        if (todo.completed) {
-          if (todo.wasOverdue == 1) {
-            return todo.copyWith(completed: false);
-          }
-          final plannedSeconds =
-              (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-          if (plannedSeconds > 0 && todo.focusedTime < plannedSeconds) {
-            return todo.copyWith(completed: false);
-          }
-          return todo.copyWith(completed: false, wasOverdue: 1, overdueTime: 0);
+      if (todo.id != id) return todo;
+
+      final focusedTime = liveFocusedTime ?? todo.focusedTime;
+      final plannedSeconds =
+          (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+
+      // Case 1: Reviving a completed task
+      if (todo.completed) {
+        if (todo.wasOverdue == 1) {
+          toggledTodo = todo.copyWith(completed: false);
+          return toggledTodo!;
         }
-        return todo.copyWith(completed: true);
+
+        final bool wasUnderdue =
+            plannedSeconds > 0 && todo.focusedTime < plannedSeconds;
+        if (wasUnderdue) {
+          toggledTodo = todo.copyWith(completed: false);
+        } else {
+          toggledTodo = todo.copyWith(
+            completed: false,
+            wasOverdue: 1,
+            overdueTime: todo.overdueTime,
+          );
+        }
+        return toggledTodo!;
       }
-      return todo;
-    }).toList();
-
-    state = AsyncValue.data(updatedTodos);
-
-    try {
-      final api = ref.read(apiServiceProvider);
-      await api.toggleTodo(id);
-    } catch (e) {
-      state = AsyncValue.data(previousState);
-    }
-  }
-
-  Future<void> completeTodoWithOverdue(int id, {int overdueTime = 0}) async {
-    final previousState = state.value ?? [];
-    final updatedTodos = previousState.map((todo) {
-      if (todo.id == id) {
-        return todo.copyWith(
+      // Case 2: Completing an incomplete task
+      else {
+        int finalOverdueTime = todo.overdueTime;
+        if (todo.wasOverdue == 1) {
+          finalOverdueTime = (focusedTime - plannedSeconds)
+              .clamp(0, double.infinity)
+              .toInt();
+        }
+        toggledTodo = todo.copyWith(
           completed: true,
-          wasOverdue: 1,
-          overdueTime: overdueTime,
+          focusedTime: focusedTime,
+          overdueTime: finalOverdueTime,
         );
+        return toggledTodo!;
       }
-      return todo;
     }).toList();
+
     state = AsyncValue.data(updatedTodos);
+
+    if (toggledTodo == null) return;
 
     try {
       final api = ref.read(apiServiceProvider);
       await api.toggleTodoWithOverdue(
         id,
-        wasOverdue: true,
-        overdueTime: overdueTime,
+        wasOverdue: toggledTodo!.wasOverdue == 1,
+        overdueTime: toggledTodo!.overdueTime,
       );
     } catch (e) {
       state = AsyncValue.data(previousState);

@@ -127,6 +127,7 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
         breakDuration: (int.tryParse(_breakController.text) ?? 5) * 60,
         plannedDuration: plannedDurationSeconds,
         totalCycles: int.tryParse(_cyclesController.text) ?? 4,
+        isPermanentlyOverdue: isPermanentOverdueMode,
       );
     } else {
       notifier.toggleRunning();

@@ -32,6 +32,7 @@ class TimerState {
   focusedTimeCacheNames; // Keep for backward compatibility
   final bool suppressNextActivation;
   final bool cycleOverflowBlocked;
+  final bool isPermanentlyOverdue;
 
   const TimerState({
     this.activeTaskId,
@@ -58,6 +59,7 @@ class TimerState {
     this.focusedTimeCacheNames = const {},
     this.suppressNextActivation = false,
     this.cycleOverflowBlocked = false,
+    this.isPermanentlyOverdue = false,
   });
 
   TimerState copyWith({
@@ -85,6 +87,7 @@ class TimerState {
     Map<String, int>? focusedTimeCacheNames,
     bool? suppressNextActivation,
     bool? cycleOverflowBlocked,
+    bool? isPermanentlyOverdue,
   }) {
     return TimerState(
       activeTaskId: activeTaskId ?? this.activeTaskId,
@@ -117,6 +120,7 @@ class TimerState {
       suppressNextActivation:
           suppressNextActivation ?? this.suppressNextActivation,
       cycleOverflowBlocked: cycleOverflowBlocked ?? this.cycleOverflowBlocked,
+      isPermanentlyOverdue: isPermanentlyOverdue ?? this.isPermanentlyOverdue,
     );
   }
 }
@@ -134,12 +138,27 @@ class TimerNotifier extends Notifier<TimerState> {
   TimerState build() {
     _sessionController ??= TimerSessionController();
 
+    // CRITICAL FIX: This listener now correctly merges the live timer cache
+    // with the persisted data from the todos list, preventing progress resets.
     ref.listen<AsyncValue<List<Todo>>>(todosProvider, (_, next) {
       next.whenData((todos) {
-        final newCache = {for (var todo in todos) todo.id: todo.focusedTime};
-        if (!mapEquals(state.focusedTimeCache, newCache)) {
+        final currentCache = state.focusedTimeCache;
+        final newCacheFromDB = {
+          for (var todo in todos) todo.id: todo.focusedTime,
+        };
+        final mergedCache = Map<int, int>.from(newCacheFromDB);
+
+        // Preserve any live values from the current cache that are more recent
+        // than what's in the database. This is essential for the active timer.
+        currentCache.forEach((taskId, liveSeconds) {
+          if (liveSeconds > (newCacheFromDB[taskId] ?? -1)) {
+            mergedCache[taskId] = liveSeconds;
+          }
+        });
+
+        if (!mapEquals(state.focusedTimeCache, mergedCache)) {
           Future.microtask(() {
-            state = state.copyWith(focusedTimeCache: newCache);
+            state = state.copyWith(focusedTimeCache: mergedCache);
           });
         }
       });
@@ -295,7 +314,8 @@ class TimerNotifier extends Notifier<TimerState> {
 
       final focused = state.focusedTimeCache[state.activeTaskId] ?? 0;
       final planned = state.plannedDurationSeconds;
-      if (!_processingOverdue &&
+      if (!state.isPermanentlyOverdue &&
+          !_processingOverdue &&
           state.currentMode == 'focus' &&
           state.activeTaskId != null &&
           planned != null &&
@@ -430,6 +450,7 @@ class TimerNotifier extends Notifier<TimerState> {
     required int breakDuration,
     required int plannedDuration,
     required int totalCycles,
+    bool isPermanentlyOverdue = false,
   }) {
     final now = DateTime.now();
     if (_lastStartAttempt != null &&
@@ -475,6 +496,7 @@ class TimerNotifier extends Notifier<TimerState> {
       currentMode: 'focus',
       isTimerActive: false,
       isRunning: true,
+      isPermanentlyOverdue: isPermanentlyOverdue,
     );
     startTicker();
     return true;
@@ -519,6 +541,7 @@ class TimerNotifier extends Notifier<TimerState> {
     required int breakDuration,
     required int totalCycles,
     required int plannedDuration,
+    required bool isPermanentlyOverdue,
   }) {
     stopTicker();
     final cache = state.focusedTimeCache;
@@ -538,6 +561,7 @@ class TimerNotifier extends Notifier<TimerState> {
       focusedTimeCache: cache,
       overdueCrossedTaskId: null,
       isTimerActive: false,
+      isPermanentlyOverdue: isPermanentlyOverdue,
     );
     _lastAutoSavedSeconds = state.focusedTimeCache[taskId] ?? 0;
   }

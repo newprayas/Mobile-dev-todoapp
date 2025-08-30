@@ -283,6 +283,7 @@ class _TaskListState extends ConsumerState<TaskList> {
       breakDuration: defaultBreak,
       totalCycles: cycles,
       plannedDuration: plannedSeconds,
+      isPermanentlyOverdue: todo.wasOverdue == 1,
     );
 
     await PomodoroRouter.showPomodoroSheet(

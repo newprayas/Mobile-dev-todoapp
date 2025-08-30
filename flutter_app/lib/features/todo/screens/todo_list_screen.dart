@@ -105,34 +105,27 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
 
     if (!mounted) return;
 
+    final liveFocusedTime = timerNotifier.getFocusedTime(todo.id);
+
     if (result == true) {
       // Mark Complete
-      final focusedTime = timerNotifier.getFocusedTime(todo.id);
-      final plannedTime =
-          (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-      final overdueTime = (focusedTime - plannedTime)
-          .clamp(0, double.infinity)
-          .toInt();
-
+      // Call the single, robust toggle method with the latest focused time
       await ref
           .read(todosProvider.notifier)
-          .completeTodoWithOverdue(todo.id, overdueTime: overdueTime);
+          .toggleTodo(todo.id, liveFocusedTime: liveFocusedTime);
       timerNotifier.clear();
     } else if (result == false) {
       // Continue
       await timerNotifier.stopAndSaveProgress(todo.id);
 
-      final focusedTime = timerNotifier.getFocusedTime(todo.id);
       final plannedTime =
           (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-      final overdueTime = (focusedTime - plannedTime)
+      final overdueTime = (liveFocusedTime - plannedTime)
           .clamp(0, double.infinity)
           .toInt();
       ref
           .read(todosProvider.notifier)
           .markTaskPermanentlyOverdue(todo.id, overdueTime: overdueTime);
-
-      timerNotifier.clear();
     } else {
       // Dialog dismissed
       if (wasRunning) timerNotifier.resumeTask();
@@ -351,32 +344,32 @@ class _TodoListContentState extends ConsumerState<_TodoListContent> {
   Future<void> _handleTaskToggle(int id) async {
     if (!mounted) return;
 
-    // Check if we're toggling the active timer task
     final timerState = ref.read(timerProvider);
     final currentTodos = ref.read(todosProvider).value ?? [];
     Todo? currentTodo;
-    for (final t in currentTodos) {
-      if (t.id == id) {
-        currentTodo = t;
-        break;
-      }
+    try {
+      currentTodo = currentTodos.firstWhere((t) => t.id == id);
+    } catch (e) {
+      currentTodo = null;
     }
 
-    if (currentTodo != null &&
-        timerState.activeTaskId == currentTodo.id &&
-        timerState.isTimerActive) {
-      // If task is being completed, stop and save. If being revived, just clear.
-      if (!currentTodo.completed) {
-        // Task is being completed - stop and save
-        await ref.read(timerProvider.notifier).stopAndSaveProgress(id);
-      } else {
-        // Task is being revived - just clear the timer
-        ref.read(timerProvider.notifier).clear();
-      }
+    if (currentTodo == null) return;
+
+    // If a timer is active for this task and we're completing it, stop and save first.
+    if (timerState.activeTaskId == currentTodo.id &&
+        timerState.isTimerActive &&
+        !currentTodo.completed) {
+      await ref.read(timerProvider.notifier).stopAndSaveProgress(id);
     }
+
+    // Always get the most up-to-date focused time from the live timer cache.
+    final liveFocusedTime =
+        timerState.focusedTimeCache[id] ?? currentTodo.focusedTime;
 
     try {
-      await ref.read(todosProvider.notifier).toggleTodo(id);
+      await ref
+          .read(todosProvider.notifier)
+          .toggleTodo(id, liveFocusedTime: liveFocusedTime);
     } catch (e) {
       if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
