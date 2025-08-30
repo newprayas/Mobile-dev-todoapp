@@ -21,10 +21,10 @@ class TodoListScreen extends ConsumerStatefulWidget {
 }
 
 class _TodoListScreenState extends ConsumerState<TodoListScreen> {
-  // Logic from the old _TodoListContent is now here
+  bool _isCompletedExpanded = false;
+
   Future<void> _addTodo(String taskName, int hours, int minutes) async {
     if (!mounted) return;
-
     try {
       await ref.read(todosProvider.notifier).addTodo(taskName, hours, minutes);
     } catch (e) {
@@ -42,19 +42,14 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
   void _showOverduePrompt(BuildContext context, Todo todo) async {
     final timerNotifier = ref.read(timerProvider.notifier);
     timerNotifier.markOverduePromptShown(todo.id);
-
     final wasRunning = ref.read(timerProvider).isRunning;
     if (wasRunning) timerNotifier.pauseTask();
-
     final result = await AppDialogs.showOverdueDialog(
       context: context,
       taskName: todo.text,
     );
-
     if (!mounted) return;
-
     final liveFocusedTime = timerNotifier.getFocusedTime(todo.id);
-
     if (result == true) {
       await ref
           .read(todosProvider.notifier)
@@ -123,7 +118,6 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
         .read(todosProvider)
         .value
         ?.firstWhere((t) => t.id == id);
-
     if (currentTodo == null) return;
     final shouldDelete = await AppDialogs.showDeleteTaskDialog(
       context: context,
@@ -154,7 +148,6 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
         .read(todosProvider)
         .value
         ?.firstWhere((t) => t.id == id);
-
     if (currentTodo == null) return;
     if (timerState.activeTaskId == currentTodo.id &&
         timerState.isTimerActive &&
@@ -201,21 +194,28 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final maxCardWidth = min(screenWidth * 0.95, 520.0);
-
     final api = ref.watch(apiServiceProvider);
     final notificationService = ref.watch(notificationServiceProvider);
     final todosAsync = ref.watch(todosProvider);
     final authState = ref.watch(authProvider);
+    final timerState = ref.watch(timerProvider);
     final userName = authState.hasValue && authState.value!.isAuthenticated
         ? authState.value!.userName
         : 'User';
-    final activeTaskId = ref.watch(timerProvider).activeTaskId;
+    final activeTaskId = timerState.activeTaskId;
+
     Todo? activeTodo;
     if (activeTaskId != null && todosAsync.hasValue) {
-      activeTodo = todosAsync.value?.firstWhere(
-        (todo) => todo.id == activeTaskId,
-        orElse: () => null as dynamic,
-      );
+      try {
+        // --- THIS IS THE FIX ---
+        // Safely find the active todo without crashing if the list is temporarily out of sync.
+        activeTodo = todosAsync.value!.firstWhere(
+          (todo) => todo.id == activeTaskId,
+        );
+      } catch (e) {
+        // This is expected if the todos haven't loaded yet. Safely ignore.
+        activeTodo = null;
+      }
     }
 
     ref.listen<TimerState>(timerProvider, (previous, next) {
@@ -233,6 +233,12 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
         }
       }
     });
+
+    final isTimerBarVisible =
+        timerState.isTimerActive && timerState.activeTaskId != null;
+    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    final showSignOutButton =
+        !isTimerBarVisible && !isKeyboardVisible && !_isCompletedExpanded;
 
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
@@ -252,100 +258,102 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
                       horizontal: 20,
                       vertical: 18,
                     ),
-                    child: Stack(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            const SizedBox(height: 20),
-                            Text(
-                              'TO-DO APP',
-                              style: TextStyle(
-                                color: AppColors.brightYellow,
-                                fontSize: 48,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.4,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 14),
-                            Text(
-                              'Welcome, $userName!',
-                              style: const TextStyle(
-                                color: AppColors.lightGray,
-                                fontSize: 16,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 22),
-                            InlineTaskInput(onAddTask: _addTodo),
-                            const SizedBox(height: 18),
-                            Expanded(
-                              child: todosAsync.when(
-                                loading: () => const Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                                error: (err, stack) => Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text('Error: $err'),
-                                      ElevatedButton(
-                                        onPressed: () =>
-                                            ref.invalidate(todosProvider),
-                                        child: const Text('Retry'),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                data: (todos) => TaskList(
-                                  todos: todos,
-                                  api: api,
-                                  notificationService: notificationService,
-                                  onPlay: (id) => _handleTaskCompletion(
-                                    int.parse(id),
-                                    wasOverdue: false,
-                                  ),
-                                  onDelete: (id) =>
-                                      _handleTaskDeletion(int.parse(id)),
-                                  onToggle: (id) =>
-                                      _handleTaskToggle(int.parse(id)),
-                                ),
-                              ),
-                            ),
-                          ],
+                        const SizedBox(height: 20),
+                        Text(
+                          'TO-DO APP',
+                          style: TextStyle(
+                            color: AppColors.brightYellow,
+                            fontSize: 48,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.4,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        if (MediaQuery.of(context).viewInsets.bottom == 0)
-                          Positioned(
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            child: MiniTimerBar(
+                        const SizedBox(height: 14),
+                        Text(
+                          'Welcome, $userName!',
+                          style: const TextStyle(
+                            color: AppColors.lightGray,
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 22),
+                        InlineTaskInput(onAddTask: _addTodo),
+                        const SizedBox(height: 18),
+                        Expanded(
+                          child: todosAsync.when(
+                            loading: () => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                            error: (err, stack) => Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text('Error: $err'),
+                                  ElevatedButton(
+                                    onPressed: () =>
+                                        ref.invalidate(todosProvider),
+                                    child: const Text('Retry'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            data: (todos) => TaskList(
+                              todos: todos,
                               api: api,
                               notificationService: notificationService,
-                              activeTodo: activeTodo,
-                              onComplete: (id) => _handleTaskCompletion(id),
+                              onPlay: (id) => _handleTaskCompletion(
+                                int.parse(id),
+                                wasOverdue: false,
+                              ),
+                              onDelete: (id) =>
+                                  _handleTaskDeletion(int.parse(id)),
+                              onToggle: (id) =>
+                                  _handleTaskToggle(int.parse(id)),
+                              onExpansionChanged: (isExpanded) {
+                                setState(() {
+                                  _isCompletedExpanded = isExpanded;
+                                });
+                              },
                             ),
                           ),
+                        ),
                       ],
                     ),
                   ),
                 ),
               ),
             ),
-            Positioned(
-              bottom: 16,
-              right: 24,
-              child: IconButton(
-                icon: const Icon(
-                  Icons.logout,
-                  color: AppColors.mediumGray,
-                  size: 28,
+            if (isTimerBarVisible)
+              Positioned(
+                left: 20,
+                right: 20,
+                bottom: 10,
+                child: MiniTimerBar(
+                  api: api,
+                  notificationService: notificationService,
+                  activeTodo: activeTodo,
+                  onComplete: (id) => _handleTaskCompletion(id),
                 ),
-                tooltip: 'Sign Out',
-                onPressed: _handleSignOut,
               ),
-            ),
+            if (showSignOutButton)
+              Positioned(
+                bottom: 16,
+                right: 24,
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.logout,
+                    color: AppColors.mediumGray,
+                    size: 28,
+                  ),
+                  tooltip: 'Sign Out',
+                  onPressed: _handleSignOut,
+                ),
+              ),
           ],
         ),
       ),

@@ -20,6 +20,7 @@ class TaskList extends ConsumerStatefulWidget {
   final Function(String id) onPlay;
   final Function(String id) onDelete;
   final Function(String id) onToggle;
+  final ValueChanged<bool>? onExpansionChanged; // New callback
 
   const TaskList({
     required this.todos,
@@ -28,6 +29,7 @@ class TaskList extends ConsumerStatefulWidget {
     required this.onPlay,
     required this.onDelete,
     required this.onToggle,
+    this.onExpansionChanged, // New callback
     super.key,
   });
 
@@ -94,6 +96,8 @@ class _TaskListState extends ConsumerState<TaskList> {
                   setState(() {
                     _completedExpanded = expanded;
                   });
+                  // Call the callback to notify the parent screen
+                  widget.onExpansionChanged?.call(expanded);
                 },
                 controlAffinity: ListTileControlAffinity.leading,
                 tilePadding: const EdgeInsets.symmetric(horizontal: 4),
