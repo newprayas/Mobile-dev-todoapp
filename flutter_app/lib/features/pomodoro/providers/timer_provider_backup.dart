@@ -64,23 +64,6 @@ class TimerState {
     this.isPermanentlyOverdue = false,
   });
 
-  @override
-  String toString() {
-    return '''
-TimerState(
-  activeTaskId: $activeTaskId,
-  timeRemaining: $timeRemaining,
-  isRunning: $isRunning,
-  isTimerActive: $isTimerActive,
-  currentMode: $currentMode,
-  currentCycle: $currentCycle / $totalCycles,
-  completedSessions: $completedSessions,
-  isPermanentlyOverdue: $isPermanentlyOverdue,
-  overdueSessionsComplete: $overdueSessionsComplete,
-  allSessionsComplete: $allSessionsComplete
-)''';
-  }
-
   TimerState copyWith({
     int? activeTaskId,
     String? activeTaskName,
@@ -282,7 +265,6 @@ class TimerNotifier extends Notifier<TimerState> {
     _ticker?.cancel();
     _startAutoSaveTimer();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      debugPrint('TICKER: ${state.toString()}');
       if (!state.isRunning) return;
 
       if (state.currentMode == 'focus' && state.activeTaskId != null) {
@@ -302,8 +284,7 @@ class TimerNotifier extends Notifier<TimerState> {
 
           // Check if all planned cycles are now complete
           if (completed >= state.totalCycles) {
-            // FINAL SESSION IS COMPLETE, STOP THE FLOW
-            if (state.isPermanentlyOverdue && !state.overdueSessionsComplete) {
+            if (state.isPermanentlyOverdue) {
               // Overdue task workflow trigger
               debugPrint(
                 "TIMER_NOTIFIER: Overdue task session complete. Firing event.",
@@ -317,36 +298,29 @@ class TimerNotifier extends Notifier<TimerState> {
                 completedSessions: completed,
               );
               stopTicker();
+              return; // Stop processing this tick
             } else if (!state.isProgressBarFull) {
               // Normal task completion
-              debugPrint(
-                "TIMER_NOTIFIER: Normal task session complete. Firing event.",
-              );
-              state = state.copyWith(
-                allSessionsComplete: true,
-                isRunning: false, // Stop the timer for normal completion too
-                completedSessions: completed,
-              );
-              stopTicker();
+              state = state.copyWith(allSessionsComplete: true);
             }
-          } else {
-            // MORE SESSIONS TO GO, TRANSITION TO BREAK
-            final notificationService = ref.read(notificationServiceProvider);
-            notificationService.playSound('break_timer_start.wav');
-            notificationService.showNotification(
-              title: 'Focus Session Complete!',
-              body: 'Time for a break. Great work!',
-            );
-            final nextCycle = (state.currentCycle + 1) <= state.totalCycles
-                ? state.currentCycle + 1
-                : state.totalCycles;
-            state = state.copyWith(
-              currentMode: 'break',
-              timeRemaining: state.breakDurationSeconds,
-              currentCycle: nextCycle,
-              completedSessions: completed,
-            );
           }
+
+          // Transition to break (for both normal and overdue tasks if not yet complete)
+          final notificationService = ref.read(notificationServiceProvider);
+          notificationService.playSound('break_timer_start.wav');
+          notificationService.showNotification(
+            title: 'Focus Session Complete!',
+            body: 'Time for a break. Great work!',
+          );
+          final nextCycle = (state.currentCycle + 1) <= state.totalCycles
+              ? state.currentCycle + 1
+              : state.totalCycles;
+          state = state.copyWith(
+            currentMode: 'break',
+            timeRemaining: state.breakDurationSeconds,
+            currentCycle: nextCycle,
+            completedSessions: completed,
+          );
         } else if (state.currentMode == 'break' &&
             state.focusDurationSeconds != null) {
           final notificationService = ref.read(notificationServiceProvider);

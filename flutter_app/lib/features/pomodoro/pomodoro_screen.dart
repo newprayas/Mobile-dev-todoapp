@@ -257,6 +257,19 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
           !(previous?.allSessionsComplete ?? false)) {
         _showAllSessionsCompleteDialog(context, next.totalCycles);
       }
+
+      // ADD THIS BLOCK
+      if (next.overdueSessionsComplete &&
+          !(previous?.overdueSessionsComplete ?? false)) {
+        debugPrint(
+          "POMODORO_SCREEN: Detected overdueSessionsComplete. Popping.",
+        );
+        if (mounted && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop(); // CHANGE: No return value needed
+        }
+      }
+      // END OF ADDED BLOCK
+
       if (next.cycleOverflowBlocked &&
           !(previous?.cycleOverflowBlocked ?? false)) {
         showDialog(

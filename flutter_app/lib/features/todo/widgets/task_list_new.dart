@@ -1,5 +1,5 @@
-// In file: flutter_app/lib/features/todo/widgets/task_list.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/notification_service.dart';
@@ -38,54 +38,9 @@ class TaskList extends ConsumerStatefulWidget {
 
 class _TaskListState extends ConsumerState<TaskList> {
   bool _completedExpanded = false;
-  // Principle 3: Use local state to declaratively trigger UI events
-  bool _shouldShowOverdueCompletionDialog = false;
-  Todo? _overdueTodoForDialog;
 
   @override
   Widget build(BuildContext context) {
-    // Principle 3: Listen to provider state changes to trigger UI events
-    ref.listen<TimerState>(timerProvider, (previous, next) {
-      final wasComplete = previous?.overdueSessionsComplete ?? false;
-      final isComplete = next.overdueSessionsComplete;
-
-      // When the specific flag becomes true, prepare to show the dialog
-      if (isComplete && !wasComplete && next.activeTaskId != null) {
-        debugPrint(
-          "TASK_LIST LISTENER: Detected overdueSessionsComplete for task ID ${next.activeTaskId}",
-        );
-        Todo? foundTodo;
-        try {
-          foundTodo = widget.todos.firstWhere((t) => t.id == next.activeTaskId);
-        } catch (e) {
-          debugPrint(
-            "TASK_LIST LISTENER: Todo with ID ${next.activeTaskId} not found in current list",
-          );
-          return;
-        }
-        if (mounted) {
-          setState(() {
-            _overdueTodoForDialog = foundTodo;
-            _shouldShowOverdueCompletionDialog = true;
-          });
-        }
-      }
-    });
-
-    // If the flag is set, schedule the dialog to show after the build is complete.
-    if (_shouldShowOverdueCompletionDialog && _overdueTodoForDialog != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        // Double-check flag and mounted status before showing
-        if (mounted && _shouldShowOverdueCompletionDialog) {
-          _showOverdueSessionCompletionPrompt(_overdueTodoForDialog!);
-          // Reset the flag immediately after scheduling
-          setState(() {
-            _shouldShowOverdueCompletionDialog = false;
-            _overdueTodoForDialog = null;
-          });
-        }
-      });
-    }
     final incompleteTodos = widget.todos.where((t) => !t.completed).toList();
     final completedTodos = widget.todos.where((t) => t.completed).toList();
 
@@ -221,52 +176,6 @@ class _TaskListState extends ConsumerState<TaskList> {
     );
   }
 
-  Future<void> _showOverdueSessionCompletionPrompt(Todo todo) async {
-    debugPrint(
-      "SESSION_FLOW: Showing overdue session completion prompt for '${todo.text}'",
-    );
-
-    final timerNotifier = ref.read(timerProvider.notifier);
-    final timerState = ref.read(timerProvider);
-    final totalCycles = timerState.totalCycles;
-
-    final result = await AppDialogs.showOverdueSessionCompleteDialog(
-      context: context,
-      totalCycles: totalCycles,
-    );
-
-    if (!mounted) return;
-
-    timerNotifier.clearOverdueSessionsCompleteFlag();
-
-    final liveFocusedTime = timerNotifier.getFocusedTime(todo.id);
-    final plannedSeconds =
-        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-    final finalOverdueTime = (liveFocusedTime - plannedSeconds)
-        .clamp(0, double.infinity)
-        .toInt();
-
-    if (result == true) {
-      debugPrint("SESSION_FLOW: User chose 'Mark Complete'.");
-      await ref
-          .read(todosProvider.notifier)
-          .toggleTodoWithOverdue(
-            todo.id,
-            wasOverdue: true,
-            overdueTime: finalOverdueTime,
-          );
-      timerNotifier.clear();
-    } else {
-      debugPrint(
-        "SESSION_FLOW: User chose 'Continue Working' or dismissed dialog.",
-      );
-      await timerNotifier.stopAndSaveProgress(todo.id);
-      ref
-          .read(todosProvider.notifier)
-          .markTaskPermanentlyOverdue(todo.id, overdueTime: finalOverdueTime);
-    }
-  }
-
   Future<void> _handleClearCompleted() async {
     final shouldClear = await AppDialogs.showClearCompletedDialog(
       context: context,
@@ -287,6 +196,60 @@ class _TaskListState extends ConsumerState<TaskList> {
     }
   }
 
+  Future<void> _showOverdueSessionCompletionPrompt(Todo todo) async {
+    if (!mounted) return;
+
+    debugPrint(
+      "SESSION_FLOW: Showing overdue session completion prompt for '${todo.text}'",
+    );
+
+    final timerNotifier = ref.read(timerProvider.notifier);
+    final timerState = ref.read(timerProvider);
+    final totalCycles = timerState.totalCycles;
+
+    // Show the dialog
+    final result = await AppDialogs.showOverdueSessionCompleteDialog(
+      context: context,
+      totalCycles: totalCycles,
+    );
+
+    // This check is crucial. The context may be invalid after an await.
+    if (!mounted) return;
+
+    // Clear the flag that triggered this flow
+    timerNotifier.clearOverdueSessionsCompleteFlag();
+
+    final liveFocusedTime = timerNotifier.getFocusedTime(todo.id);
+    final plannedSeconds =
+        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+    final finalOverdueTime = (liveFocusedTime - plannedSeconds)
+        .clamp(0, double.infinity)
+        .toInt();
+
+    if (result == true) {
+      // Mark Complete
+      debugPrint("SESSION_FLOW: User chose 'Mark Complete'.");
+      await ref
+          .read(todosProvider.notifier)
+          .toggleTodoWithOverdue(
+            todo.id,
+            wasOverdue: true,
+            overdueTime: finalOverdueTime,
+          );
+      timerNotifier.clear();
+    } else {
+      // Continue Working (or dialog dismissed)
+      debugPrint(
+        "SESSION_FLOW: User chose 'Continue Working' or dismissed dialog.",
+      );
+      await timerNotifier.stopAndSaveProgress(todo.id); // Save final progress
+      ref
+          .read(todosProvider.notifier)
+          .markTaskPermanentlyOverdue(todo.id, overdueTime: finalOverdueTime);
+      // Timer state is reset by stopAndSaveProgress
+    }
+  }
+
   Future<void> _handlePlayTask(Todo todo) async {
     final timerState = ref.read(timerProvider);
     final isThisTaskActive = timerState.activeTaskId == todo.id;
@@ -297,7 +260,11 @@ class _TaskListState extends ConsumerState<TaskList> {
     );
 
     if (isThisTaskActive) {
-      await PomodoroRouter.showPomodoroSheet(
+      // If the timer is active for this task, just show the Pomodoro screen
+      debugPrint(
+        "SESSION_FLOW: Awaiting result from PomodoroSheet for '${todo.text}' (task already active)...",
+      );
+      final result = await PomodoroRouter.showPomodoroSheet(
         context,
         widget.api,
         todo,
@@ -305,25 +272,36 @@ class _TaskListState extends ConsumerState<TaskList> {
         ({bool wasOverdue = false, int overdueTime = 0}) async {},
       );
       debugPrint(
-        "SESSION_FLOW: PomodoroSheet for '${todo.text}' has been closed.",
+        "SESSION_FLOW: PomodoroSheet for '${todo.text}' closed with result: $result",
       );
+
+      if (result == 'overdue_sessions_complete') {
+        if (!mounted) {
+          debugPrint(
+            "SESSION_FLOW: TaskList not mounted after await, aborting dialog show.",
+          );
+          return;
+        }
+        await _showOverdueSessionCompletionPrompt(todo);
+      }
       return;
     }
 
     if (isAnyTimerActive && timerState.activeTaskId != null) {
       final notifier = ref.read(timerProvider.notifier);
       final wasRunning = timerState.isRunning;
-      if (wasRunning) notifier.pauseTask();
+      if (wasRunning) {
+        notifier.pauseTask();
+      }
 
       final todosAsync = ref.read(todosProvider);
       String? currentTaskName;
       if (todosAsync.hasValue) {
-        try {
-          currentTaskName = todosAsync.value!
-              .firstWhere((t) => t.id == timerState.activeTaskId)
-              .text;
-        } catch (e) {
-          currentTaskName = null;
+        for (final t in todosAsync.value!) {
+          if (t.id == timerState.activeTaskId) {
+            currentTaskName = t.text;
+            break;
+          }
         }
       }
 
@@ -334,7 +312,9 @@ class _TaskListState extends ConsumerState<TaskList> {
       );
 
       if (shouldSwitch != true) {
-        if (wasRunning) notifier.resumeTask();
+        if (wasRunning) {
+          notifier.resumeTask();
+        }
         return;
       }
       if (!mounted) return;
@@ -358,7 +338,10 @@ class _TaskListState extends ConsumerState<TaskList> {
       isPermanentlyOverdue: todo.wasOverdue == 1,
     );
 
-    await PomodoroRouter.showPomodoroSheet(
+    debugPrint(
+      "SESSION_FLOW: Awaiting result from PomodoroSheet for '${todo.text}' (new session)...",
+    );
+    final result = await PomodoroRouter.showPomodoroSheet(
       context,
       widget.api,
       todo,
@@ -366,8 +349,18 @@ class _TaskListState extends ConsumerState<TaskList> {
       ({bool wasOverdue = false, int overdueTime = 0}) async {},
     );
     debugPrint(
-      "SESSION_FLOW: PomodoroSheet for '${todo.text}' has been closed.",
+      "SESSION_FLOW: PomodoroSheet for '${todo.text}' closed with result: $result",
     );
+
+    if (result == 'overdue_sessions_complete') {
+      if (!mounted) {
+        debugPrint(
+          "SESSION_FLOW: TaskList not mounted after await, aborting dialog show.",
+        );
+        return;
+      }
+      await _showOverdueSessionCompletionPrompt(todo);
+    }
   }
 }
 

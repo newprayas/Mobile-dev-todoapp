@@ -8423,189 +8423,6 @@ void main() {
 }
 </file>
 
-<file path="flutter_app/lib/features/pomodoro/widgets/mini_timer_bar.dart">
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/timer_provider.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/services/api_service.dart';
-import '../../../core/services/notification_service.dart';
-import '../../todo/models/todo.dart';
-import '../pomodoro_router.dart';
-import '../../../core/utils/app_dialogs.dart';
-
-class MiniTimerBar extends ConsumerWidget {
-  final ApiService api;
-  final NotificationService notificationService;
-  final Todo? activeTodo;
-  final Future<void> Function(int) onComplete;
-
-  const MiniTimerBar({
-    required this.api,
-    required this.notificationService,
-    this.activeTodo,
-    required this.onComplete,
-    super.key,
-  });
-
-  String _format(int seconds) {
-    final m = (seconds ~/ 60).toString().padLeft(2, '0');
-    final s = (seconds % 60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final timer = ref.watch(timerProvider);
-    final notifier = ref.read(timerProvider.notifier);
-
-    if (!timer.isTimerActive || timer.activeTaskId == null) {
-      return const SizedBox.shrink();
-    }
-
-    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
-    if (keyboardVisible) {
-      return const SizedBox.shrink();
-    }
-
-    final borderColor = timer.currentMode == 'focus'
-        ? Colors.redAccent
-        : Colors.greenAccent;
-
-    return GestureDetector(
-      onTap: () async {
-        notifier.update(active: false);
-        await PomodoroRouter.showPomodoroSheet(
-          context,
-          api,
-          activeTodo ??
-              Todo(
-                id: timer.activeTaskId ?? 0,
-                userId: '',
-                text: 'Unknown Task',
-                completed: false,
-                durationHours: 0,
-                durationMinutes: 0,
-                focusedTime: 0,
-                wasOverdue: 0,
-                overdueTime: 0,
-              ),
-          notificationService,
-          ({bool wasOverdue = false, int overdueTime = 0}) async {
-            if (activeTodo != null) {
-              await onComplete(activeTodo!.id);
-            }
-          },
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.cardBg,
-          borderRadius: BorderRadius.circular(12.0),
-          border: Border.all(color: borderColor, width: 3),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _format(timer.timeRemaining),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    activeTodo?.text ?? 'Unknown Task',
-                    style: const TextStyle(
-                      color: Color(0xFFFFD54F),
-                      fontWeight: FontWeight.w700,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ],
-              ),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  onPressed: notifier.toggleRunning,
-                  icon: Icon(
-                    timer.isRunning
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                    color: AppColors.brightYellow,
-                  ),
-                ),
-                IconButton(
-                  onPressed: () async {
-                    if (activeTodo == null) {
-                      notifier.clear();
-                      return;
-                    }
-
-                    final wasRunning = timer.isRunning;
-                    if (wasRunning) notifier.pauseTask();
-
-                    final totalFocusDuration =
-                        timer.focusDurationSeconds ?? 1500;
-                    final timeRemaining = timer.timeRemaining;
-                    final minutesWorked =
-                        ((totalFocusDuration - timeRemaining) / 60).round();
-
-                    final shouldStop = await AppDialogs.showStopSessionDialog(
-                      context: context,
-                      taskName: activeTodo!.text,
-                      minutesWorked: minutesWorked,
-                    );
-
-                    if (shouldStop != true) {
-                      if (wasRunning) notifier.resumeTask();
-                      return;
-                    }
-
-                    await notifier.stopAndSaveProgress(activeTodo!.id);
-                    /*
-                    if (context.mounted) {
-                      showDialog(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Session Stopped'),
-                          content: const Text('Your progress has been saved.'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(ctx).pop(),
-                              child: const Text('OK'),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    */
-                  },
-                  icon: const Icon(
-                    Icons.close_rounded,
-                    color: Colors.red,
-                    size: 20,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-</file>
-
 <file path="flutter_app/test/timer_service_test.dart">
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10460,61 +10277,184 @@ final timerProvider = NotifierProvider<TimerNotifier, TimerState>(
 );
 </file>
 
-<file path="flutter_app/lib/features/pomodoro/pomodoro_router.dart">
+<file path="flutter_app/lib/features/pomodoro/widgets/mini_timer_bar.dart">
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/services/api_service.dart';
-import '../../core/services/notification_service.dart';
-import '../../core/theme/app_colors.dart';
-import '../todo/models/todo.dart';
-import 'pomodoro_screen.dart'; // Import the new screen
-import 'providers/timer_provider.dart';
+import '../providers/timer_provider.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/services/notification_service.dart';
+import '../../todo/models/todo.dart';
+import '../pomodoro_router.dart';
+import '../../../core/utils/app_dialogs.dart';
 
-typedef TaskCompletedCallback =
-    Future<void> Function({bool wasOverdue, int overdueTime});
+class MiniTimerBar extends ConsumerWidget {
+  final ApiService api;
+  final NotificationService notificationService;
+  final Todo? activeTodo;
+  final Future<void> Function(int) onComplete;
 
-class PomodoroRouter {
-  static Future<void> showPomodoroSheet(
-    BuildContext context,
-    ApiService api,
-    Todo todo,
-    NotificationService notificationService,
-    TaskCompletedCallback onTaskCompleted,
-  ) async {
-    void updateMinibarOnDismiss() {
-      final container = ProviderScope.containerOf(context, listen: false);
-      final timerState = container.read(timerProvider);
-      final timerNotifier = container.read(timerProvider.notifier);
+  const MiniTimerBar({
+    required this.api,
+    required this.notificationService,
+    this.activeTodo,
+    required this.onComplete,
+    super.key,
+  });
 
-      if (timerState.activeTaskId != null) {
-        timerNotifier.update(active: true);
-      }
+  String _format(int seconds) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final timer = ref.watch(timerProvider);
+    final notifier = ref.read(timerProvider.notifier);
+
+    if (!timer.isTimerActive || timer.activeTaskId == null) {
+      return const SizedBox.shrink();
     }
 
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => FractionallySizedBox(
-        heightFactor: 0.85, // Increased from 0.8
-        alignment: Alignment.bottomCenter,
-        child: Container(
-          decoration: const BoxDecoration(
-            color: AppColors.cardBg,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: PomodoroScreen(
-            api: api,
-            todo: todo,
-            notificationService: notificationService,
-            asSheet: true,
-            onTaskCompleted: onTaskCompleted,
-          ),
+    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    if (keyboardVisible) {
+      return const SizedBox.shrink();
+    }
+
+    final borderColor = timer.currentMode == 'focus'
+        ? Colors.redAccent
+        : Colors.greenAccent;
+
+    return GestureDetector(
+      onTap: () async {
+        await PomodoroRouter.showPomodoroSheet(
+          context,
+          api,
+          activeTodo ??
+              Todo(
+                id: timer.activeTaskId ?? 0,
+                userId: '',
+                text: 'Unknown Task',
+                completed: false,
+                durationHours: 0,
+                durationMinutes: 0,
+                focusedTime: 0,
+                wasOverdue: 0,
+                overdueTime: 0,
+              ),
+          notificationService,
+          ({bool wasOverdue = false, int overdueTime = 0}) async {
+            if (activeTodo != null) {
+              await onComplete(activeTodo!.id);
+            }
+          },
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.cardBg,
+          borderRadius: BorderRadius.circular(12.0),
+          border: Border.all(color: borderColor, width: 3),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _format(timer.timeRemaining),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    activeTodo?.text ?? 'Unknown Task',
+                    style: const TextStyle(
+                      color: Color(0xFFFFD54F),
+                      fontWeight: FontWeight.w700,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ],
+              ),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  onPressed: notifier.toggleRunning,
+                  icon: Icon(
+                    timer.isRunning
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
+                    color: AppColors.brightYellow,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () async {
+                    if (activeTodo == null) {
+                      notifier.clear();
+                      return;
+                    }
+
+                    final wasRunning = timer.isRunning;
+                    if (wasRunning) notifier.pauseTask();
+
+                    final totalFocusDuration =
+                        timer.focusDurationSeconds ?? 1500;
+                    final timeRemaining = timer.timeRemaining;
+                    final minutesWorked =
+                        ((totalFocusDuration - timeRemaining) / 60).round();
+
+                    final shouldStop = await AppDialogs.showStopSessionDialog(
+                      context: context,
+                      taskName: activeTodo!.text,
+                      minutesWorked: minutesWorked,
+                    );
+
+                    if (shouldStop != true) {
+                      if (wasRunning) notifier.resumeTask();
+                      return;
+                    }
+
+                    await notifier.stopAndSaveProgress(activeTodo!.id);
+                    /*
+                    if (context.mounted) {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Session Stopped'),
+                          content: const Text('Your progress has been saved.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(),
+                              child: const Text('OK'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    */
+                  },
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Colors.red,
+                    size: 20,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
-
-    updateMinibarOnDismiss();
   }
 }
 </file>
@@ -11147,254 +11087,6 @@ final todosProvider = AsyncNotifierProvider<TodosNotifier, List<Todo>>(
 );
 </file>
 
-<file path="flutter_app/lib/features/todo/widgets/task_card.dart">
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/theme/app_colors.dart';
-import '../models/todo.dart';
-
-typedef PlayCallback = Future<void> Function(Todo todo);
-
-class TaskCard extends ConsumerWidget {
-  final Todo todo;
-  final PlayCallback onPlay;
-  final Future<void> Function() onDelete;
-  final Future<void> Function() onToggle;
-  final bool isActive;
-
-  const TaskCard({
-    required this.todo,
-    required this.onPlay,
-    required this.onDelete,
-    required this.onToggle,
-    this.isActive = false,
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return todo.completed
-        ? _buildCompletedTask(context)
-        : _buildIncompleteTask(context);
-  }
-
-  Widget _buildIncompleteTask(BuildContext context) {
-    final isPermanentlyOverdue = todo.wasOverdue == 1;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppColors.midGray,
-        borderRadius: BorderRadius.circular(12),
-        border: isActive
-            ? Border.all(color: AppColors.brightYellow, width: 2.0)
-            : Border.all(color: Colors.transparent, width: 2.0),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  todo.text,
-                  style: const TextStyle(
-                    color: AppColors.lightGray,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '${todo.durationHours}h ${todo.durationMinutes}m',
-                  style: TextStyle(
-                    color: AppColors.mediumGray,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                if (isPermanentlyOverdue)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4.0),
-                    child: Text(
-                      'Overdue: ${_formatOverdueDuration(todo.overdueTime)}',
-                      style: const TextStyle(
-                        color: AppColors.priorityHigh,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          _buildActionButtons(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCompletedTask(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppColors.cardBg.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      todo.text,
-                      style: TextStyle(
-                        color: AppColors.mediumGray,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        fontStyle: FontStyle.italic, // Set to italic
-                        decoration: TextDecoration.none, // Remove strikethrough
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${todo.durationHours}h ${todo.durationMinutes}m',
-                      style: TextStyle(
-                        color: AppColors.mediumGray.withOpacity(0.7),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: onToggle,
-                    icon: const Icon(
-                      Icons.replay,
-                      color: AppColors.mediumGray,
-                      size: 20,
-                    ),
-                    padding: const EdgeInsets.all(4),
-                    constraints: const BoxConstraints(),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: onDelete,
-                    icon: const Icon(
-                      Icons.delete_outline,
-                      color: AppColors.mediumGray,
-                      size: 20,
-                    ),
-                    padding: const EdgeInsets.all(4),
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          _buildCompletionStatus(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCompletionStatus() {
-    final plannedSeconds =
-        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-
-    if (todo.wasOverdue == 1) {
-      final formattedDuration = _formatOverdueDuration(todo.overdueTime);
-      return Text(
-        'Overdue: $formattedDuration',
-        style: const TextStyle(
-          color: AppColors.priorityHigh,
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-        ),
-      );
-    }
-
-    if (plannedSeconds > 0 && todo.focusedTime < plannedSeconds) {
-      final percent = ((todo.focusedTime / plannedSeconds) * 100)
-          .toStringAsFixed(0);
-      return Text(
-        'Underdue task ($percent%)',
-        style: const TextStyle(
-          color: Colors.orangeAccent,
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-        ),
-      );
-    }
-
-    return const Text(
-      'Completed task',
-      style: TextStyle(
-        color: AppColors.priorityLow,
-        fontSize: 13,
-        fontWeight: FontWeight.bold,
-      ),
-    );
-  }
-
-  String _formatOverdueDuration(int totalSeconds) {
-    if (totalSeconds < 0) totalSeconds = 0;
-    final duration = Duration(seconds: totalSeconds);
-    final minutes = duration.inMinutes;
-    final seconds = totalSeconds % 60;
-    if (minutes > 0) {
-      return '${minutes}m ${seconds}s';
-    } else {
-      return '${seconds}s';
-    }
-  }
-
-  Widget _buildActionButtons() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          onPressed: () => onPlay(todo),
-          icon: Icon(
-            Icons.play_arrow,
-            color: todo.completed ? AppColors.mediumGray : AppColors.lightGray,
-            size: 24,
-          ),
-          padding: const EdgeInsets.all(4),
-          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-        ),
-        IconButton(
-          onPressed: onToggle,
-          icon: const Icon(Icons.check, color: AppColors.lightGray, size: 24),
-          padding: const EdgeInsets.all(4),
-          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-        ),
-        IconButton(
-          onPressed: onDelete,
-          icon: const Icon(
-            Icons.delete_outline,
-            color: AppColors.lightGray,
-            size: 24,
-          ),
-          padding: const EdgeInsets.all(4),
-          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-        ),
-      ],
-    );
-  }
-}
-</file>
-
 <file path="backend/bin/server.dart">
 import 'dart:convert';
 import 'dart:io';
@@ -11715,6 +11407,342 @@ void main(List<String> args) async {
 
   final server = await io.serve(handler, ip, port);
   print('Server listening on http://${server.address.host}:${server.port}');
+}
+</file>
+
+<file path="flutter_app/lib/features/todo/widgets/task_card.dart">
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/app_colors.dart';
+import '../models/todo.dart';
+import '../../pomodoro/providers/timer_provider.dart';
+
+typedef PlayCallback = Future<void> Function(Todo todo);
+
+class TaskCard extends ConsumerWidget {
+  final Todo todo;
+  final PlayCallback onPlay;
+  final Future<void> Function() onDelete;
+  final Future<void> Function() onToggle;
+  final bool isActive;
+
+  const TaskCard({
+    required this.todo,
+    required this.onPlay,
+    required this.onDelete,
+    required this.onToggle,
+    this.isActive = false,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return todo.completed
+        ? _buildCompletedTask(context)
+        : _buildIncompleteTask(context, ref);
+  }
+
+  Widget _buildIncompleteTask(BuildContext context, WidgetRef ref) {
+    final isPermanentlyOverdue = todo.wasOverdue == 1;
+
+    // Watch the timer state to get live updates for focused time.
+    final timerState = ref.watch(timerProvider);
+    final focusedSeconds =
+        timerState.focusedTimeCache[todo.id] ?? todo.focusedTime;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: AppColors.midGray,
+        borderRadius: BorderRadius.circular(12),
+        border: isActive
+            ? Border.all(color: AppColors.brightYellow, width: 2.0)
+            : Border.all(color: Colors.transparent, width: 2.0),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  todo.text,
+                  style: const TextStyle(
+                    color: AppColors.lightGray,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '${todo.durationHours}h ${todo.durationMinutes}m',
+                  style: TextStyle(
+                    color: AppColors.mediumGray,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (isPermanentlyOverdue)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Text(
+                      'Overdue: ${_formatOverdueDuration((focusedSeconds - ((todo.durationHours * 3600) + (todo.durationMinutes * 60))).clamp(0, 999999).toInt())}',
+                      style: const TextStyle(
+                        color: AppColors.priorityHigh,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          _buildActionButtons(context, ref),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompletedTask(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: AppColors.cardBg.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      todo.text,
+                      style: TextStyle(
+                        color: AppColors.mediumGray,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        fontStyle: FontStyle.italic, // Set to italic
+                        decoration: TextDecoration.none, // Remove strikethrough
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${todo.durationHours}h ${todo.durationMinutes}m',
+                      style: TextStyle(
+                        color: AppColors.mediumGray.withOpacity(0.7),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: onToggle,
+                    icon: const Icon(
+                      Icons.replay,
+                      color: AppColors.mediumGray,
+                      size: 20,
+                    ),
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: onDelete,
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: AppColors.mediumGray,
+                      size: 20,
+                    ),
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _buildCompletionStatus(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompletionStatus() {
+    final plannedSeconds =
+        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+
+    if (todo.wasOverdue == 1) {
+      final formattedDuration = _formatOverdueDuration(todo.overdueTime);
+      return Text(
+        'Overdue: $formattedDuration',
+        style: const TextStyle(
+          color: AppColors.priorityHigh,
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+    }
+
+    if (plannedSeconds > 0 && todo.focusedTime < plannedSeconds) {
+      final percent = ((todo.focusedTime / plannedSeconds) * 100)
+          .toStringAsFixed(0);
+      return Text(
+        'Underdue task ($percent%)',
+        style: const TextStyle(
+          color: Colors.orangeAccent,
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+    }
+
+    return const Text(
+      'Completed task',
+      style: TextStyle(
+        color: AppColors.priorityLow,
+        fontSize: 13,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
+  String _formatOverdueDuration(int totalSeconds) {
+    if (totalSeconds < 0) totalSeconds = 0;
+    final duration = Duration(seconds: totalSeconds);
+    final minutes = duration.inMinutes;
+    final seconds = totalSeconds % 60;
+    if (minutes > 0) {
+      return '${minutes}m ${seconds}s';
+    } else {
+      return '${seconds}s';
+    }
+  }
+
+  Widget _buildActionButtons(BuildContext context, WidgetRef ref) {
+    final timerState = ref.watch(timerProvider);
+    final isThisTaskActive = timerState.activeTaskId == todo.id;
+    final isThisTaskRunning = isThisTaskActive && timerState.isRunning;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          onPressed: () {
+            if (isThisTaskActive) {
+              // If this task is already active, just toggle the timer.
+              ref.read(timerProvider.notifier).toggleRunning();
+            } else {
+              // Otherwise, initiate the full play flow.
+              onPlay(todo);
+            }
+          },
+          icon: Icon(
+            isThisTaskRunning ? Icons.pause : Icons.play_arrow,
+            color: todo.completed ? AppColors.mediumGray : AppColors.lightGray,
+            size: 24,
+          ),
+          padding: const EdgeInsets.all(4),
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
+        IconButton(
+          onPressed: onToggle,
+          icon: const Icon(Icons.check, color: AppColors.lightGray, size: 24),
+          padding: const EdgeInsets.all(4),
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
+        IconButton(
+          onPressed: onDelete,
+          icon: const Icon(
+            Icons.delete_outline,
+            color: AppColors.lightGray,
+            size: 24,
+          ),
+          padding: const EdgeInsets.all(4),
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
+      ],
+    );
+  }
+}
+</file>
+
+<file path="flutter_app/lib/features/pomodoro/pomodoro_router.dart">
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/services/api_service.dart';
+import '../../core/services/notification_service.dart';
+import '../../core/theme/app_colors.dart';
+import '../todo/models/todo.dart';
+import 'pomodoro_screen.dart'; // Import the new screen
+import 'providers/timer_provider.dart';
+
+typedef TaskCompletedCallback =
+    Future<void> Function({bool wasOverdue, int overdueTime});
+
+class PomodoroRouter {
+  static Future<void> showPomodoroSheet(
+    BuildContext context,
+    ApiService api,
+    Todo todo,
+    NotificationService notificationService,
+    TaskCompletedCallback onTaskCompleted,
+  ) async {
+    void updateMinibarOnDismiss() {
+      final container = ProviderScope.containerOf(context, listen: false);
+      final timerState = container.read(timerProvider);
+      final timerNotifier = container.read(timerProvider.notifier);
+
+      final bool isSetupMode =
+          !timerState.isRunning && timerState.currentCycle == 0;
+
+      if (timerState.activeTaskId != null) {
+        if (isSetupMode) {
+          // User closed the sheet from the setup screen without starting.
+          // We should reset the timer state to avoid side effects, but preserve progress.
+          timerNotifier.clearPreserveProgress();
+        } else {
+          // Timer has been started, so activate the mini-bar.
+          timerNotifier.update(active: true);
+        }
+      }
+    }
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black,
+      builder: (context) => FractionallySizedBox(
+        heightFactor: 0.85, // Increased from 0.8
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: AppColors.cardBg,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: PomodoroScreen(
+            api: api,
+            todo: todo,
+            notificationService: notificationService,
+            asSheet: true,
+            onTaskCompleted: onTaskCompleted,
+          ),
+        ),
+      ),
+    );
+
+    updateMinibarOnDismiss();
+  }
 }
 </file>
 
@@ -12086,355 +12114,6 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
 }
 </file>
 
-<file path="flutter_app/lib/features/todo/widgets/task_list.dart">
-// In file: flutter_app/lib/features/todo/widgets/task_list.dart
-import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/services/api_service.dart';
-import '../../../core/services/notification_service.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/app_dialogs.dart';
-import '../models/todo.dart';
-import './task_card.dart';
-import '../providers/todos_provider.dart';
-import '../../pomodoro/providers/timer_provider.dart';
-import '../../pomodoro/pomodoro_router.dart';
-import '../../../core/widgets/progress_bar.dart';
-
-class TaskList extends ConsumerStatefulWidget {
-  final List<Todo> todos;
-  final ApiService api;
-  final NotificationService notificationService;
-  final Function(String id) onPlay;
-  final Function(String id) onDelete;
-  final Function(String id) onToggle;
-  final ValueChanged<bool>? onExpansionChanged; // New callback
-
-  const TaskList({
-    required this.todos,
-    required this.api,
-    required this.notificationService,
-    required this.onPlay,
-    required this.onDelete,
-    required this.onToggle,
-    this.onExpansionChanged, // New callback
-    super.key,
-  });
-
-  @override
-  ConsumerState<TaskList> createState() => _TaskListState();
-}
-
-class _TaskListState extends ConsumerState<TaskList> {
-  bool _completedExpanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final incompleteTodos = widget.todos.where((t) => !t.completed).toList();
-    final completedTodos = widget.todos.where((t) => t.completed).toList();
-
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (incompleteTodos.isNotEmpty)
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: incompleteTodos.length,
-              separatorBuilder: (context, index) =>
-                  const SizedBox(height: 8), // Adjusted spacing
-              itemBuilder: (context, index) {
-                final todo = incompleteTodos[index];
-                // Wrap TaskCard and its status indicator in a Column
-                return Column(
-                  children: [
-                    _buildTaskCard(todo),
-                    const SizedBox(height: 8),
-                    _TaskStatusIndicator(todo: todo),
-                  ],
-                );
-              },
-            )
-          else
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 40.0),
-                child: Text(
-                  'No active tasks.\nAdd one above to get started!',
-                  style: TextStyle(color: AppColors.lightGray, fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-          if (completedTodos.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            const Divider(
-              color: AppColors.brightYellow,
-              thickness: 1.5,
-              height: 24,
-            ),
-            Theme(
-              data: Theme.of(
-                context,
-              ).copyWith(dividerColor: Colors.transparent),
-              child: ExpansionTile(
-                initiallyExpanded: _completedExpanded,
-                onExpansionChanged: (expanded) {
-                  setState(() {
-                    _completedExpanded = expanded;
-                  });
-                  // Call the callback to notify the parent screen
-                  widget.onExpansionChanged?.call(expanded);
-                },
-                controlAffinity: ListTileControlAffinity.leading,
-                tilePadding: const EdgeInsets.symmetric(horizontal: 4),
-                title: Row(
-                  children: [
-                    const Text(
-                      'Completed',
-                      style: TextStyle(
-                        color: AppColors.lightGray,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: _handleClearCompleted,
-                      style: TextButton.styleFrom(
-                        backgroundColor: AppColors.midGray,
-                        foregroundColor: AppColors.lightGray,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
-                        'Clear All',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                trailing: const SizedBox.shrink(),
-                leading: Icon(
-                  _completedExpanded
-                      ? Icons.keyboard_arrow_down
-                      : Icons.keyboard_arrow_right,
-                  color: AppColors.lightGray,
-                ),
-                children: [
-                  const SizedBox(height: 8),
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: completedTodos.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 12),
-                    itemBuilder: (context, index) =>
-                        _buildTaskCard(completedTodos[index]),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTaskCard(Todo todo) {
-    final timer = ref.watch(timerProvider);
-    final isActive = timer.activeTaskId == todo.id;
-
-    return TaskCard(
-      todo: todo,
-      isActive: isActive,
-      onPlay: (t) => _handlePlayTask(t),
-      onDelete: () => widget.onDelete(todo.id.toString()),
-      onToggle: () => widget.onToggle(todo.id.toString()),
-    );
-  }
-
-  Future<void> _handleClearCompleted() async {
-    final shouldClear = await AppDialogs.showClearCompletedDialog(
-      context: context,
-    );
-    if (shouldClear == true && mounted) {
-      try {
-        await ref.read(todosProvider.notifier).clearCompleted();
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to clear completed tasks'),
-              backgroundColor: Colors.redAccent,
-            ),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _handlePlayTask(Todo todo) async {
-    final timerState = ref.read(timerProvider);
-    final isThisTaskActive = timerState.activeTaskId == todo.id;
-    final isAnyTimerActive = timerState.isTimerActive;
-
-    if (kDebugMode) {
-      debugPrint(
-        'PLAY_BUTTON: Task=${todo.text}, isThisTaskActive=$isThisTaskActive, isAnyTimerActive=$isAnyTimerActive',
-      );
-    }
-
-    if (isThisTaskActive) {
-      // If the timer is active for this task, just show the Pomodoro screen
-      await PomodoroRouter.showPomodoroSheet(
-        context,
-        widget.api,
-        todo,
-        widget.notificationService,
-        ({bool wasOverdue = false, int overdueTime = 0}) async {
-          if (!mounted) return;
-          widget.onPlay(todo.id.toString());
-        },
-      );
-      return;
-    }
-
-    if (isAnyTimerActive && timerState.activeTaskId != null) {
-      final notifier = ref.read(timerProvider.notifier);
-      final wasRunning = timerState.isRunning;
-      if (wasRunning) {
-        notifier.pauseTask();
-      }
-
-      final todosAsync = ref.read(todosProvider);
-      String? currentTaskName;
-      if (todosAsync.hasValue) {
-        for (final t in todosAsync.value!) {
-          if (t.id == timerState.activeTaskId) {
-            currentTaskName = t.text;
-            break;
-          }
-        }
-      }
-
-      final shouldSwitch = await AppDialogs.showSwitchTaskDialog(
-        context: context,
-        currentTaskName: currentTaskName ?? 'Unknown Task',
-        newTaskName: todo.text,
-      );
-
-      if (shouldSwitch != true) {
-        if (wasRunning) {
-          notifier.resumeTask();
-        }
-        return;
-      }
-      if (!mounted) return;
-      await notifier.stopAndSaveProgress(timerState.activeTaskId!);
-    }
-
-    final plannedSeconds =
-        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-    final defaultFocus = 25 * 60;
-    final defaultBreak = 5 * 60;
-    final cycles = plannedSeconds > 0
-        ? (plannedSeconds / defaultFocus).ceil().clamp(1, 1000)
-        : 4;
-    final notifier = ref.read(timerProvider.notifier);
-    notifier.resetForSetupWithTask(
-      taskId: todo.id,
-      focusDuration: defaultFocus,
-      breakDuration: defaultBreak,
-      totalCycles: cycles,
-      plannedDuration: plannedSeconds,
-      isPermanentlyOverdue: todo.wasOverdue == 1,
-    );
-
-    await PomodoroRouter.showPomodoroSheet(
-      context,
-      widget.api,
-      todo,
-      widget.notificationService,
-      ({bool wasOverdue = false, int overdueTime = 0}) async {
-        if (!mounted) return;
-        widget.onPlay(todo.id.toString());
-      },
-    );
-  }
-}
-
-class _TaskStatusIndicator extends ConsumerWidget {
-  final Todo todo;
-  const _TaskStatusIndicator({required this.todo});
-
-  String _formatOverdueDuration(int totalSeconds) {
-    if (totalSeconds < 0) totalSeconds = 0;
-    final duration = Duration(seconds: totalSeconds);
-    final minutes = duration.inMinutes;
-    final seconds = totalSeconds % 60;
-    if (minutes > 0) {
-      return '${minutes}m ${seconds}s';
-    } else {
-      return '${seconds}s';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final timerState = ref.watch(timerProvider);
-    final focusedSeconds =
-        timerState.focusedTimeCache[todo.id] ?? todo.focusedTime;
-    final plannedSeconds =
-        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-
-    // This indicator should only be visible for incomplete tasks that are NOT permanently overdue
-    if (todo.completed || todo.wasOverdue == 1) {
-      return const SizedBox.shrink();
-    }
-
-    final isActivelyOverdue =
-        plannedSeconds > 0 && focusedSeconds > plannedSeconds;
-
-    if (isActivelyOverdue) {
-      final overdueSeconds = focusedSeconds - plannedSeconds;
-      return Container(
-        height: 16, // Match the progress bar height
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 4.0),
-        child: Text(
-          'Overdue: ${_formatOverdueDuration(overdueSeconds)}',
-          style: const TextStyle(
-            color: AppColors.priorityHigh,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-    } else {
-      return SizedBox(
-        height: 16, // Thicker progress bar
-        child: ProgressBar(
-          focusedSeconds: focusedSeconds,
-          plannedSeconds: plannedSeconds,
-          barHeight: 16,
-        ),
-      );
-    }
-  }
-}
-</file>
-
 <file path=".github/copilot-instructions.md">
 # Follow these suggestions always 
 
@@ -12738,6 +12417,357 @@ Suggestion for Even Better AI-Friendliness:
 NUMBER 4 : Add Doc Comments (///): While the code is very readable, adding formal Dart doc comments to public methods in the notifiers (TimerNotifier, TodosNotifier) and services (ApiService) would be the final polish. Explain what each method does, its parameters, and what it returns. This provides invaluable context for an AI agent trying to understand the codebase's intent.
 </file>
 
+<file path="flutter_app/lib/features/todo/widgets/task_list.dart">
+// In file: flutter_app/lib/features/todo/widgets/task_list.dart
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/services/notification_service.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/app_dialogs.dart';
+import '../models/todo.dart';
+import './task_card.dart';
+import '../providers/todos_provider.dart';
+import '../../pomodoro/providers/timer_provider.dart';
+import '../../pomodoro/pomodoro_router.dart';
+import '../../../core/widgets/progress_bar.dart';
+
+class TaskList extends ConsumerStatefulWidget {
+  final List<Todo> todos;
+  final ApiService api;
+  final NotificationService notificationService;
+  final Function(String id) onPlay;
+  final Function(String id) onDelete;
+  final Function(String id) onToggle;
+  final ValueChanged<bool>? onExpansionChanged; // New callback
+
+  const TaskList({
+    required this.todos,
+    required this.api,
+    required this.notificationService,
+    required this.onPlay,
+    required this.onDelete,
+    required this.onToggle,
+    this.onExpansionChanged, // New callback
+    super.key,
+  });
+
+  @override
+  ConsumerState<TaskList> createState() => _TaskListState();
+}
+
+class _TaskListState extends ConsumerState<TaskList> {
+  bool _completedExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final incompleteTodos = widget.todos.where((t) => !t.completed).toList();
+    final completedTodos = widget.todos.where((t) => t.completed).toList();
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (incompleteTodos.isNotEmpty)
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: incompleteTodos.length,
+              separatorBuilder: (context, index) =>
+                  const SizedBox(height: 8), // Adjusted spacing
+              itemBuilder: (context, index) {
+                final todo = incompleteTodos[index];
+                // Wrap TaskCard and its status indicator in a Column
+                return Column(
+                  children: [
+                    _buildTaskCard(todo),
+                    const SizedBox(height: 8),
+                    _TaskStatusIndicator(todo: todo),
+                  ],
+                );
+              },
+            )
+          else
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 40.0),
+                child: Text(
+                  'No active tasks.\nAdd one above to get started!',
+                  style: TextStyle(color: AppColors.lightGray, fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          if (completedTodos.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Divider(
+              color: AppColors.brightYellow,
+              thickness: 1.5,
+              height: 48,
+              indent: 20,
+              endIndent: 20,
+            ),
+            Theme(
+              data: Theme.of(
+                context,
+              ).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                initiallyExpanded: _completedExpanded,
+                onExpansionChanged: (expanded) {
+                  setState(() {
+                    _completedExpanded = expanded;
+                  });
+                  // Call the callback to notify the parent screen
+                  widget.onExpansionChanged?.call(expanded);
+                },
+                controlAffinity: ListTileControlAffinity.leading,
+                tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+                title: Row(
+                  children: [
+                    const Text(
+                      'Completed',
+                      style: TextStyle(
+                        color: AppColors.lightGray,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: _handleClearCompleted,
+                      style: TextButton.styleFrom(
+                        backgroundColor: AppColors.midGray,
+                        foregroundColor: AppColors.lightGray,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Clear All',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                trailing: const SizedBox.shrink(),
+                leading: Icon(
+                  _completedExpanded
+                      ? Icons.keyboard_arrow_down
+                      : Icons.keyboard_arrow_right,
+                  color: AppColors.lightGray,
+                ),
+                children: [
+                  const SizedBox(height: 8),
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: completedTodos.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
+                    itemBuilder: (context, index) =>
+                        _buildTaskCard(completedTodos[index]),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTaskCard(Todo todo) {
+    final timer = ref.watch(timerProvider);
+    final isActive = timer.activeTaskId == todo.id;
+
+    return TaskCard(
+      todo: todo,
+      isActive: isActive,
+      onPlay: (t) => _handlePlayTask(t),
+      onDelete: () => widget.onDelete(todo.id.toString()),
+      onToggle: () => widget.onToggle(todo.id.toString()),
+    );
+  }
+
+  Future<void> _handleClearCompleted() async {
+    final shouldClear = await AppDialogs.showClearCompletedDialog(
+      context: context,
+    );
+    if (shouldClear == true && mounted) {
+      try {
+        await ref.read(todosProvider.notifier).clearCompleted();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to clear completed tasks'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _handlePlayTask(Todo todo) async {
+    final timerState = ref.read(timerProvider);
+    final isThisTaskActive = timerState.activeTaskId == todo.id;
+    final isAnyTimerActive = timerState.isTimerActive;
+
+    if (kDebugMode) {
+      debugPrint(
+        'PLAY_BUTTON: Task=${todo.text}, isThisTaskActive=$isThisTaskActive, isAnyTimerActive=$isAnyTimerActive',
+      );
+    }
+
+    if (isThisTaskActive) {
+      // If the timer is active for this task, just show the Pomodoro screen
+      await PomodoroRouter.showPomodoroSheet(
+        context,
+        widget.api,
+        todo,
+        widget.notificationService,
+        ({bool wasOverdue = false, int overdueTime = 0}) async {
+          if (!mounted) return;
+          widget.onPlay(todo.id.toString());
+        },
+      );
+      return;
+    }
+
+    if (isAnyTimerActive && timerState.activeTaskId != null) {
+      final notifier = ref.read(timerProvider.notifier);
+      final wasRunning = timerState.isRunning;
+      if (wasRunning) {
+        notifier.pauseTask();
+      }
+
+      final todosAsync = ref.read(todosProvider);
+      String? currentTaskName;
+      if (todosAsync.hasValue) {
+        for (final t in todosAsync.value!) {
+          if (t.id == timerState.activeTaskId) {
+            currentTaskName = t.text;
+            break;
+          }
+        }
+      }
+
+      final shouldSwitch = await AppDialogs.showSwitchTaskDialog(
+        context: context,
+        currentTaskName: currentTaskName ?? 'Unknown Task',
+        newTaskName: todo.text,
+      );
+
+      if (shouldSwitch != true) {
+        if (wasRunning) {
+          notifier.resumeTask();
+        }
+        return;
+      }
+      if (!mounted) return;
+      await notifier.stopAndSaveProgress(timerState.activeTaskId!);
+    }
+
+    final plannedSeconds =
+        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+    final defaultFocus = 25 * 60;
+    final defaultBreak = 5 * 60;
+    final cycles = plannedSeconds > 0
+        ? (plannedSeconds / defaultFocus).ceil().clamp(1, 1000)
+        : 4;
+    final notifier = ref.read(timerProvider.notifier);
+    notifier.resetForSetupWithTask(
+      taskId: todo.id,
+      focusDuration: defaultFocus,
+      breakDuration: defaultBreak,
+      totalCycles: cycles,
+      plannedDuration: plannedSeconds,
+      isPermanentlyOverdue: todo.wasOverdue == 1,
+    );
+
+    await PomodoroRouter.showPomodoroSheet(
+      context,
+      widget.api,
+      todo,
+      widget.notificationService,
+      ({bool wasOverdue = false, int overdueTime = 0}) async {
+        if (!mounted) return;
+        widget.onPlay(todo.id.toString());
+      },
+    );
+  }
+}
+
+class _TaskStatusIndicator extends ConsumerWidget {
+  final Todo todo;
+  const _TaskStatusIndicator({required this.todo});
+
+  String _formatOverdueDuration(int totalSeconds) {
+    if (totalSeconds < 0) totalSeconds = 0;
+    final duration = Duration(seconds: totalSeconds);
+    final minutes = duration.inMinutes;
+    final seconds = totalSeconds % 60;
+    if (minutes > 0) {
+      return '${minutes}m ${seconds}s';
+    } else {
+      return '${seconds}s';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final timerState = ref.watch(timerProvider);
+    final focusedSeconds =
+        timerState.focusedTimeCache[todo.id] ?? todo.focusedTime;
+    final plannedSeconds =
+        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+
+    // This indicator should only be visible for incomplete tasks that are NOT permanently overdue
+    if (todo.completed || todo.wasOverdue == 1) {
+      return const SizedBox.shrink();
+    }
+
+    final isActivelyOverdue =
+        plannedSeconds > 0 && focusedSeconds > plannedSeconds;
+
+    if (isActivelyOverdue) {
+      final overdueSeconds = focusedSeconds - plannedSeconds;
+      return Container(
+        height: 16, // Match the progress bar height
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        child: Text(
+          'Overdue: ${_formatOverdueDuration(overdueSeconds)}',
+          style: const TextStyle(
+            color: AppColors.priorityHigh,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    } else {
+      return SizedBox(
+        height: 16, // Thicker progress bar
+        child: ProgressBar(
+          focusedSeconds: focusedSeconds,
+          plannedSeconds: plannedSeconds,
+          barHeight: 16,
+        ),
+      );
+    }
+  }
+}
+</file>
+
 <file path="flutter_app/lib/main.dart">
 import 'package:flutter/material.dart';
 import 'dart:io'
@@ -12850,7 +12880,7 @@ Future<void> _waitForBackend(
 </file>
 
 <file path="backend/server.pid">
-25253
+81053
 </file>
 
 </files>

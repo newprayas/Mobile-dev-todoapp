@@ -274,4 +274,40 @@ class AppDialogs {
       ),
     );
   }
+
+  static Future<bool?> showOverdueSessionCompleteDialog({
+    required BuildContext context,
+    required int totalCycles,
+  }) async {
+    // This dialog returns true for "Mark Complete", false for "Continue Working"
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Session Complete'),
+        content: Text(
+          'Your planned number of sessions ($totalCycles/$totalCycles) is complete.',
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () =>
+                Navigator.of(context).pop(false), // Continue Working
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.actionSecondary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Continue Working'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true), // Mark Complete
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.brightYellow,
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('Mark Complete'),
+          ),
+        ],
+      ),
+    );
+  }
 }

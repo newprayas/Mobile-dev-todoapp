@@ -12,6 +12,7 @@ typedef TaskCompletedCallback =
 
 class PomodoroRouter {
   static Future<void> showPomodoroSheet(
+    // CHANGE: Return type is now Future<void>
     BuildContext context,
     ApiService api,
     Todo todo,
@@ -38,6 +39,7 @@ class PomodoroRouter {
       }
     }
 
+    // CHANGE: No longer need to capture the result
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -63,5 +65,6 @@ class PomodoroRouter {
     );
 
     updateMinibarOnDismiss();
+    // CHANGE: No return statement
   }
 }

@@ -168,38 +168,55 @@ class TaskCard extends ConsumerWidget {
     final plannedSeconds =
         (todo.durationHours * 3600) + (todo.durationMinutes * 60);
 
+    final List<Widget> tags = [];
+
+    // Tag 1: Overdue status
     if (todo.wasOverdue == 1) {
       final formattedDuration = _formatOverdueDuration(todo.overdueTime);
-      return Text(
-        'Overdue: $formattedDuration',
-        style: const TextStyle(
-          color: AppColors.priorityHigh,
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
+      tags.add(
+        Text(
+          'Overdue: $formattedDuration',
+          style: const TextStyle(
+            color: AppColors.priorityHigh,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       );
     }
-
-    if (plannedSeconds > 0 && todo.focusedTime < plannedSeconds) {
+    // Tag 2: Underdue status (only if not overdue)
+    else if (plannedSeconds > 0 && todo.focusedTime < plannedSeconds) {
       final percent = ((todo.focusedTime / plannedSeconds) * 100)
           .toStringAsFixed(0);
-      return Text(
-        'Underdue task ($percent%)',
-        style: const TextStyle(
-          color: Colors.orangeAccent,
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
+      tags.add(
+        Text(
+          'Underdue ($percent%)',
+          style: const TextStyle(
+            color: Colors.orangeAccent,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       );
     }
 
-    return const Text(
-      'Completed task',
-      style: TextStyle(
-        color: AppColors.priorityLow,
-        fontSize: 13,
-        fontWeight: FontWeight.bold,
+    // Tag 3: Always add "Completed" tag
+    tags.add(
+      const Text(
+        'Completed',
+        style: TextStyle(
+          color: AppColors.priorityLow,
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+        ),
       ),
+    );
+
+    return Wrap(
+      spacing: 8.0,
+      runSpacing: 4.0,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: tags,
     );
   }
 
