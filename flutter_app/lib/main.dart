@@ -1,4 +1,6 @@
+// In file: flutter_app/lib/main.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Import the services package
 import 'dart:io'
     show Platform, HttpClient; // Added HttpClient for backend readiness check
 import 'package:flutter/foundation.dart';
@@ -11,6 +13,10 @@ import 'core/providers/notification_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Lock the orientation to portrait mode
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
   final notificationService = NotificationService();
   await notificationService.init();
 
