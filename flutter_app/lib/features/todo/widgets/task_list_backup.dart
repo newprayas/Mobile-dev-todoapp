@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/app_dialogs.dart';
 import '../../pomodoro/pomodoro_router.dart';
 import '../../pomodoro/providers/timer_provider.dart';
 import '../models/todo.dart';
@@ -74,29 +73,32 @@ class _TaskListState extends ConsumerState<TaskList> {
       await timerNotifier.stopAndSaveProgress(timerState.activeTaskId!);
     }
 
-    // Show Pomodoro screen and wait for result
-    final result = await PomodoroRouter.showPomodoroSheet(
+    // Show Pomodoro screen
+    await PomodoroRouter.showPomodoroSheet(
       context,
       widget.api,
       todo,
       widget.notificationService,
       ({bool wasOverdue = false, int overdueTime = 0}) async {
         // This callback will be called when task is completed
-        await _handleTaskCompletion(todo, wasOverdue: wasOverdue, overdueTime: overdueTime);
+        await _handleTaskCompletion(
+          todo,
+          wasOverdue: wasOverdue,
+          overdueTime: overdueTime,
+        );
       },
     );
-
-    // Handle the result from Pomodoro screen
-    if (result == 'overdue_sessions_complete') {
-      // Show the overdue completion dialog
-      await _showOverdueSessionCompletionPrompt(todo);
-    }
   }
 
-  Future<void> _handleTaskCompletion(Todo todo, {bool wasOverdue = false, int overdueTime = 0}) async {
+  Future<void> _handleTaskCompletion(
+    Todo todo, {
+    bool wasOverdue = false,
+    int overdueTime = 0,
+  }) async {
     try {
       // Update the focused time first
-      final currentFocusedTime = ref.read(timerProvider).focusedTimeCache[todo.id] ?? 0;
+      final currentFocusedTime =
+          ref.read(timerProvider).focusedTimeCache[todo.id] ?? 0;
       await widget.api.updateFocusTime(todo.id, currentFocusedTime);
 
       // Mark task as completed with overdue info
@@ -124,28 +126,6 @@ class _TaskListState extends ConsumerState<TaskList> {
           const SnackBar(
             content: Text('Failed to complete task. Please try again.'),
             backgroundColor: AppColors.priorityHigh,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _showOverdueSessionCompletionPrompt(Todo todo) async {
-    final choice = await AppDialogs.showOverdueSessionCompleteDialog(context);
-
-    if (choice == null) return; // Dialog was dismissed
-
-    if (choice) {
-      // User chose "Mark Complete"
-      await _handleTaskCompletion(todo, wasOverdue: true, overdueTime: ref.read(timerProvider).focusedTimeCache[todo.id] ?? 0);
-    } else {
-      // User chose "Continue Working"
-      // The timer will continue running, no action needed here
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Continuing work session...'),
-            backgroundColor: AppColors.priorityMedium,
           ),
         );
       }
