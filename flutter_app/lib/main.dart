@@ -28,8 +28,9 @@ void main() async {
   const envBase = String.fromEnvironment('API_BASE_URL', defaultValue: '');
   String chooseBaseUrl() {
     if (envBase.isNotEmpty) return envBase;
-    // Android emulator -> host machine is reachable at 10.0.2.2
-    if (Platform.isAndroid) return 'http://10.0.2.2:5000';
+    // For both Android emulator and physical devices with `adb reverse`,
+    // the host machine is reachable at 127.0.0.1 on the device.
+    if (Platform.isAndroid) return 'http://127.0.0.1:5000';
     // iOS simulator and other platforms can use localhost
     return 'http://127.0.0.1:5000';
   }
@@ -57,7 +58,7 @@ void main() async {
 }
 
 // Simple readiness / liveness wait loop for local backend. Will not throw;
-// it only logs status to avoid blocking app start indefinitely.
+// it only logs status to avoid blocking app indefinitely.
 Future<void> _waitForBackend(
   String baseUrl, {
   int attempts = 5,

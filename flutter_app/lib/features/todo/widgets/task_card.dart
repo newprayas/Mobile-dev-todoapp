@@ -168,56 +168,49 @@ class TaskCard extends ConsumerWidget {
     final plannedSeconds =
         (todo.durationHours * 3600) + (todo.durationMinutes * 60);
 
-    final List<Widget> tags = [];
-
-    // Tag 1: Overdue status
-    if (todo.wasOverdue == 1) {
-      final formattedDuration = _formatOverdueDuration(todo.overdueTime);
-      tags.add(
-        Text(
-          'Overdue: $formattedDuration',
-          style: const TextStyle(
-            color: AppColors.priorityHigh,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-    }
-    // Tag 2: Underdue status (only if not overdue)
-    else if (plannedSeconds > 0 && todo.focusedTime < plannedSeconds) {
-      final percent = ((todo.focusedTime / plannedSeconds) * 100)
-          .toStringAsFixed(0);
-      tags.add(
-        Text(
-          'Underdue ($percent%)',
-          style: const TextStyle(
-            color: Colors.orangeAccent,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-    }
-
-    // Tag 3: Always add "Completed" tag
-    tags.add(
-      const Text(
-        'Completed',
-        style: TextStyle(
-          color: AppColors.priorityLow,
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-        ),
+    final completedTag = const Text(
+      'Completed',
+      style: TextStyle(
+        color: AppColors.priorityLow,
+        fontSize: 13,
+        fontWeight: FontWeight.bold,
       ),
     );
 
-    return Wrap(
-      spacing: 8.0,
-      runSpacing: 4.0,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: tags,
-    );
+    // Case 1: Task was completed overdue. Show both tags stacked.
+    if (todo.wasOverdue == 1) {
+      final formattedDuration = _formatOverdueDuration(todo.overdueTime);
+      final overdueTag = Text(
+        'Overdue: $formattedDuration',
+        style: const TextStyle(
+          color: AppColors.priorityHigh,
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [overdueTag, const SizedBox(height: 4.0), completedTag],
+      );
+    }
+
+    // Case 2: Task was completed underdue. Show ONLY the underdue tag.
+    if (plannedSeconds > 0 && todo.focusedTime < plannedSeconds) {
+      final percent = ((todo.focusedTime / plannedSeconds) * 100)
+          .toStringAsFixed(0);
+      final underdueTag = Text(
+        'Underdue ($percent%)',
+        style: const TextStyle(
+          color: Colors.orangeAccent,
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+      return Wrap(spacing: 8.0, children: [underdueTag]);
+    }
+
+    // Case 3 (Default): Task was completed on time or had no duration. Show ONLY the completed tag.
+    return Wrap(spacing: 8.0, children: [completedTag]);
   }
 
   String _formatOverdueDuration(int totalSeconds) {
