@@ -132,26 +132,45 @@ class TaskCard extends ConsumerWidget {
               ),
               Row(
                 children: [
+                  // This invisible placeholder mimics the space of the 'play' button in active tasks,
+                  // ensuring the following two buttons align correctly.
+                  Opacity(
+                    opacity: 0.0,
+                    child: IconButton(
+                      icon: const Icon(Icons.play_arrow, size: 24),
+                      onPressed: () {},
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                    ),
+                  ),
                   IconButton(
                     onPressed: onToggle,
                     icon: const Icon(
                       Icons.replay,
                       color: AppColors.mediumGray,
-                      size: 20,
+                      size: 24,
                     ),
                     padding: const EdgeInsets.all(4),
-                    constraints: const BoxConstraints(),
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
                   ),
-                  const SizedBox(width: 8),
                   IconButton(
                     onPressed: onDelete,
                     icon: const Icon(
                       Icons.delete_outline,
                       color: AppColors.mediumGray,
-                      size: 20,
+                      size: 24,
                     ),
                     padding: const EdgeInsets.all(4),
-                    constraints: const BoxConstraints(),
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
                   ),
                 ],
               ),

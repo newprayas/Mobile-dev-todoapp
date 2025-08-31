@@ -1123,55 +1123,6 @@ class MainActivity : FlutterActivity()
 </resources>
 </file>
 
-<file path="flutter_app/android/app/src/main/AndroidManifest.xml">
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application
-        android:label="flutter_app"
-        android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:launchMode="singleTop"
-            android:taskAffinity=""
-            android:theme="@style/LaunchTheme"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
-            android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize">
-            <!-- Specifies an Android theme to apply to this Activity as soon as
-                 the Android process has started. This theme is visible to the user
-                 while the Flutter UI initializes. After that, this theme continues
-                 to determine the Window background behind the Flutter UI. -->
-            <meta-data
-              android:name="io.flutter.embedding.android.NormalTheme"
-              android:resource="@style/NormalTheme"
-              />
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity>
-        <!-- Don't delete the meta-data below.
-             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
-        <meta-data
-            android:name="flutterEmbedding"
-            android:value="2" />
-    </application>
-    <!-- Required to query activities that can process text, see:
-         https://developer.android.com/training/package-visibility and
-         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
-
-         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT"/>
-            <data android:mimeType="text/plain"/>
-        </intent>
-    </queries>
-</manifest>
-</file>
-
 <file path="flutter_app/android/app/src/profile/AndroidManifest.xml">
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- The INTERNET permission is required for development. Specifically,
@@ -8218,6 +8169,55 @@ __pycache__/
 # tmp/
 </file>
 
+<file path="flutter_app/android/app/src/main/AndroidManifest.xml">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application
+        android:label="flutter_app"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>
+</file>
+
 <file path="flutter_app/android/app/build.gradle.kts">
 plugins {
     id("com.android.application")
@@ -13417,6 +13417,79 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
 }
 </file>
 
+<file path="flutter_app/lib/features/pomodoro/pomodoro_router.dart">
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/services/api_service.dart';
+import '../../core/services/notification_service.dart';
+import '../../core/theme/app_colors.dart';
+import '../todo/models/todo.dart';
+import 'pomodoro_screen.dart'; // Import the new screen
+import 'providers/timer_provider.dart';
+
+typedef TaskCompletedCallback =
+    Future<void> Function({bool wasOverdue, int overdueTime});
+
+class PomodoroRouter {
+  static Future<void> showPomodoroSheet(
+    // CHANGE: Return type is now Future<void>
+    BuildContext context,
+    ApiService api,
+    Todo todo,
+    NotificationService notificationService,
+    TaskCompletedCallback onTaskCompleted,
+  ) async {
+    void updateMinibarOnDismiss() {
+      final container = ProviderScope.containerOf(context, listen: false);
+      final timerState = container.read(timerProvider);
+      final timerNotifier = container.read(timerProvider.notifier);
+
+      final bool isSetupMode =
+          !timerState.isRunning && timerState.currentCycle == 0;
+
+      if (timerState.activeTaskId != null) {
+        if (isSetupMode) {
+          // User closed the sheet from the setup screen without starting.
+          // We should reset the timer state to avoid side effects, but preserve progress.
+          timerNotifier.clearPreserveProgress();
+        } else {
+          // Timer has been started, so activate the mini-bar.
+          timerNotifier.update(active: true);
+        }
+      }
+    }
+
+    // CHANGE: No longer need to capture the result
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black,
+      builder: (context) => FractionallySizedBox(
+        heightFactor: 0.85, // Increased from 0.8
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: AppColors.cardBg,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: PomodoroScreen(
+            api: api,
+            todo: todo,
+            notificationService: notificationService,
+            asSheet: true,
+            onTaskCompleted: onTaskCompleted,
+          ),
+        ),
+      ),
+    );
+
+    updateMinibarOnDismiss();
+    // CHANGE: No return statement
+  }
+}
+</file>
+
 <file path="flutter_app/lib/features/todo/widgets/task_card.dart">
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13552,26 +13625,45 @@ class TaskCard extends ConsumerWidget {
               ),
               Row(
                 children: [
+                  // This invisible placeholder mimics the space of the 'play' button in active tasks,
+                  // ensuring the following two buttons align correctly.
+                  Opacity(
+                    opacity: 0.0,
+                    child: IconButton(
+                      icon: const Icon(Icons.play_arrow, size: 24),
+                      onPressed: () {},
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                    ),
+                  ),
                   IconButton(
                     onPressed: onToggle,
                     icon: const Icon(
                       Icons.replay,
                       color: AppColors.mediumGray,
-                      size: 20,
+                      size: 24,
                     ),
                     padding: const EdgeInsets.all(4),
-                    constraints: const BoxConstraints(),
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
                   ),
-                  const SizedBox(width: 8),
                   IconButton(
                     onPressed: onDelete,
                     icon: const Icon(
                       Icons.delete_outline,
                       color: AppColors.mediumGray,
-                      size: 20,
+                      size: 24,
                     ),
                     padding: const EdgeInsets.all(4),
-                    constraints: const BoxConstraints(),
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
                   ),
                 ],
               ),
@@ -13588,56 +13680,49 @@ class TaskCard extends ConsumerWidget {
     final plannedSeconds =
         (todo.durationHours * 3600) + (todo.durationMinutes * 60);
 
-    final List<Widget> tags = [];
-
-    // Tag 1: Overdue status
-    if (todo.wasOverdue == 1) {
-      final formattedDuration = _formatOverdueDuration(todo.overdueTime);
-      tags.add(
-        Text(
-          'Overdue: $formattedDuration',
-          style: const TextStyle(
-            color: AppColors.priorityHigh,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-    }
-    // Tag 2: Underdue status (only if not overdue)
-    else if (plannedSeconds > 0 && todo.focusedTime < plannedSeconds) {
-      final percent = ((todo.focusedTime / plannedSeconds) * 100)
-          .toStringAsFixed(0);
-      tags.add(
-        Text(
-          'Underdue ($percent%)',
-          style: const TextStyle(
-            color: Colors.orangeAccent,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-    }
-
-    // Tag 3: Always add "Completed" tag
-    tags.add(
-      const Text(
-        'Completed',
-        style: TextStyle(
-          color: AppColors.priorityLow,
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-        ),
+    final completedTag = const Text(
+      'Completed',
+      style: TextStyle(
+        color: AppColors.priorityLow,
+        fontSize: 13,
+        fontWeight: FontWeight.bold,
       ),
     );
 
-    return Wrap(
-      spacing: 8.0,
-      runSpacing: 4.0,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: tags,
-    );
+    // Case 1: Task was completed overdue. Show both tags stacked.
+    if (todo.wasOverdue == 1) {
+      final formattedDuration = _formatOverdueDuration(todo.overdueTime);
+      final overdueTag = Text(
+        'Overdue: $formattedDuration',
+        style: const TextStyle(
+          color: AppColors.priorityHigh,
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [overdueTag, const SizedBox(height: 4.0), completedTag],
+      );
+    }
+
+    // Case 2: Task was completed underdue. Show ONLY the underdue tag.
+    if (plannedSeconds > 0 && todo.focusedTime < plannedSeconds) {
+      final percent = ((todo.focusedTime / plannedSeconds) * 100)
+          .toStringAsFixed(0);
+      final underdueTag = Text(
+        'Underdue ($percent%)',
+        style: const TextStyle(
+          color: Colors.orangeAccent,
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+      return Wrap(spacing: 8.0, children: [underdueTag]);
+    }
+
+    // Case 3 (Default): Task was completed on time or had no duration. Show ONLY the completed tag.
+    return Wrap(spacing: 8.0, children: [completedTag]);
   }
 
   String _formatOverdueDuration(int totalSeconds) {
@@ -13696,79 +13781,6 @@ class TaskCard extends ConsumerWidget {
         ),
       ],
     );
-  }
-}
-</file>
-
-<file path="flutter_app/lib/features/pomodoro/pomodoro_router.dart">
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/services/api_service.dart';
-import '../../core/services/notification_service.dart';
-import '../../core/theme/app_colors.dart';
-import '../todo/models/todo.dart';
-import 'pomodoro_screen.dart'; // Import the new screen
-import 'providers/timer_provider.dart';
-
-typedef TaskCompletedCallback =
-    Future<void> Function({bool wasOverdue, int overdueTime});
-
-class PomodoroRouter {
-  static Future<void> showPomodoroSheet(
-    // CHANGE: Return type is now Future<void>
-    BuildContext context,
-    ApiService api,
-    Todo todo,
-    NotificationService notificationService,
-    TaskCompletedCallback onTaskCompleted,
-  ) async {
-    void updateMinibarOnDismiss() {
-      final container = ProviderScope.containerOf(context, listen: false);
-      final timerState = container.read(timerProvider);
-      final timerNotifier = container.read(timerProvider.notifier);
-
-      final bool isSetupMode =
-          !timerState.isRunning && timerState.currentCycle == 0;
-
-      if (timerState.activeTaskId != null) {
-        if (isSetupMode) {
-          // User closed the sheet from the setup screen without starting.
-          // We should reset the timer state to avoid side effects, but preserve progress.
-          timerNotifier.clearPreserveProgress();
-        } else {
-          // Timer has been started, so activate the mini-bar.
-          timerNotifier.update(active: true);
-        }
-      }
-    }
-
-    // CHANGE: No longer need to capture the result
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black,
-      builder: (context) => FractionallySizedBox(
-        heightFactor: 0.85, // Increased from 0.8
-        alignment: Alignment.bottomCenter,
-        child: Container(
-          decoration: const BoxDecoration(
-            color: AppColors.cardBg,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: PomodoroScreen(
-            api: api,
-            todo: todo,
-            notificationService: notificationService,
-            asSheet: true,
-            onTaskCompleted: onTaskCompleted,
-          ),
-        ),
-      ),
-    );
-
-    updateMinibarOnDismiss();
-    // CHANGE: No return statement
   }
 }
 </file>
@@ -14464,118 +14476,6 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
 }
 </file>
 
-<file path="flutter_app/lib/main.dart">
-import 'package:flutter/material.dart';
-import 'dart:io'
-    show Platform, HttpClient; // Added HttpClient for backend readiness check
-import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'app.dart'; // Import the new root widget
-import 'core/services/api_service.dart';
-import 'core/services/notification_service.dart';
-import 'features/todo/providers/todos_provider.dart';
-import 'core/providers/notification_provider.dart';
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  final notificationService = NotificationService();
-  await notificationService.init();
-
-  // Test break timer sound on app startup (debug only)
-  if (kDebugMode) {
-    debugPrint('MAIN: Testing break timer sound on startup...');
-    try {
-      await notificationService.testBreakSound();
-    } catch (e) {
-      debugPrint('MAIN: Break sound test failed: $e');
-    }
-  }
-
-  // Allow overriding the API host at build/run time with --dart-define=API_BASE_URL
-  const envBase = String.fromEnvironment('API_BASE_URL', defaultValue: '');
-  String chooseBaseUrl() {
-    if (envBase.isNotEmpty) return envBase;
-    // For both Android emulator and physical devices with `adb reverse`,
-    // the host machine is reachable at 127.0.0.1 on the device.
-    if (Platform.isAndroid) return 'http://127.0.0.1:5000';
-    // iOS simulator and other platforms can use localhost
-    return 'http://127.0.0.1:5000';
-  }
-
-  final baseUrl = chooseBaseUrl();
-  // show chosen base for easier debugging during development
-  if (kDebugMode) debugPrint('Using API baseUrl: $baseUrl');
-
-  // Dev-only: wait briefly for backend readiness (helps avoid connection refused race)
-  await _waitForBackend(baseUrl, attempts: 8, delayMs: 400);
-
-  final api = ApiService(baseUrl);
-
-  runApp(
-    ProviderScope(
-      overrides: [
-        // Override the API service provider with our instance
-        apiServiceProvider.overrideWithValue(api),
-        // Override notification service provider
-        notificationServiceProvider.overrideWithValue(notificationService),
-      ],
-      child: const App(), // Run the new App widget
-    ),
-  );
-}
-
-// Simple readiness / liveness wait loop for local backend. Will not throw;
-// it only logs status to avoid blocking app indefinitely.
-Future<void> _waitForBackend(
-  String baseUrl, {
-  int attempts = 5,
-  int delayMs = 500,
-}) async {
-  final lower = baseUrl.toLowerCase();
-  final isLocal =
-      lower.contains('127.0.0.1') ||
-      lower.contains('localhost') ||
-      lower.contains('10.0.2.2');
-  if (!isLocal) return; // Only applicable for local dev
-  if (kDebugMode) {
-    debugPrint('BACKEND WAIT: Checking backend readiness at $baseUrl');
-  }
-  final uri = Uri.parse('$baseUrl/health');
-  for (var i = 1; i <= attempts; i++) {
-    try {
-      final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 2);
-      final req = await client.getUrl(uri);
-      final resp = await req.close();
-      if (resp.statusCode == 200) {
-        if (kDebugMode) {
-          debugPrint('BACKEND WAIT: Backend healthy (attempt $i/$attempts).');
-        }
-        client.close(force: true);
-        return;
-      } else {
-        if (kDebugMode) {
-          debugPrint(
-            'BACKEND WAIT: Unexpected status ${resp.statusCode} (attempt $i/$attempts)',
-          );
-        }
-      }
-      client.close(force: true);
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('BACKEND WAIT: attempt $i/$attempts failed: $e');
-      }
-    }
-    await Future.delayed(Duration(milliseconds: delayMs));
-  }
-  if (kDebugMode) {
-    debugPrint(
-      'BACKEND WAIT: Proceeding without positive health confirmation.',
-    );
-  }
-}
-</file>
-
 <file path="flutter_app/lib/features/todo/widgets/task_list.dart">
 // In file: flutter_app/lib/features/todo/widgets/task_list.dart
 import 'package:flutter/material.dart';
@@ -14725,7 +14625,7 @@ class _TaskListState extends ConsumerState<TaskList> {
                   widget.onExpansionChanged?.call(expanded);
                 },
                 controlAffinity: ListTileControlAffinity.leading,
-                tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+                tilePadding: const EdgeInsets.symmetric(horizontal: 16),
                 title: Row(
                   children: [
                     const Text(
@@ -14737,25 +14637,42 @@ class _TaskListState extends ConsumerState<TaskList> {
                       ),
                     ),
                     const Spacer(),
-                    TextButton(
-                      onPressed: _handleClearCompleted,
-                      style: TextButton.styleFrom(
-                        backgroundColor: AppColors.midGray,
-                        foregroundColor: AppColors.lightGray,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    // These two placeholders mimic the space of the 'play' and 'check' buttons,
+                    // ensuring the delete button aligns perfectly.
+                    Opacity(
+                      opacity: 0.0,
+                      child: IconButton(
+                        icon: const Icon(Icons.play_arrow),
+                        onPressed: () {},
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
                         ),
                       ),
-                      child: const Text(
-                        'Clear All',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                    ),
+                    Opacity(
+                      opacity: 0.0,
+                      child: IconButton(
+                        icon: const Icon(Icons.check),
+                        onPressed: () {},
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
                         ),
+                      ),
+                    ),
+
+                    IconButton(
+                      onPressed: _handleClearCompleted,
+                      icon: const Icon(Icons.delete_outline, size: 24),
+                      color: AppColors.mediumGray,
+                      tooltip: 'Clear all completed tasks',
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
                       ),
                     ),
                   ],
@@ -15007,6 +14924,124 @@ class _TaskStatusIndicator extends ConsumerWidget {
         ),
       );
     }
+  }
+}
+</file>
+
+<file path="flutter_app/lib/main.dart">
+// In file: flutter_app/lib/main.dart
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Import the services package
+import 'dart:io'
+    show Platform, HttpClient; // Added HttpClient for backend readiness check
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'app.dart'; // Import the new root widget
+import 'core/services/api_service.dart';
+import 'core/services/notification_service.dart';
+import 'features/todo/providers/todos_provider.dart';
+import 'core/providers/notification_provider.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Lock the orientation to portrait mode
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
+  final notificationService = NotificationService();
+  await notificationService.init();
+
+  // Test break timer sound on app startup (debug only)
+  if (kDebugMode) {
+    debugPrint('MAIN: Testing break timer sound on startup...');
+    try {
+      await notificationService.testBreakSound();
+    } catch (e) {
+      debugPrint('MAIN: Break sound test failed: $e');
+    }
+  }
+
+  // Allow overriding the API host at build/run time with --dart-define=API_BASE_URL
+  const envBase = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+  String chooseBaseUrl() {
+    if (envBase.isNotEmpty) return envBase;
+    // For both Android emulator and physical devices with `adb reverse`,
+    // the host machine is reachable at 127.0.0.1 on the device.
+    if (Platform.isAndroid) return 'http://127.0.0.1:5000';
+    // iOS simulator and other platforms can use localhost
+    return 'http://127.0.0.1:5000';
+  }
+
+  final baseUrl = chooseBaseUrl();
+  // show chosen base for easier debugging during development
+  if (kDebugMode) debugPrint('Using API baseUrl: $baseUrl');
+
+  // Dev-only: wait briefly for backend readiness (helps avoid connection refused race)
+  await _waitForBackend(baseUrl, attempts: 8, delayMs: 400);
+
+  final api = ApiService(baseUrl);
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        // Override the API service provider with our instance
+        apiServiceProvider.overrideWithValue(api),
+        // Override notification service provider
+        notificationServiceProvider.overrideWithValue(notificationService),
+      ],
+      child: const App(), // Run the new App widget
+    ),
+  );
+}
+
+// Simple readiness / liveness wait loop for local backend. Will not throw;
+// it only logs status to avoid blocking app indefinitely.
+Future<void> _waitForBackend(
+  String baseUrl, {
+  int attempts = 5,
+  int delayMs = 500,
+}) async {
+  final lower = baseUrl.toLowerCase();
+  final isLocal =
+      lower.contains('127.0.0.1') ||
+      lower.contains('localhost') ||
+      lower.contains('10.0.2.2');
+  if (!isLocal) return; // Only applicable for local dev
+  if (kDebugMode) {
+    debugPrint('BACKEND WAIT: Checking backend readiness at $baseUrl');
+  }
+  final uri = Uri.parse('$baseUrl/health');
+  for (var i = 1; i <= attempts; i++) {
+    try {
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 2);
+      final req = await client.getUrl(uri);
+      final resp = await req.close();
+      if (resp.statusCode == 200) {
+        if (kDebugMode) {
+          debugPrint('BACKEND WAIT: Backend healthy (attempt $i/$attempts).');
+        }
+        client.close(force: true);
+        return;
+      } else {
+        if (kDebugMode) {
+          debugPrint(
+            'BACKEND WAIT: Unexpected status ${resp.statusCode} (attempt $i/$attempts)',
+          );
+        }
+      }
+      client.close(force: true);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('BACKEND WAIT: attempt $i/$attempts failed: $e');
+      }
+    }
+    await Future.delayed(Duration(milliseconds: delayMs));
+  }
+  if (kDebugMode) {
+    debugPrint(
+      'BACKEND WAIT: Proceeding without positive health confirmation.',
+    );
   }
 }
 </file>

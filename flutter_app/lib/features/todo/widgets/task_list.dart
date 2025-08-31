@@ -1,4 +1,3 @@
-// In file: flutter_app/lib/features/todo/widgets/task_list.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/api_service.dart';
@@ -12,6 +11,9 @@ import '../../pomodoro/providers/timer_provider.dart';
 import '../../pomodoro/pomodoro_router.dart';
 import '../../../core/widgets/progress_bar.dart';
 
+// Enum to represent the available filter states for completed tasks.
+enum CompletedFilter { none, onTime, overdue, underdue }
+
 class TaskList extends ConsumerStatefulWidget {
   final List<Todo> todos;
   final ApiService api;
@@ -19,7 +21,7 @@ class TaskList extends ConsumerStatefulWidget {
   final Function(String id) onPlay;
   final Function(String id) onDelete;
   final Function(String id) onToggle;
-  final ValueChanged<bool>? onExpansionChanged; // New callback
+  final ValueChanged<bool>? onExpansionChanged;
 
   const TaskList({
     required this.todos,
@@ -28,7 +30,7 @@ class TaskList extends ConsumerStatefulWidget {
     required this.onPlay,
     required this.onDelete,
     required this.onToggle,
-    this.onExpansionChanged, // New callback
+    this.onExpansionChanged,
     super.key,
   });
 
@@ -38,9 +40,26 @@ class TaskList extends ConsumerStatefulWidget {
 
 class _TaskListState extends ConsumerState<TaskList> {
   bool _completedExpanded = false;
+  // Local state to manage the active filter for the completed tasks list.
+  CompletedFilter _activeFilter = CompletedFilter.none;
+
   // Principle 3: Use local state to declaratively trigger UI events
   bool _shouldShowOverdueCompletionDialog = false;
   Todo? _overdueTodoForDialog;
+
+  // Helper method to get the display name for a filter.
+  String _getFilterName(CompletedFilter filter) {
+    switch (filter) {
+      case CompletedFilter.onTime:
+        return 'Completed'; // CHANGED: "On Time" is now "Completed"
+      case CompletedFilter.overdue:
+        return 'Overdue';
+      case CompletedFilter.underdue:
+        return 'Underdue';
+      case CompletedFilter.none:
+        return '';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -89,6 +108,30 @@ class _TaskListState extends ConsumerState<TaskList> {
     final incompleteTodos = widget.todos.where((t) => !t.completed).toList();
     final completedTodos = widget.todos.where((t) => t.completed).toList();
 
+    // Apply the active filter to the list of completed todos.
+    final filteredCompletedTodos = completedTodos.where((todo) {
+      if (_activeFilter == CompletedFilter.none) {
+        return true;
+      }
+
+      final plannedSeconds =
+          (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+      final isOverdue = todo.wasOverdue == 1;
+      final isUnderdue =
+          plannedSeconds > 0 && todo.focusedTime < plannedSeconds;
+
+      switch (_activeFilter) {
+        case CompletedFilter.overdue:
+          return isOverdue;
+        case CompletedFilter.underdue:
+          return isUnderdue;
+        case CompletedFilter.onTime: // Logic for "Completed" only
+          return !isOverdue && !isUnderdue;
+        case CompletedFilter.none:
+          return true;
+      }
+    }).toList();
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,11 +141,9 @@ class _TaskListState extends ConsumerState<TaskList> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: incompleteTodos.length,
-              separatorBuilder: (context, index) =>
-                  const SizedBox(height: 8), // Adjusted spacing
+              separatorBuilder: (context, index) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final todo = incompleteTodos[index];
-                // Wrap TaskCard and its status indicator in a Column
                 return Column(
                   children: [
                     _buildTaskCard(todo),
@@ -142,43 +183,32 @@ class _TaskListState extends ConsumerState<TaskList> {
                   setState(() {
                     _completedExpanded = expanded;
                   });
-                  // Call the callback to notify the parent screen
                   widget.onExpansionChanged?.call(expanded);
                 },
                 controlAffinity: ListTileControlAffinity.leading,
-                tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+                tilePadding: const EdgeInsets.symmetric(horizontal: 16),
                 title: Row(
                   children: [
-                    const Text(
+                    Text(
                       'Completed',
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: AppColors.lightGray,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: _handleClearCompleted,
-                      style: TextButton.styleFrom(
-                        backgroundColor: AppColors.midGray,
-                        foregroundColor: AppColors.lightGray,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    if (_activeFilter != CompletedFilter.none)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: Text(
+                          '(${_getFilterName(_activeFilter)})',
+                          style: const TextStyle(
+                            color: AppColors.brightYellow,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
-                      child: const Text(
-                        'Clear All',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
                 trailing: const SizedBox.shrink(),
@@ -189,15 +219,120 @@ class _TaskListState extends ConsumerState<TaskList> {
                   color: AppColors.lightGray,
                 ),
                 children: [
-                  const SizedBox(height: 8),
+                  // NEW: Row for filter/clear buttons, placed below the header.
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 4.0,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment
+                          .start, // CHANGED: Aligned to the left
+                      children: [
+                        const Text(
+                          'Filter:',
+                          style: TextStyle(
+                            color: AppColors.mediumGray,
+                            fontSize: 12,
+                          ),
+                        ),
+                        PopupMenuButton<CompletedFilter>(
+                          onSelected: (CompletedFilter result) {
+                            setState(() {
+                              _activeFilter = result;
+                            });
+                          },
+                          icon: Icon(
+                            Icons.filter_list,
+                            color: _activeFilter == CompletedFilter.none
+                                ? AppColors.mediumGray
+                                : AppColors.brightYellow,
+                          ),
+                          tooltip: 'Filter completed tasks',
+                          color: AppColors.cardBg,
+                          itemBuilder: (BuildContext context) =>
+                              <PopupMenuEntry<CompletedFilter>>[
+                                const PopupMenuItem<CompletedFilter>(
+                                  value: CompletedFilter.onTime,
+                                  child: Text(
+                                    'Completed', // CHANGED
+                                    style: TextStyle(
+                                      color: AppColors.lightGray,
+                                    ),
+                                  ),
+                                ),
+                                const PopupMenuItem<CompletedFilter>(
+                                  value: CompletedFilter.overdue,
+                                  child: Text(
+                                    'Overdue',
+                                    style: TextStyle(
+                                      color: AppColors.lightGray,
+                                    ),
+                                  ),
+                                ),
+                                const PopupMenuItem<CompletedFilter>(
+                                  value: CompletedFilter.underdue,
+                                  child: Text(
+                                    'Underdue',
+                                    style: TextStyle(
+                                      color: AppColors.lightGray,
+                                    ),
+                                  ),
+                                ),
+                                const PopupMenuDivider(),
+                                const PopupMenuItem<CompletedFilter>(
+                                  value: CompletedFilter.none,
+                                  child: Text(
+                                    'Clear Filter',
+                                    style: TextStyle(
+                                      color: AppColors.lightGray,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                        ),
+                        const SizedBox(width: 8),
+                        TextButton(
+                          onPressed: _handleClearCompleted,
+                          style: TextButton.styleFrom(
+                            backgroundColor: AppColors.midGray,
+                            foregroundColor: AppColors.lightGray,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text(
+                            'Clear All',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (filteredCompletedTodos.isEmpty &&
+                      _activeFilter != CompletedFilter.none)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20.0),
+                      child: Text(
+                        'No tasks match the "${_getFilterName(_activeFilter)}" filter.',
+                        style: TextStyle(color: AppColors.mediumGray),
+                      ),
+                    ),
                   ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: completedTodos.length,
+                    itemCount: filteredCompletedTodos.length,
                     separatorBuilder: (context, index) =>
                         const SizedBox(height: 12),
                     itemBuilder: (context, index) =>
-                        _buildTaskCard(completedTodos[index]),
+                        _buildTaskCard(filteredCompletedTodos[index]),
                   ),
                 ],
               ),
@@ -406,7 +541,7 @@ class _TaskStatusIndicator extends ConsumerWidget {
     if (isActivelyOverdue) {
       final overdueSeconds = focusedSeconds - plannedSeconds;
       return Container(
-        height: 16, // Match the progress bar height
+        height: 16,
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.symmetric(horizontal: 4.0),
         child: Text(
@@ -420,7 +555,7 @@ class _TaskStatusIndicator extends ConsumerWidget {
       );
     } else {
       return SizedBox(
-        height: 16, // Thicker progress bar
+        height: 16,
         child: ProgressBar(
           focusedSeconds: focusedSeconds,
           plannedSeconds: plannedSeconds,
