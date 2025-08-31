@@ -143,19 +143,39 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
 
   Future<void> _handleTaskToggle(int id) async {
     if (!mounted) return;
+
+    final todos = ref.read(todosProvider).value ?? [];
+    Todo? currentTodo;
+    try {
+      currentTodo = todos.firstWhere((t) => t.id == id);
+    } catch (e) {
+      return; // Todo not found
+    }
+
+    // --- NEW LOGIC START ---
+    // If the task is overdue AND we are about to complete it, show confirmation.
+    if (currentTodo.wasOverdue == 1 && !currentTodo.completed) {
+      final confirm = await AppDialogs.showConfirmCompleteOverdueTaskDialog(
+        context: context,
+        taskName: currentTodo.text,
+      );
+      // If user cancels, abort the operation.
+      if (confirm != true) {
+        return;
+      }
+    }
+    // --- NEW LOGIC END ---
+
     final timerState = ref.read(timerProvider);
-    final currentTodo = ref
-        .read(todosProvider)
-        .value
-        ?.firstWhere((t) => t.id == id);
-    if (currentTodo == null) return;
     if (timerState.activeTaskId == currentTodo.id &&
         timerState.isTimerActive &&
         !currentTodo.completed) {
       await ref.read(timerProvider.notifier).stopAndSaveProgress(id);
     }
+
     final liveFocusedTime =
         timerState.focusedTimeCache[id] ?? currentTodo.focusedTime;
+
     try {
       await ref
           .read(todosProvider.notifier)

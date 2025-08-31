@@ -107,8 +107,7 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
           (widget.todo.durationMinutes * 60);
 
       final isPermanentOverdueMode = widget.todo.wasOverdue == 1;
-      if (!isPermanentOverdueMode &&
-          plannedDurationSeconds > 0 &&
+      if (plannedDurationSeconds > 0 &&
           focusDurationSeconds > plannedDurationSeconds) {
         _showFocusDurationValidationError(
           focusDurationMinutes,
