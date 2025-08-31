@@ -1,11 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'api_service.dart';
 import 'dart:convert'; // For json encoding/decoding
 
 class AuthService extends ChangeNotifier {
   final FlutterSecureStorage _secure = const FlutterSecureStorage();
-  final ApiService api;
+  final dynamic api;
 
   Map<String, dynamic>? _currentUser;
   bool _isAuthenticated = false;

@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/debug_logger.dart';
 
 // For local development the Dart backend accepts a simple header 'x-user-id'
 // to simulate a logged-in user (the original Flask app used OAuth). When the
@@ -18,6 +19,8 @@ class ApiService {
   final int _maxRetries = 3;
   final Duration _retryDelay = const Duration(milliseconds: 500);
 
+  final String _devUserId = 'dev'; // Add this line to store the dev user ID
+
   ApiService(String baseUrl)
     : _dio = Dio(
         BaseOptions(
@@ -32,10 +35,16 @@ class ApiService {
           lower.contains('localhost') ||
           lower.contains('10.0.2.2')) {
         // default dev user id
-        _dio.options.headers['x-user-id'] = 'dev';
+        _dio.options.headers['x-user-id'] = _devUserId; // Use _devUserId
+        debugLog(
+          'ApiService',
+          'Set x-user-id header for local dev: $_devUserId',
+        ); // ADD THIS LOG
       }
     }
   }
+
+  String get devUserId => _devUserId; // Add this getter
 
   /// Sets the authentication token for API requests.
   ///

@@ -1,252 +1,261 @@
+// lib/features/todo/providers/todos_provider.dart
+import 'dart:async'; // For StreamSubscription
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/todo.dart';
-import '../../../core/services/api_service.dart';
+import '../../../core/data/todo_repository.dart';
+import '../../../core/utils/debug_logger.dart'; // Import for debugLog
 
+/// Manages the state of the todo list, leveraging a [TodoRepository]
+/// for local-first data persistence and API synchronization.
 class TodosNotifier extends AsyncNotifier<List<Todo>> {
+  StreamSubscription<List<Todo>>? _todosSubscription;
+
   @override
   Future<List<Todo>> build() async {
-    final api = ref.watch(apiServiceProvider);
-    return await _fetchTodos(api);
-  }
+    debugLog('TodosNotifier', 'Building TodosNotifier...');
+    final repository = ref.watch(todoRepositoryProvider);
 
-  Future<List<Todo>> _fetchTodos(ApiService api) async {
-    final list = await api.fetchTodos();
-    final raw = list
-        .map<Todo>((e) => Todo.fromJson(Map<String, dynamic>.from(e)))
-        .toList();
+    // Initial sync with API to populate local DB
+    // This makes sure the local database has the latest from the backend
+    try {
+      await repository.syncTodos();
+      debugLog('TodosNotifier', 'Initial sync with API completed.');
+    } catch (e, st) {
+      debugLog('TodosNotifier', 'Initial API sync failed: $e\n$st');
+      // Continue without API data, relying only on local storage
+    }
 
-    // Sort by creation time (assuming higher ID is newer)
-    raw.sort((a, b) => b.id.compareTo(a.id));
-    return raw;
-  }
-
-  Future<void> addTodo(String text, int hours, int minutes) async {
-    // Use a negative, temporary ID for the optimistic update.
-    final optimisticId = -DateTime.now().millisecondsSinceEpoch;
-    final optimisticTodo = Todo(
-      id: optimisticId,
-      userId: 'local', // Placeholder
-      text: text,
-      completed: false,
-      durationHours: hours,
-      durationMinutes: minutes,
-      focusedTime: 0,
-      wasOverdue: 0,
-      overdueTime: 0,
+    // Subscribe to changes from the local repository and update state
+    _todosSubscription = repository.watchTodos().listen(
+      (todos) {
+        debugLog(
+          'TodosNotifier',
+          'Received ${todos.length} todos from local DB stream.',
+        );
+        state = AsyncValue.data(todos);
+      },
+      onError: (e, st) {
+        debugLog('TodosNotifier', 'Error in local DB stream: $e\n$st');
+        state = AsyncValue.error(e, st);
+      },
     );
 
-    // Optimistically add to the list
-    final previousState = state.value ?? [];
-    state = AsyncValue.data([optimisticTodo, ...previousState]);
-
-    try {
-      final api = ref.read(apiServiceProvider);
-      final newTodoData = await api.addTodo(text, hours, minutes);
-      final newTodoFromServer = Todo.fromJson(
-        newTodoData as Map<String, dynamic>,
+    ref.onDispose(() {
+      _todosSubscription?.cancel();
+      debugLog(
+        'TodosNotifier',
+        'TodosNotifier disposed, subscription cancelled.',
       );
+    });
 
-      // Replace the optimistic todo with the real one from the server
-      final currentTodos = state.value ?? [];
-      final updatedList = currentTodos.map((todo) {
-        return todo.id == optimisticId ? newTodoFromServer : todo;
-      }).toList();
-
-      // Sort again to ensure correct order if multiple adds happened
-      updatedList.sort((a, b) => b.id.compareTo(a.id));
-      state = AsyncValue.data(updatedList);
-    } catch (e) {
-      // On failure, revert the optimistic update.
-      state = AsyncValue.data(previousState);
-      rethrow;
-    }
-  }
-
-  Future<void> deleteTodo(int id) async {
-    final previousState = state.value ?? [];
-    // Optimistically remove the todo
-    state = AsyncValue.data(
-      previousState.where((todo) => todo.id != id).toList(),
+    // Return the initial data from the local database
+    // This ensures that even if API sync fails, local data is shown immediately.
+    // .first is used to get the initial value from the stream immediately.
+    final initialTodos = await repository.watchTodos().first;
+    debugLog(
+      'TodosNotifier',
+      'Initial data from local DB: ${initialTodos.length} todos.',
     );
+    return initialTodos;
+  }
 
+  /// Adds a new todo via the repository.
+  /// Handles optimistic updates and API sync.
+  Future<void> addTodo(String text, int hours, int minutes) async {
+    debugLog('TodosNotifier', 'Attempting to add todo: $text');
+    // Set loading state if not already loading due to initial sync.
+    // The stream listener will eventually set the data state.
+    state = const AsyncValue.loading();
     try {
-      final api = ref.read(apiServiceProvider);
-      await api.deleteTodo(id);
-      // No refresh needed, optimistic update is sufficient
-    } catch (e) {
-      // On failure, revert state
-      state = AsyncValue.data(previousState);
+      await ref.read(todoRepositoryProvider).addTodo(text, hours, minutes);
+      debugLog('TodosNotifier', 'Todo "$text" added successfully.');
+    } catch (e, st) {
+      debugLog('TodosNotifier', 'Failed to add todo "$text": $e\n$st');
+      state = AsyncValue.error(
+        e,
+        st,
+      ); // Revert to error state if API sync failed
+      rethrow;
+    } finally {
+      // The stream listener will update the state to data
+      // No need to manually set state = AsyncValue.data() here
     }
   }
 
+  /// Deletes a todo by its ID via the repository.
+  /// Handles optimistic updates and API sync.
+  Future<void> deleteTodo(int id) async {
+    debugLog('TodosNotifier', 'Attempting to delete todo ID: $id');
+    // No need to manually set loading state here, optimistic update happens on repo side.
+    try {
+      await ref.read(todoRepositoryProvider).deleteTodo(id);
+      debugLog('TodosNotifier', 'Todo ID: $id deleted successfully.');
+    } catch (e, st) {
+      debugLog('TodosNotifier', 'Failed to delete todo ID: $id: $e\n$st');
+      state = AsyncValue.error(e, st);
+      rethrow;
+    } finally {
+      // The stream listener handles state update.
+    }
+  }
+
+  /// Updates an existing todo's details via the repository.
+  /// Handles optimistic updates and API sync.
   Future<void> updateTodo(
     int id, {
     String? text,
     int? hours,
     int? minutes,
   }) async {
-    // This action is less frequent, so a refresh is acceptable if needed,
-    // but we can also do it optimistically.
-    final previousState = state.value ?? [];
-    final updatedTodos = previousState.map((todo) {
-      if (todo.id == id) {
-        return todo.copyWith(
-          text: text ?? todo.text,
-          durationHours: hours ?? todo.durationHours,
-          durationMinutes: minutes ?? todo.durationMinutes,
-        );
-      }
-      return todo;
-    }).toList();
-    state = AsyncValue.data(updatedTodos);
-
+    debugLog('TodosNotifier', 'Attempting to update todo ID: $id');
     try {
-      final api = ref.read(apiServiceProvider);
-      await api.updateTodo(id, text: text, hours: hours, minutes: minutes);
-    } catch (e) {
-      state = AsyncValue.data(previousState);
+      await ref
+          .read(todoRepositoryProvider)
+          .updateTodo(id: id, text: text, hours: hours, minutes: minutes);
+      debugLog('TodosNotifier', 'Todo ID: $id updated successfully.');
+    } catch (e, st) {
+      debugLog('TodosNotifier', 'Failed to update todo ID: $id: $e\n$st');
+      state = AsyncValue.error(e, st);
+      rethrow;
+    } finally {
+      // The stream listener handles state update.
+    }
+  }
+
+  /// Toggles a todo's completion status via the repository.
+  /// Includes logic to pass live focused time.
+  Future<void> toggleTodo(int id, {int? liveFocusedTime}) async {
+    debugLog('TodosNotifier', 'Attempting to toggle todo ID: $id completion.');
+    try {
+      await ref
+          .read(todoRepositoryProvider)
+          .toggleTodo(id, liveFocusedTime: liveFocusedTime);
+      debugLog('TodosNotifier', 'Todo ID: $id toggled successfully.');
+    } catch (e, st) {
+      debugLog('TodosNotifier', 'Failed to toggle todo ID: $id: $e\n$st');
+      state = AsyncValue.error(e, st);
+      rethrow;
+    } finally {
+      // The stream listener handles state update.
+    }
+  }
+
+  /// Toggles a todo with explicit overdue parameters.
+  Future<void> toggleTodoWithOverdue(
+    int id, {
+    required bool wasOverdue,
+    required int overdueTime,
+  }) async {
+    debugLog(
+      'TodosNotifier',
+      'Attempting to toggle todo ID: $id with overdue status.',
+    );
+    try {
+      await ref
+          .read(todoRepositoryProvider)
+          .toggleTodoWithOverdue(
+            id,
+            wasOverdue: wasOverdue,
+            overdueTime: overdueTime,
+          );
+      debugLog(
+        'TodosNotifier',
+        'Todo ID: $id toggled with overdue status successfully.',
+      );
+    } catch (e, st) {
+      debugLog(
+        'TodosNotifier',
+        'Failed to toggle todo ID: $id with overdue status: $e\n$st',
+      );
+      state = AsyncValue.error(e, st);
+      rethrow;
+    } finally {
+      // The stream listener handles state update.
+    }
+  }
+
+  /// Marks a task as permanently overdue in the local database.
+  Future<void> markTaskPermanentlyOverdue(
+    int id, {
+    required int overdueTime,
+  }) async {
+    debugLog('TodosNotifier', 'Marking todo ID: $id as permanently overdue.');
+    try {
+      await ref
+          .read(todoRepositoryProvider)
+          .markTaskPermanentlyOverdue(id, overdueTime: overdueTime);
+      debugLog(
+        'TodosNotifier',
+        'Todo ID: $id marked as permanently overdue successfully.',
+      );
+    } catch (e, st) {
+      debugLog(
+        'TodosNotifier',
+        'Failed to mark todo ID: $id as permanently overdue: $e\n$st',
+      );
+      state = AsyncValue.error(e, st);
+      rethrow;
+    } finally {
+      // The stream listener handles state update.
+    }
+  }
+
+  /// Updates the focused time (live) for a given todo.
+  /// This is used by the Pomodoro timer to report incremental focused time.
+  Future<void> updateFocusTime(int id, int focusedTime) async {
+    debugLog(
+      'TodosNotifier',
+      'Updating focus time for todo ID: $id to $focusedTime seconds.',
+    );
+    try {
+      await ref.read(todoRepositoryProvider).updateFocusTime(id, focusedTime);
+      debugLog(
+        'TodosNotifier',
+        'Focus time for todo ID: $id updated successfully.',
+      );
+    } catch (e, st) {
+      debugLog(
+        'TodosNotifier',
+        'Failed to update focus time for todo ID: $id: $e\n$st',
+      );
+      state = AsyncValue.error(e, st);
       rethrow;
     }
   }
 
-  Future<void> toggleTodo(int id, {int? liveFocusedTime}) async {
-    final previousState = state.value ?? [];
-    Todo? toggledTodo;
-
-    final updatedTodos = previousState.map((todo) {
-      if (todo.id != id) return todo;
-
-      final focusedTime = liveFocusedTime ?? todo.focusedTime;
-      final plannedSeconds =
-          (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-
-      // Case 1: Reviving a completed task
-      if (todo.completed) {
-        if (todo.wasOverdue == 1) {
-          toggledTodo = todo.copyWith(completed: false);
-          return toggledTodo!;
-        }
-
-        final bool wasUnderdue =
-            plannedSeconds > 0 && todo.focusedTime < plannedSeconds;
-        if (wasUnderdue) {
-          toggledTodo = todo.copyWith(completed: false);
-        } else {
-          toggledTodo = todo.copyWith(
-            completed: false,
-            wasOverdue: 1,
-            overdueTime: todo.overdueTime,
-          );
-        }
-        return toggledTodo!;
-      }
-      // Case 2: Completing an incomplete task
-      else {
-        int finalOverdueTime = todo.overdueTime;
-        if (todo.wasOverdue == 1) {
-          finalOverdueTime = (focusedTime - plannedSeconds)
-              .clamp(0, double.infinity)
-              .toInt();
-        }
-        toggledTodo = todo.copyWith(
-          completed: true,
-          focusedTime: focusedTime,
-          overdueTime: finalOverdueTime,
-        );
-        return toggledTodo!;
-      }
-    }).toList();
-
-    state = AsyncValue.data(updatedTodos);
-
-    if (toggledTodo == null) return;
-
-    try {
-      final api = ref.read(apiServiceProvider);
-      await api.toggleTodoWithOverdue(
-        id,
-        wasOverdue: toggledTodo!.wasOverdue == 1,
-        overdueTime: toggledTodo!.overdueTime,
-      );
-    } catch (e) {
-      state = AsyncValue.data(previousState);
-    }
-  }
-
-  Future<void> toggleTodoWithOverdue(
-    int id, {
-    bool wasOverdue = false,
-    int overdueTime = 0,
-  }) async {
-    final previousState = state.value ?? [];
-    final updatedTodos = previousState.map((todo) {
-      if (todo.id == id) {
-        return todo.copyWith(
-          completed: !todo.completed,
-          wasOverdue: wasOverdue ? 1 : 0,
-          overdueTime: overdueTime,
-        );
-      }
-      return todo;
-    }).toList();
-    state = AsyncValue.data(updatedTodos);
-
-    try {
-      final api = ref.read(apiServiceProvider);
-      await api.toggleTodoWithOverdue(
-        id,
-        wasOverdue: wasOverdue,
-        overdueTime: overdueTime,
-      );
-    } catch (e) {
-      state = AsyncValue.data(previousState);
-    }
-  }
-
-  void markTaskPermanentlyOverdue(int id, {required int overdueTime}) {
-    final List<Todo> current = state.value ?? <Todo>[];
-    bool changed = false;
-    final List<Todo> updated = current.map((Todo t) {
-      if (t.id == id) {
-        changed = true;
-        return t.copyWith(wasOverdue: 1, overdueTime: overdueTime);
-      }
-      return t;
-    }).toList();
-    if (changed) {
-      state = AsyncValue.data(updated);
-    }
-  }
-
+  /// Clears all completed todos via the repository.
   Future<void> clearCompleted() async {
-    final previousState = state.value ?? [];
-    final completedTodos = previousState
-        .where((todo) => todo.completed)
-        .toList();
-    if (completedTodos.isEmpty) return;
-
-    state = AsyncValue.data(
-      previousState.where((todo) => !todo.completed).toList(),
-    );
-
+    debugLog('TodosNotifier', 'Attempting to clear completed todos.');
     try {
-      final api = ref.read(apiServiceProvider);
-      await Future.wait(completedTodos.map((todo) => api.deleteTodo(todo.id)));
-    } catch (e) {
-      state = AsyncValue.data(previousState);
+      await ref.read(todoRepositoryProvider).clearCompleted();
+      debugLog('TodosNotifier', 'Completed todos cleared successfully.');
+    } catch (e, st) {
+      debugLog('TodosNotifier', 'Failed to clear completed todos: $e\n$st');
+      state = AsyncValue.error(e, st);
+      rethrow;
+    } finally {
+      // The stream listener handles state update.
     }
   }
 
+  /// Manually refreshes the todo list by re-syncing with the API.
   Future<void> refresh() async {
-    final api = ref.read(apiServiceProvider);
+    debugLog(
+      'TodosNotifier',
+      'Manually refreshing todos (triggering API sync)...',
+    );
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _fetchTodos(api));
+    try {
+      await ref.read(todoRepositoryProvider).syncTodos();
+      debugLog('TodosNotifier', 'Manual refresh completed successfully.');
+      // The stream listener will update state to data.
+    } catch (e, st) {
+      debugLog('TodosNotifier', 'Manual refresh failed: $e\n$st');
+      state = AsyncValue.error(e, st);
+      rethrow;
+    }
   }
 }
-
-final apiServiceProvider = Provider<ApiService>((ref) {
-  throw UnimplementedError('apiServiceProvider must be overridden');
-});
 
 final todosProvider = AsyncNotifierProvider<TodosNotifier, List<Todo>>(
   TodosNotifier.new,

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/services/api_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/app_dialogs.dart';
@@ -16,7 +15,7 @@ enum CompletedFilter { none, onTime, overdue, underdue }
 
 class TaskList extends ConsumerStatefulWidget {
   final List<Todo> todos;
-  final ApiService api;
+  final dynamic api;
   final NotificationService notificationService;
   final Function(String id) onPlay;
   final Function(String id) onDelete;
@@ -383,22 +382,16 @@ class _TaskListState extends ConsumerState<TaskList> {
 
     if (result == true) {
       debugPrint("SESSION_FLOW: User chose 'Mark Complete'.");
-      await ref
-          .read(todosProvider.notifier)
-          .toggleTodoWithOverdue(
-            todo.id,
-            wasOverdue: true,
-            overdueTime: finalOverdueTime,
-          );
+      await ref.read(todosProvider.notifier).toggleTodo(todo.id);
       timerNotifier.clear();
     } else {
       debugPrint(
         "SESSION_FLOW: User chose 'Continue Working' or dismissed dialog.",
       );
       await timerNotifier.stopAndSaveProgress(todo.id);
-      ref
+      await ref
           .read(todosProvider.notifier)
-          .markTaskPermanentlyOverdue(todo.id, overdueTime: finalOverdueTime);
+          .updateFocusTime(todo.id, finalOverdueTime);
     }
   }
 
@@ -491,6 +484,7 @@ class _TaskListState extends ConsumerState<TaskList> {
       totalCycles: cycles,
       plannedDuration: plannedSeconds,
       isPermanentlyOverdue: todo.wasOverdue == 1,
+      taskName: todo.text,
     );
 
     await PomodoroRouter.showPomodoroSheet(

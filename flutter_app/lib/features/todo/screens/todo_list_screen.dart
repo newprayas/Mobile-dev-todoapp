@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math';
 
+import '../../../core/services/mock_api_service.dart';
 import '../../../core/providers/notification_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/app_dialogs.dart';
@@ -59,19 +60,18 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
       final overdueTime = (liveFocusedTime - plannedTime)
           .clamp(0, double.infinity)
           .toInt();
-      ref
+      await ref
           .read(todosProvider.notifier)
-          .markTaskPermanentlyOverdue(todo.id, overdueTime: overdueTime);
+          .markTaskPermanentlyOverdue(
+            todo.id,
+            overdueTime: overdueTime,
+          ); // CORRECTED
     } else {
       if (wasRunning) timerNotifier.resumeTask();
     }
   }
 
-  Future<void> _handleTaskCompletion(
-    int id, {
-    bool wasOverdue = false,
-    int overdueTime = 0,
-  }) async {
+  Future<void> _handleTaskCompletion(int id, {bool wasOverdue = false}) async {
     if (!mounted) return;
     final timerState = ref.read(timerProvider);
     final currentTodo = ref
@@ -85,17 +85,7 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
       await ref.read(timerProvider.notifier).stopAndSaveProgress(id);
     }
     try {
-      if (wasOverdue) {
-        await ref
-            .read(todosProvider.notifier)
-            .toggleTodoWithOverdue(
-              id,
-              wasOverdue: true,
-              overdueTime: overdueTime,
-            );
-      } else {
-        await ref.read(todosProvider.notifier).toggleTodo(id);
-      }
+      await ref.read(todosProvider.notifier).toggleTodo(id);
     } catch (e) {
       if (mounted) {
         ErrorHandler.showError(context, e);

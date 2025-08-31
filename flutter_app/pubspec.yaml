@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ^3.9.0
@@ -49,6 +49,12 @@ dependencies:
   # Riverpod for state management
   flutter_riverpod: ^2.6.1
   riverpod_annotation: ^2.6.1
+  drift: ^2.28.1 # Updated to latest stable to avoid potential build issues
+  sqlite3_flutter_libs: ^0.5.39 # Updated to latest stable
+  path_provider: ^2.1.5 # Updated to latest stable
+  path: ^1.9.0 # For path manipulation
+  # Add workmanager for background task execution
+  workmanager: ^0.9.0+3
 
 dev_dependencies:
   flutter_test:
@@ -61,8 +67,14 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
   # Riverpod code generation
-  riverpod_generator: ^2.6.2
-  build_runner: ^2.4.13
+  riverpod_generator: ^2.6.5 # Updated to latest stable
+  build_runner: ^2.5.4 # Updated to latest stable
+  drift_dev: ^2.28.0 # Updated to latest stable
+  
+  # NEW: Flutter Launcher Icons configuration for app icon
+  flutter_launcher_icons: "^0.13.1"
+  # NEW: Flutter Native Splash configuration for splash screen
+  flutter_native_splash: "^2.4.0"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -77,7 +89,9 @@ flutter:
 
   assets:
     - assets/sounds/
-    - assets/images/ # ADD THIS LINE
+    - assets/images/ # Ensure this line is present for your logo
+
+  # (Icon and splash configurations are provided at top-level keys required by the packages.)
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -109,3 +123,20 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/final_logo.png"
+  min_sdk_android: 21
+  remove_alpha_ios: true
+
+flutter_native_splash:
+  color: "#1A1A1A"
+  image: "assets/images/final_logo.png"
+  android: true
+  ios: true
+  web: false
+  ios_content_mode: "center"
+  android_gravity: "center"
+  fullscreen: true

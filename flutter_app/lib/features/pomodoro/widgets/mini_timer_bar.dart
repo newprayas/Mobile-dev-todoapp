@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/timer_provider.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/services/api_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../todo/models/todo.dart';
 import '../pomodoro_router.dart';
 import '../../../core/utils/app_dialogs.dart';
 
 class MiniTimerBar extends ConsumerWidget {
-  final ApiService api;
+  final dynamic api;
   final NotificationService notificationService;
   final Todo? activeTodo;
   final Future<void> Function(int) onComplete;
@@ -62,6 +61,7 @@ class MiniTimerBar extends ConsumerWidget {
                 focusedTime: 0,
                 wasOverdue: 0,
                 overdueTime: 0,
+                createdAt: DateTime.now(),
               ),
           notificationService,
           ({bool wasOverdue = false, int overdueTime = 0}) async {

@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/auth_service.dart';
-import '../../todo/providers/todos_provider.dart'; // Import to get apiServiceProvider
+import '../../../core/services/mock_api_service.dart';
 
 // Auth state class
 class AuthState {

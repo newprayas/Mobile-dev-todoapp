@@ -34,7 +34,7 @@ class PomodoroRouter {
           timerNotifier.clearPreserveProgress();
         } else {
           // Timer has been started, so activate the mini-bar.
-          timerNotifier.update(active: true);
+          timerNotifier.update(isTimerActive: true);
         }
       }
     }

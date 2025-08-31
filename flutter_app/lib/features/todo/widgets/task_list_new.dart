@@ -269,6 +269,7 @@ class _TaskListState extends ConsumerState<TaskList> {
       totalCycles: cycles,
       plannedDuration: plannedSeconds,
       isPermanentlyOverdue: todo.wasOverdue == 1,
+      taskName: todo.text,
     );
 
     debugPrint(
