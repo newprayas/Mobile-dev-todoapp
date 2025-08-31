@@ -1,4 +1,4 @@
-package com.example.flutter_app
+package com.todoapp.focus_timer
 
 import io.flutter.embedding.android.FlutterActivity
 

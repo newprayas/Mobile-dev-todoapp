@@ -1,18 +1,17 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'api_service.dart';
+import 'dart:convert'; // For json encoding/decoding
 
 class AuthService extends ChangeNotifier {
   final FlutterSecureStorage _secure = const FlutterSecureStorage();
   final ApiService api;
 
-  // User state management
   Map<String, dynamic>? _currentUser;
   bool _isAuthenticated = false;
 
   AuthService(this.api);
 
-  // Getters
   Map<String, dynamic>? get currentUser => _currentUser;
   bool get isAuthenticated => _isAuthenticated;
   String? get userEmail => _currentUser?['email'];
@@ -20,81 +19,56 @@ class AuthService extends ChangeNotifier {
 
   Future<bool> signInWithGoogle() async {
     try {
-      if (kDebugMode) debugPrint('DEBUG: Starting Google Sign-In...');
+      if (kDebugMode)
+        debugPrint('AUTH: Starting mock sign-in for deployment testing...');
 
-      // For development, we'll use a mock flow since real Google Sign-In setup requires OAuth configuration
-      if (kDebugMode) {
-        debugPrint('DEBUG: Using development mode sign-in');
-        return await _mockSignIn();
-      }
-
-      // This would be used for real Google Sign-In in production
-      return await _mockSignIn();
-    } catch (error) {
-      if (kDebugMode) debugPrint("DEBUG: Google Sign-In error: $error");
-      // Fall back to mock for development
-      if (kDebugMode) {
-        debugPrint('DEBUG: Falling back to mock sign-in due to error');
-        return await _mockSignIn();
-      }
-      return false;
-    }
-  }
-
-  Future<bool> _mockSignIn() async {
-    try {
-      if (kDebugMode) {
-        debugPrint('DEBUG: Performing mock sign-in for development');
-      }
-
-      // Create a mock ID token for development
+      // Create a mock ID token for development/testing
       final mockIdToken =
           'mock_id_token_${DateTime.now().millisecondsSinceEpoch}';
       return await signInWithIdToken(mockIdToken);
     } catch (error) {
-      if (kDebugMode) debugPrint('DEBUG: Mock sign-in error: $error');
+      if (kDebugMode) debugPrint("AUTH: Mock sign-in error: $error");
       return false;
     }
   }
 
   Future<bool> signInWithIdToken(String idToken) async {
     try {
-      if (kDebugMode) debugPrint('DEBUG: Sending ID token to backend...');
+      if (kDebugMode) debugPrint('AUTH: Sending ID token to backend...');
       final resp = await api.authWithIdToken(idToken);
 
       final token = resp['token'];
       final user = resp['user'];
 
-      if (token != null) {
+      if (token != null && user != null) {
         await _secure.write(key: 'server_token', value: token);
-        if (user != null) {
-          await _secure.write(key: 'user_data', value: user.toString());
-        }
+        // Store user data as a JSON string for better structure
+        await _secure.write(key: 'user_data', value: json.encode(user));
 
         api.setAuthToken(token);
-        _currentUser = user ?? {'email': 'dev@example.com', 'name': 'Dev User'};
+        _currentUser = user;
         _isAuthenticated = true;
 
         if (kDebugMode) {
           debugPrint(
-            'DEBUG: Authentication successful for user: ${_currentUser?['email']}',
+            'AUTH: Authentication successful for user: ${user['email']}',
           );
         }
         notifyListeners();
         return true;
       }
 
-      if (kDebugMode) debugPrint('DEBUG: No token received from backend');
+      if (kDebugMode) debugPrint('AUTH: No token received from backend');
       return false;
     } catch (error) {
-      if (kDebugMode) debugPrint('DEBUG: Backend authentication error: $error');
+      if (kDebugMode) debugPrint('AUTH: Backend authentication error: $error');
       return false;
     }
   }
 
   Future<void> signOut() async {
     try {
-      if (kDebugMode) debugPrint('DEBUG: Signing out...');
+      if (kDebugMode) debugPrint('AUTH: Signing out...');
 
       await _secure.delete(key: 'server_token');
       await _secure.delete(key: 'user_data');
@@ -103,32 +77,32 @@ class AuthService extends ChangeNotifier {
       _currentUser = null;
       _isAuthenticated = false;
 
-      if (kDebugMode) debugPrint('DEBUG: Sign out complete');
+      if (kDebugMode) debugPrint('AUTH: Sign out complete');
       notifyListeners();
     } catch (error) {
-      if (kDebugMode) debugPrint('DEBUG: Sign out error: $error');
+      if (kDebugMode) debugPrint('AUTH: Sign out error: $error');
     }
   }
 
   Future<void> loadSavedToken() async {
     try {
       final token = await _secure.read(key: 'server_token');
-      final userData = await _secure.read(key: 'user_data');
+      final userDataString = await _secure.read(key: 'user_data');
 
       if (token != null) {
         api.setAuthToken(token);
         _isAuthenticated = true;
 
-        if (userData != null) {
-          // Parse user data (this is a simple string conversion, in production use JSON)
-          _currentUser = {'email': 'saved@example.com', 'name': 'Saved User'};
+        if (userDataString != null) {
+          // Decode the user data from JSON
+          _currentUser = json.decode(userDataString);
         }
 
-        if (kDebugMode) debugPrint('DEBUG: Loaded saved authentication');
+        if (kDebugMode) debugPrint('AUTH: Loaded saved authentication');
         notifyListeners();
       }
     } catch (error) {
-      if (kDebugMode) debugPrint('DEBUG: Error loading saved token: $error');
+      if (kDebugMode) debugPrint('AUTH: Error loading saved token: $error');
     }
   }
 

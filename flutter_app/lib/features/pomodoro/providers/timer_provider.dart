@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/timer_session_controller.dart';
 import '../../../core/providers/notification_provider.dart';
+import '../../../core/utils/debug_logger.dart';
 import '../../todo/providers/todos_provider.dart';
 import '../../todo/models/todo.dart';
 
@@ -282,7 +283,6 @@ class TimerNotifier extends Notifier<TimerState> {
     _ticker?.cancel();
     _startAutoSaveTimer();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      debugPrint('TICKER: ${state.toString()}');
       if (!state.isRunning) return;
 
       if (state.currentMode == 'focus' && state.activeTaskId != null) {
@@ -407,7 +407,7 @@ class TimerNotifier extends Notifier<TimerState> {
         // Task not found, skip notification
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('SOUND/NOTIFICATION ERROR: $e');
+      debugLog('TimerNotifier', 'SOUND/NOTIFICATION ERROR: $e');
     }
 
     _ticker?.cancel();
@@ -534,7 +534,7 @@ class TimerNotifier extends Notifier<TimerState> {
         body: 'Focus time for "$taskName". You\'ve got this!',
       );
     } catch (e) {
-      if (kDebugMode) debugPrint('SOUND/NOTIFICATION ERROR: $e');
+      debugLog('TimerNotifier', 'SOUND/NOTIFICATION ERROR: $e');
     }
 
     state = state.copyWith(

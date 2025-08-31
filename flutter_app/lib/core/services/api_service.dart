@@ -25,12 +25,15 @@ class ApiService {
           connectTimeout: const Duration(seconds: 5),
         ),
       ) {
-    final lower = baseUrl.toLowerCase();
-    if (lower.contains('127.0.0.1') ||
-        lower.contains('localhost') ||
-        lower.contains('10.0.2.2')) {
-      // default dev user id
-      _dio.options.headers['x-user-id'] = 'dev';
+    if (kDebugMode) {
+      // IMPORTANT: Only apply dev user-id in debug mode
+      final lower = baseUrl.toLowerCase();
+      if (lower.contains('127.0.0.1') ||
+          lower.contains('localhost') ||
+          lower.contains('10.0.2.2')) {
+        // default dev user id
+        _dio.options.headers['x-user-id'] = 'dev';
+      }
     }
   }
 

@@ -19,7 +19,7 @@ class TodoListAppBar extends ConsumerWidget {
       backgroundColor: AppColors.scaffoldBg,
       elevation: 0,
       title: Text(
-        'Todo List',
+        'BETAFLOW List', // Changed app name
         style: TextStyle(
           color: AppColors.lightGray,
           fontWeight: FontWeight.w600,

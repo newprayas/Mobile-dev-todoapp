@@ -1,8 +1,7 @@
-// In file: flutter_app/lib/main.dart
+// Focus Timer App - Main Entry Point
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Import the services package
-import 'dart:io'
-    show Platform, HttpClient; // Added HttpClient for backend readiness check
+import 'dart:io' show Platform; // Added HttpClient for backend readiness check
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart'; // Import the new root widget
@@ -10,6 +9,7 @@ import 'core/services/api_service.dart';
 import 'core/services/notification_service.dart';
 import 'features/todo/providers/todos_provider.dart';
 import 'core/providers/notification_provider.dart';
+import 'core/utils/debug_logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,11 +22,11 @@ void main() async {
 
   // Test break timer sound on app startup (debug only)
   if (kDebugMode) {
-    debugPrint('MAIN: Testing break timer sound on startup...');
+    debugLog('MAIN', 'Testing break timer sound on startup...');
     try {
       await notificationService.testBreakSound();
     } catch (e) {
-      debugPrint('MAIN: Break sound test failed: $e');
+      debugLog('MAIN', 'Break sound test failed: $e');
     }
   }
 
@@ -43,10 +43,7 @@ void main() async {
 
   final baseUrl = chooseBaseUrl();
   // show chosen base for easier debugging during development
-  if (kDebugMode) debugPrint('Using API baseUrl: $baseUrl');
-
-  // Dev-only: wait briefly for backend readiness (helps avoid connection refused race)
-  await _waitForBackend(baseUrl, attempts: 8, delayMs: 400);
+  if (kDebugMode) debugLog('MAIN', 'Using API baseUrl: $baseUrl');
 
   final api = ApiService(baseUrl);
 
@@ -61,55 +58,4 @@ void main() async {
       child: const App(), // Run the new App widget
     ),
   );
-}
-
-// Simple readiness / liveness wait loop for local backend. Will not throw;
-// it only logs status to avoid blocking app indefinitely.
-Future<void> _waitForBackend(
-  String baseUrl, {
-  int attempts = 5,
-  int delayMs = 500,
-}) async {
-  final lower = baseUrl.toLowerCase();
-  final isLocal =
-      lower.contains('127.0.0.1') ||
-      lower.contains('localhost') ||
-      lower.contains('10.0.2.2');
-  if (!isLocal) return; // Only applicable for local dev
-  if (kDebugMode) {
-    debugPrint('BACKEND WAIT: Checking backend readiness at $baseUrl');
-  }
-  final uri = Uri.parse('$baseUrl/health');
-  for (var i = 1; i <= attempts; i++) {
-    try {
-      final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 2);
-      final req = await client.getUrl(uri);
-      final resp = await req.close();
-      if (resp.statusCode == 200) {
-        if (kDebugMode) {
-          debugPrint('BACKEND WAIT: Backend healthy (attempt $i/$attempts).');
-        }
-        client.close(force: true);
-        return;
-      } else {
-        if (kDebugMode) {
-          debugPrint(
-            'BACKEND WAIT: Unexpected status ${resp.statusCode} (attempt $i/$attempts)',
-          );
-        }
-      }
-      client.close(force: true);
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('BACKEND WAIT: attempt $i/$attempts failed: $e');
-      }
-    }
-    await Future.delayed(Duration(milliseconds: delayMs));
-  }
-  if (kDebugMode) {
-    debugPrint(
-      'BACKEND WAIT: Proceeding without positive health confirmation.',
-    );
-  }
 }

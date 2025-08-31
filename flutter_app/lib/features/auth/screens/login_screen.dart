@@ -34,22 +34,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             children: [
               // App Logo/Title
               Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.brightYellow.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Icon(
-                  Icons.task_alt,
-                  size: 80,
-                  color: AppColors.brightYellow,
+                decoration: const BoxDecoration(), // No background, no border
+                child: ClipOval(
+                  // Ensures perfect circular rendering
+                  child: Image.asset(
+                    'assets/images/final_logo.png',
+                    width: 220, // Further increased size for the logo
+                    height: 220, // Further increased size for the logo
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
-              const SizedBox(height: 32),
-
+              const SizedBox(
+                height: 20,
+              ), // Reduced the height to bring it closer to the text
               // Welcome Text
               Text(
-                'Welcome to TodoApp',
+                'Welcome to BETAFLOW',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: AppColors.lightGray,
                   fontWeight: FontWeight.bold,

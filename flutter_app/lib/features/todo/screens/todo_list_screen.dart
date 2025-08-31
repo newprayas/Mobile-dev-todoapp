@@ -5,6 +5,7 @@ import 'dart:math';
 import '../../../core/providers/notification_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/app_dialogs.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../pomodoro/providers/timer_provider.dart';
 import '../../pomodoro/widgets/mini_timer_bar.dart';
@@ -27,14 +28,10 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
     if (!mounted) return;
     try {
       await ref.read(todosProvider.notifier).addTodo(taskName, hours, minutes);
+      ErrorHandler.showSuccess(context, 'Task added successfully!');
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to add task. Please check your connection.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        ErrorHandler.showError(context, e);
       }
     }
   }
@@ -101,12 +98,7 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to complete task. Please try again.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        ErrorHandler.showError(context, e);
       }
     }
   }
@@ -129,14 +121,10 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
     }
     try {
       await ref.read(todosProvider.notifier).deleteTodo(id);
+      ErrorHandler.showSuccess(context, 'Task deleted successfully!');
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to delete task. Please try again.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        ErrorHandler.showError(context, e);
       }
     }
   }
@@ -182,12 +170,7 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
           .toggleTodo(id, liveFocusedTime: liveFocusedTime);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to toggle task. Please try again.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        ErrorHandler.showError(context, e);
       }
     }
   }
@@ -199,12 +182,7 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
         await ref.read(authProvider.notifier).signOut();
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to sign out. Please try again.'),
-              backgroundColor: Colors.redAccent,
-            ),
-          );
+          ErrorHandler.showError(context, e);
         }
       }
     }
@@ -256,6 +234,8 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
     final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
     final showSignOutButton =
         !isTimerBarVisible && !isKeyboardVisible && !_isCompletedExpanded;
+    final showCreditTag =
+        !isTimerBarVisible && !isKeyboardVisible && !_isCompletedExpanded;
 
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
@@ -280,7 +260,7 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
                       children: [
                         const SizedBox(height: 20),
                         Text(
-                          'TO-DO APP',
+                          'BETAFLOW', // Changed app name
                           style: TextStyle(
                             color: AppColors.brightYellow,
                             fontSize: 48,
@@ -289,7 +269,9 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(
+                          height: 32,
+                        ), // Increased the height for more gap
                         Text(
                           'Welcome, $userName!',
                           style: const TextStyle(
@@ -361,6 +343,47 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
                   notificationService: notificationService,
                   activeTodo: activeTodo,
                   onComplete: (id) => _handleTaskCompletion(id),
+                ),
+              ),
+            if (showCreditTag)
+              Positioned(
+                bottom: 12,
+                left: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  child: RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Made with ',
+                          style: TextStyle(
+                            color: AppColors.mediumGray.withValues(alpha: 0.6),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        TextSpan(
+                          text: '❤️',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        TextSpan(
+                          text: ' by Prayas',
+                          style: TextStyle(
+                            color: AppColors.mediumGray.withValues(alpha: 0.6),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             if (showSignOutButton)
