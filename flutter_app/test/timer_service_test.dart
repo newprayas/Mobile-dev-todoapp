@@ -19,11 +19,11 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(timerProvider.notifier);
     notifier.update(
-      taskId: 1,
-      remaining: 120,
-      running: true,
-      active: true,
-      mode: 'focus',
+      activeTaskId: 1,
+      timeRemaining: 120,
+      isRunning: true,
+      isTimerActive: true,
+      currentMode: 'focus',
     );
     notifier.updateFocusedTime(1, 30);
     final state = container.read(timerProvider);

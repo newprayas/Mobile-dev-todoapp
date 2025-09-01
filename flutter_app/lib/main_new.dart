@@ -40,16 +40,6 @@ void main() async {
         'MAIN',
         'Notification tapped, app will be brought to foreground.',
       );
-    } else if (payload == 'pause_resume_timer') {
-      // Handle pause/resume action from notification
-      debugLog('MAIN', 'Notification pause/resume action triggered');
-      // We'll handle this in the app widget by listening to a provider
-      // For now, just log it
-    } else if (payload == 'stop_timer') {
-      // Handle stop action from notification
-      debugLog('MAIN', 'Notification stop action triggered');
-      // We'll handle this in the app widget by listening to a provider
-      // For now, just log it
     } else if (payload != null && payload.startsWith('toggle_')) {
       // This is a placeholder. Real implementation needs a way to communicate
       // with the active TimerNotifier in the foreground or trigger a WM task.
@@ -73,9 +63,8 @@ void main() async {
   const envBase = String.fromEnvironment('API_BASE_URL', defaultValue: '');
   String chooseBaseUrl() {
     if (envBase.isNotEmpty) return envBase;
-    if (Platform.isAndroid) {
+    if (Platform.isAndroid)
       return 'http://10.0.2.2:5000'; // Use 10.0.2.2 for Android emulator to reach host localhost
-    }
     return 'http://127.0.0.1:5000';
   }
 

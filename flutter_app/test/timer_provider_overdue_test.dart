@@ -9,14 +9,15 @@ void main() {
     final notifier = container.read(timerProvider.notifier);
 
     notifier.update(
-      taskId: 1,
-      active: true,
-      running: true,
-      mode: 'focus',
-      remaining: 3, // small countdown
-      focusDuration: 3,
-      breakDuration: 2,
-      plannedDuration: 3, // plan equals focus duration
+      activeTaskId: 1,
+      activeTaskName: 'Test Task',
+      isTimerActive: true,
+      isRunning: true,
+      currentMode: 'focus',
+      timeRemaining: 3, // small countdown
+      focusDurationSeconds: 3,
+      breakDurationSeconds: 2,
+      plannedDurationSeconds: 3, // plan equals focus duration
     );
     notifier.startTicker();
 
@@ -38,14 +39,15 @@ void main() {
       final notifier = container.read(timerProvider.notifier);
 
       notifier.update(
-        taskId: 2,
-        active: true,
-        running: true,
-        mode: 'focus',
-        remaining: 1,
-        focusDuration: 1,
-        breakDuration: 1,
-        plannedDuration: 1,
+        activeTaskId: 2,
+        activeTaskName: 'taskB',
+        isTimerActive: true,
+        isRunning: true,
+        currentMode: 'focus',
+        timeRemaining: 1,
+        focusDurationSeconds: 1,
+        breakDurationSeconds: 1,
+        plannedDurationSeconds: 1,
       );
       notifier.startTicker();
 

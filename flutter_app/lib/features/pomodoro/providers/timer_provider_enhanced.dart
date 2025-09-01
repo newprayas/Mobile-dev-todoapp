@@ -312,7 +312,11 @@ class TimerNotifier extends Notifier<TimerState> {
               );
               ref
                   .read(notificationServiceProvider)
-                  .playSound('progress_bar_full.wav');
+                  .showNotification(
+                    title: 'Session Complete!',
+                    body: 'Overdue task session completed.',
+                    soundFileName: 'progress_bar_full.wav',
+                  );
               state = state.copyWith(
                 overdueSessionsComplete: true,
                 isRunning: false,
@@ -328,10 +332,10 @@ class TimerNotifier extends Notifier<TimerState> {
 
           // Transition to break (for both normal and overdue tasks if not yet complete)
           final notificationService = ref.read(notificationServiceProvider);
-          notificationService.playSound('break_timer_start.wav');
           notificationService.showNotification(
             title: 'Focus Session Complete!',
             body: 'Time for a break. Great work!',
+            soundFileName: 'break_timer_start.wav',
           );
           final nextCycle = (state.currentCycle + 1) <= state.totalCycles
               ? state.currentCycle + 1
@@ -345,10 +349,10 @@ class TimerNotifier extends Notifier<TimerState> {
         } else if (state.currentMode == 'break' &&
             state.focusDurationSeconds != null) {
           final notificationService = ref.read(notificationServiceProvider);
-          notificationService.playSound('focus_timer_start.wav');
           notificationService.showNotification(
             title: 'Break Complete!',
-            body: 'Time to focus. Let\'s get back to work!',
+            body: 'Time to focus again!',
+            soundFileName: 'focus_timer_start.wav',
           );
           state = state.copyWith(
             currentMode: 'focus',

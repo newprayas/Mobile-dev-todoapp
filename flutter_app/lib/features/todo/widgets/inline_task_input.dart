@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/debug_logger.dart';
 
 class InlineTaskInput extends StatefulWidget {
   final Function(String taskName, int hours, int minutes) onAddTask;
@@ -16,23 +17,40 @@ class _InlineTaskInputState extends State<InlineTaskInput> {
   final _minutesController = TextEditingController(text: '25');
   final _taskFocusNode = FocusNode();
 
+  void _onAddButtonPressed() {
+    debugLog('InlineTaskInput', '🔥 ADD BUTTON TAPPED!');
+    _handleSubmit();
+  }
+
   void _handleSubmit() {
+    debugLog(
+      'InlineTaskInput',
+      '🚀 ADD BUTTON PRESSED - Starting _handleSubmit',
+    );
     final String taskName = _taskController.text.trim();
     final int hours = int.tryParse(_hoursController.text) ?? 0;
     final int minutes = int.tryParse(_minutesController.text) ?? 25;
 
+    debugLog(
+      'InlineTaskInput',
+      'Attempting to add task: "$taskName" (${hours}h ${minutes}m)',
+    );
+
     if (taskName.isEmpty) {
+      debugLog('InlineTaskInput', 'Validation failed: Task name is empty.');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Task name cannot be empty.'),
           backgroundColor: Colors.orange,
         ),
       );
+      // Only request focus if there's a validation error, not automatically
       _taskFocusNode.requestFocus();
       return;
     }
 
     if (hours == 0 && minutes == 0) {
+      debugLog('InlineTaskInput', 'Validation failed: Task duration is zero.');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Task duration must be greater than 0 minutes.'),
@@ -42,10 +60,12 @@ class _InlineTaskInputState extends State<InlineTaskInput> {
       return;
     }
 
+    debugLog('InlineTaskInput', 'Validation passed. Calling onAddTask...');
     widget.onAddTask(taskName, hours, minutes);
 
     _taskController.clear();
-    _taskFocusNode.requestFocus();
+    // Removed automatic focus request to prevent keyboard from appearing automatically
+    debugLog('InlineTaskInput', 'Task input fields cleared.');
   }
 
   @override
@@ -80,7 +100,7 @@ class _InlineTaskInputState extends State<InlineTaskInput> {
               vertical: 14,
             ),
           ),
-          onSubmitted: (_) => _handleSubmit(),
+          onSubmitted: (_) => _onAddButtonPressed(),
           textInputAction: TextInputAction.done,
         ),
         const SizedBox(height: 12),
@@ -95,7 +115,7 @@ class _InlineTaskInputState extends State<InlineTaskInput> {
             SizedBox(
               height: 48,
               child: ElevatedButton(
-                onPressed: _handleSubmit,
+                onPressed: _onAddButtonPressed,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.brightYellow,
                   shape: RoundedRectangleBorder(

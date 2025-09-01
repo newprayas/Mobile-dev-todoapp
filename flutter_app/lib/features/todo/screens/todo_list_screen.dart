@@ -6,6 +6,7 @@ import '../../../core/services/mock_api_service.dart';
 import '../../../core/providers/notification_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/app_dialogs.dart';
+import '../../../core/utils/debug_logger.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../pomodoro/providers/timer_provider.dart';
@@ -26,13 +27,27 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
   bool _isCompletedExpanded = false;
 
   Future<void> _addTodo(String taskName, int hours, int minutes) async {
-    if (!mounted) return;
+    debugLog(
+      'TodoListScreen',
+      'Received add task request: "$taskName" (${hours}h ${minutes}m)',
+    );
+    if (!mounted) {
+      debugLog('TodoListScreen', '_addTodo: Widget not mounted, aborting.');
+      return;
+    }
     try {
+      debugLog('TodoListScreen', 'Calling todosProvider.notifier.addTodo...');
       await ref.read(todosProvider.notifier).addTodo(taskName, hours, minutes);
       ErrorHandler.showSuccess(context, 'Task added successfully!');
-    } catch (e) {
+      debugLog(
+        'TodoListScreen',
+        'Task added successfully and success message shown.',
+      );
+    } catch (e, st) {
+      debugLog('TodoListScreen', 'Error adding task: $e\n$st');
       if (mounted) {
         ErrorHandler.showError(context, e);
+        debugLog('TodoListScreen', 'Error message shown for adding task.');
       }
     }
   }

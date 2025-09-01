@@ -18,15 +18,22 @@ class AuthService extends ChangeNotifier {
 
   Future<bool> signInWithGoogle() async {
     try {
-      if (kDebugMode)
-        debugPrint('AUTH: Starting mock sign-in for deployment testing...');
+      // Always use mock Google Sign-In for tester APKs (no real plugin calls).
+      debugPrint('AUTH: Initiating mock Google Sign-In...');
 
-      // Create a mock ID token for development/testing
+      // Generate a mock ID token and proceed with server authentication.
       final mockIdToken =
           'mock_id_token_${DateTime.now().millisecondsSinceEpoch}';
-      return await signInWithIdToken(mockIdToken);
-    } catch (error) {
-      if (kDebugMode) debugPrint("AUTH: Mock sign-in error: $error");
+      debugPrint(
+        'AUTH: Generated mock token: ${mockIdToken.substring(0, 20)}...',
+      );
+
+      final result = await signInWithIdToken(mockIdToken);
+      debugPrint('AUTH: signInWithIdToken returned: $result');
+      return result;
+    } catch (error, stackTrace) {
+      debugPrint("AUTH: Mock sign-in error: $error");
+      debugPrint("AUTH: Stack trace: $stackTrace");
       return false;
     }
   }
@@ -34,12 +41,18 @@ class AuthService extends ChangeNotifier {
   Future<bool> signInWithIdToken(String idToken) async {
     try {
       if (kDebugMode) debugPrint('AUTH: Sending ID token to backend...');
+      debugPrint('AUTH: API instance type: ${api.runtimeType}');
+
       final resp = await api.authWithIdToken(idToken);
+      debugPrint('AUTH: Backend response received: $resp');
 
       final token = resp['token'];
       final user = resp['user'];
 
       if (token != null && user != null) {
+        debugPrint(
+          'AUTH: Valid token and user received, storing credentials...',
+        );
         await _secure.write(key: 'server_token', value: token);
         // Store user data as a JSON string for better structure
         await _secure.write(key: 'user_data', value: json.encode(user));
@@ -53,14 +66,16 @@ class AuthService extends ChangeNotifier {
             'AUTH: Authentication successful for user: ${user['email']}',
           );
         }
+        debugPrint('AUTH: Calling notifyListeners...');
         notifyListeners();
         return true;
       }
 
       if (kDebugMode) debugPrint('AUTH: No token received from backend');
       return false;
-    } catch (error) {
+    } catch (error, stackTrace) {
       if (kDebugMode) debugPrint('AUTH: Backend authentication error: $error');
+      if (kDebugMode) debugPrint('AUTH: Stack trace: $stackTrace');
       return false;
     }
   }

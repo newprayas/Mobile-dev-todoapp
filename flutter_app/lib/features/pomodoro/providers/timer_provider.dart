@@ -9,6 +9,7 @@ import '../../../core/services/timer_session_controller.dart';
 import '../../../core/providers/notification_provider.dart';
 import '../../../core/utils/debug_logger.dart';
 import '../../../core/utils/app_constants.dart'; // Import AppConstants
+import '../../../core/utils/helpers.dart'; // Import formatTime
 import '../../todo/providers/todos_provider.dart';
 import '../../todo/models/todo.dart';
 import '../../../core/data/todo_repository.dart';
@@ -68,7 +69,7 @@ class TimerState {
     this.suppressNextActivation = false,
     this.cycleOverflowBlocked = false,
     this.isPermanentlyOverdue = false,
-    this.backgroundStartTime, // Initialize new fields
+    this.backgroundStartTime,
     this.pausedTimeTotal = 0,
     this.wasInBackground = false,
   });
@@ -165,7 +166,6 @@ class TimerPersistenceManager {
   TimerPersistenceManager(this._prefs);
 
   Future<void> saveTimerState(TimerState state) async {
-    // Save minimal state required for background execution or app restoration
     await _prefs.setInt(
       AppConstants.prefActiveTaskId,
       state.activeTaskId ?? -1,
@@ -265,8 +265,9 @@ class TimerPersistenceManager {
 
   TimerState? loadTimerState() {
     final int? activeTaskIdRaw = _prefs.getInt(AppConstants.prefActiveTaskId);
-    if (activeTaskIdRaw == null || activeTaskIdRaw == -1)
+    if (activeTaskIdRaw == null || activeTaskIdRaw == -1) {
       return null; // No active timer saved
+    }
 
     final String? focusedTimeCacheJson = _prefs.getString(
       AppConstants.prefFocusedTimeCache,
@@ -366,7 +367,7 @@ class TimerPersistenceManager {
     await _prefs.remove(AppConstants.prefWasInBackground);
     await _prefs.remove(
       AppConstants.prefSessionScheduled,
-    ); // Track if a session is scheduled in WM
+    ); // Track if a WM task is active
     await _prefs.remove(AppConstants.prefApiBaseUrl); // Clear API URL
     await _prefs.remove(AppConstants.prefIsDebugMode); // Clear debug mode flag
     debugLog('TimerPersistenceManager', 'TimerState cleared from preferences.');
@@ -466,6 +467,9 @@ class TimerNotifier extends Notifier<TimerState> {
           _persistenceManager.isSessionScheduled()) {
         Workmanager().cancelByUniqueName(AppConstants.pomodoroTimerTask);
         _persistenceManager.setSessionScheduled(false);
+        ref
+            .read(notificationServiceProvider)
+            .cancelPersistentTimerNotification(); // Cancel notification
         debugLog('TimerNotifier', 'Workmanager task cancelled on dispose.');
       }
     });
@@ -521,14 +525,10 @@ class TimerNotifier extends Notifier<TimerState> {
             wasInBackground: false,
             backgroundStartTime: null,
           );
-          // If it was running and scheduled, restart ticker and schedule WM for the remaining time
+          // If it was running and scheduled, restart ticker and show persistent notification
           if (state.isRunning && _persistenceManager.isSessionScheduled()) {
             startTicker();
-            _scheduleWorkmanagerTask(
-              state.activeTaskId!,
-              state.activeTaskName!,
-              restoredTimeRemaining,
-            );
+            await _showPersistentNotification(); // Show notification on restore
           }
         }
       } else {
@@ -537,9 +537,10 @@ class TimerNotifier extends Notifier<TimerState> {
           wasInBackground: false,
           backgroundStartTime: null,
         );
-        // If it was running, ensure ticker is started.
+        // If it was running, ensure ticker is started and notification shown.
         if (state.isRunning) {
           startTicker();
+          await _showPersistentNotification(); // Show notification on restore
         }
       }
     }
@@ -575,7 +576,7 @@ class TimerNotifier extends Notifier<TimerState> {
     );
 
     // Clear Workmanager task if it's still registered
-    await _cancelWorkmanagerTask(); // This also sets `prefSessionScheduled` to false
+    await _cancelWorkmanagerTask();
 
     // Clear all persisted timer state as session is complete
     await _persistenceManager.clearTimerState();
@@ -628,12 +629,30 @@ class TimerNotifier extends Notifier<TimerState> {
       existingWorkPolicy:
           ExistingWorkPolicy.replace, // Replaces if task with same name exists
       constraints: Constraints(
-  networkType: NetworkType.notRequired,
+        networkType: NetworkType.notRequired,
         requiresDeviceIdle: false, // Ensure it runs even if device is active
         requiresCharging: false,
         requiresBatteryNotLow: false,
       ),
-      inputData: {'apiBaseUrl': _apiBaseUrl, 'isDebugMode': _isDebugMode},
+      inputData: {
+        'apiBaseUrl': _apiBaseUrl,
+        'isDebugMode': _isDebugMode,
+        // Pass essential current state for the background task to start correctly
+        'activeTaskId': taskId,
+        'activeTaskText': taskName,
+        'timeRemaining': remainingSeconds,
+        'currentMode': state.currentMode,
+        'focusedTimeCache': json.encode(
+          state.focusedTimeCache.map((k, v) => MapEntry(k.toString(), v)),
+        ),
+        'plannedDurationSeconds': state.plannedDurationSeconds ?? 0,
+        'focusDurationSeconds': state.focusDurationSeconds ?? 0,
+        'breakDurationSeconds': state.breakDurationSeconds ?? 0,
+        'currentCycle': state.currentCycle,
+        'totalCycles': state.totalCycles,
+        'completedSessions': state.completedSessions,
+        'isPermanentlyOverdue': state.isPermanentlyOverdue,
+      },
     );
     await _persistenceManager.setSessionScheduled(true); // Mark as scheduled
     debugLog(
@@ -709,28 +728,45 @@ class TimerNotifier extends Notifier<TimerState> {
     if (newState != state) {
       state = newState;
       _saveTimerStateToPrefs(); // Save state whenever it changes
+
+      // Update persistent notification if timer is active
+      if (state.isTimerActive && state.activeTaskId != null) {
+        _showPersistentNotification();
+      } else {
+        ref
+            .read(notificationServiceProvider)
+            .cancelPersistentTimerNotification();
+      }
     }
+  }
+
+  // Helper to show/update the persistent notification
+  Future<void> _showPersistentNotification() async {
+    final notificationService = ref.read(notificationServiceProvider);
+    await notificationService.updatePersistentTimerNotification(
+      taskName: state.activeTaskName ?? 'Unknown Task',
+      timeRemaining: formatTime(state.timeRemaining),
+      currentMode: state.currentMode,
+      isRunning: state.isRunning,
+      isFocusMode: state.currentMode == 'focus',
+    );
   }
 
   void markOverduePromptShown(int taskId) {
     final newPromptShown = Set<int>.from(state.overduePromptShown)..add(taskId);
-    update(overduePromptShown: newPromptShown); // Use update to save to prefs
+    update(overduePromptShown: newPromptShown);
   }
 
   void markOverdueContinued(int taskId) {
     final newOverdueContinued = Set<int>.from(state.overdueContinued)
       ..add(taskId);
-    update(
-      overdueContinued: newOverdueContinued,
-    ); // Use update to save to prefs
+    update(overdueContinued: newOverdueContinued);
   }
 
   void updateFocusedTime(int taskId, int seconds) {
     final newFocusedTimeCache = Map<int, int>.from(state.focusedTimeCache);
     newFocusedTimeCache[taskId] = seconds;
-    update(
-      focusedTimeCache: newFocusedTimeCache,
-    ); // Use update to save to prefs
+    update(focusedTimeCache: newFocusedTimeCache);
   }
 
   int getFocusedTime(int taskId) {
@@ -739,7 +775,7 @@ class TimerNotifier extends Notifier<TimerState> {
 
   void startTicker() {
     _ticker?.cancel();
-    _startAutoSaveTimer(); // Auto-save timer still runs for foreground
+    _startAutoSaveTimer();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!state.isRunning) return;
 
@@ -748,11 +784,11 @@ class TimerNotifier extends Notifier<TimerState> {
         final currentFocused = state.focusedTimeCache[taskId] ?? 0;
         final newCache = Map<int, int>.from(state.focusedTimeCache);
         newCache[taskId] = currentFocused + 1;
-        update(focusedTimeCache: newCache); // Use update to save
+        update(focusedTimeCache: newCache);
       }
 
       if (state.timeRemaining > 0) {
-        update(timeRemaining: state.timeRemaining - 1); // Use update to save
+        update(timeRemaining: state.timeRemaining - 1);
       } else {
         // TIMER PHASE COMPLETED
         if (state.currentMode == 'focus') {
@@ -760,7 +796,6 @@ class TimerNotifier extends Notifier<TimerState> {
 
           // Check if all planned cycles are now complete
           if (completed >= state.totalCycles) {
-            // If permanently overdue, handle special completion
             if (state.isPermanentlyOverdue && !state.overdueSessionsComplete) {
               debugLog(
                 'TimerNotifier',
@@ -768,7 +803,12 @@ class TimerNotifier extends Notifier<TimerState> {
               );
               ref
                   .read(notificationServiceProvider)
-                  .playSound('progress_bar_full.wav');
+                  .playSoundWithNotification(
+                    soundFileName: 'progress_bar_full.wav',
+                    title: 'Session Complete!',
+                    body:
+                        'Overdue task session completed for "${state.activeTaskName}".',
+                  );
               update(
                 overdueSessionsComplete: true,
                 isRunning: false,
@@ -776,11 +816,18 @@ class TimerNotifier extends Notifier<TimerState> {
               );
               stopTicker();
             } else if (!state.allSessionsComplete) {
-              // Use allSessionsComplete to prevent multiple triggers
               debugLog(
                 'TimerNotifier',
                 'All focus sessions complete. Firing event.',
               );
+              ref
+                  .read(notificationServiceProvider)
+                  .playSoundWithNotification(
+                    soundFileName: 'progress_bar_full.wav',
+                    title: 'All Sessions Complete!',
+                    body:
+                        'All planned sessions completed for "${state.activeTaskName}".',
+                  );
               update(
                 allSessionsComplete: true,
                 isRunning: false,
@@ -788,7 +835,6 @@ class TimerNotifier extends Notifier<TimerState> {
               );
               stopTicker();
             }
-            // If already complete, just stop ticker and return
             if (!state.isRunning && state.timeRemaining == 0) {
               stopTicker();
               return;
@@ -796,8 +842,9 @@ class TimerNotifier extends Notifier<TimerState> {
           } else {
             // Move to break session
             final notificationService = ref.read(notificationServiceProvider);
-            notificationService.playSound('break_timer_start.wav');
-            notificationService.showNotification(
+            // Play sound with notification for better background operation
+            notificationService.playSoundWithNotification(
+              soundFileName: 'break_timer_start.wav',
               title: 'Focus Session Complete!',
               body: 'Time for a break for "${state.activeTaskName}".',
             );
@@ -815,6 +862,7 @@ class TimerNotifier extends Notifier<TimerState> {
             state.focusDurationSeconds != null) {
           // Move to focus session
           final notificationService = ref.read(notificationServiceProvider);
+          // Play sound immediately for better user feedback
           notificationService.playSound('focus_timer_start.wav');
           notificationService.showNotification(
             title: 'Break Complete!',
@@ -864,8 +912,8 @@ class TimerNotifier extends Notifier<TimerState> {
     _ticker = null;
     _autoSaveTimer?.cancel();
     _autoSaveTimer = null;
-    _cancelWorkmanagerTask(); // Cancel background task if ticker stopped manually
-    _saveTimerStateToPrefs(); // Save final state on stop
+    _cancelWorkmanagerTask();
+    _saveTimerStateToPrefs();
   }
 
   void _markOverdueAndFreeze(int taskId) {
@@ -873,11 +921,12 @@ class TimerNotifier extends Notifier<TimerState> {
 
     try {
       final notificationService = ref.read(notificationServiceProvider);
-      notificationService.playSound('progress_bar_full.wav');
       final todos = ref.read(todosProvider).value ?? [];
       try {
         final task = todos.firstWhere((t) => t.id == taskId);
-        notificationService.showNotification(
+        // Play sound with notification for better background operation
+        notificationService.playSoundWithNotification(
+          soundFileName: 'progress_bar_full.wav',
           title: 'Planned Time Complete!',
           body:
               'Time for "${task.text}" is up. Decide whether to continue or complete.',
@@ -892,32 +941,31 @@ class TimerNotifier extends Notifier<TimerState> {
     _ticker?.cancel();
     _ticker = null;
     update(
-      // Use update to trigger state saving
       isRunning: false,
       timeRemaining: 0,
       isProgressBarFull: true,
       overdueCrossedTaskId: taskId,
-      plannedDurationSeconds: null, // Reset these for prompt
+      plannedDurationSeconds: null,
       focusDurationSeconds: null,
       breakDurationSeconds: null,
-      currentCycle: 1, // Reset cycles for prompt
+      currentCycle: 1,
       totalCycles: 1,
     );
-    _cancelWorkmanagerTask(); // Cancel background task here too
+    _cancelWorkmanagerTask();
   }
 
   void stop() {
     update(isRunning: false);
     stopTicker();
-    _saveTimerStateToPrefs(); // Ensure state is saved when explicitly stopped
+    _saveTimerStateToPrefs();
   }
 
   void clear() {
     stopTicker();
     _sessionController?.forceReset();
-    _persistenceManager.clearTimerState(); // Clear all state from prefs
-    state = const TimerState(); // Reset to initial state
-    _cancelWorkmanagerTask(); // Ensure WM task is cancelled
+    _persistenceManager.clearTimerState();
+    state = const TimerState();
+    _cancelWorkmanagerTask();
   }
 
   void resetCurrentPhase() {
@@ -937,29 +985,20 @@ class TimerNotifier extends Notifier<TimerState> {
       updateFocusedTime(taskId, newFocusedTime);
     }
 
-    update(
-      // Use update to trigger state saving
-      timeRemaining: currentPhaseDuration,
-      isRunning: false,
-    );
+    update(timeRemaining: currentPhaseDuration, isRunning: false);
     stopTicker();
-    _cancelWorkmanagerTask(); // Ensure WM task is cancelled
+    _cancelWorkmanagerTask();
   }
 
   void clearPreserveProgress() {
     stopTicker();
     _sessionController?.handleEvent(TimerSessionEvent.abort);
-    // Clear only temporary state, keep focusedTimeCache
     state = TimerState(focusedTimeCache: state.focusedTimeCache);
-    _persistenceManager
-        .clearTimerState(); // Clear all, then re-save cache if needed
+    _persistenceManager.clearTimerState();
     _persistenceManager.saveTimerState(
-      state.copyWith(
-        focusedTimeCache:
-            state.focusedTimeCache, // Only save the preserved cache
-      ),
+      state.copyWith(focusedTimeCache: state.focusedTimeCache),
     );
-    _cancelWorkmanagerTask(); // Ensure WM task is cancelled
+    _cancelWorkmanagerTask();
   }
 
   Future<bool> stopAndSaveProgress(int todoId) async {
@@ -983,7 +1022,7 @@ class TimerNotifier extends Notifier<TimerState> {
 
   void toggleRunning() {
     final nextRunning = !state.isRunning;
-    update(isRunning: nextRunning); // Use update to save
+    update(isRunning: nextRunning);
     if (nextRunning) {
       startTicker();
       if (state.activeTaskId != null && state.activeTaskName != null) {
@@ -995,8 +1034,8 @@ class TimerNotifier extends Notifier<TimerState> {
       }
     } else {
       stopTicker();
-      _cancelWorkmanagerTask(); // Cancel Workmanager task if paused manually
-      _saveTimerStateToPrefs(); // Save state on pause
+      _cancelWorkmanagerTask();
+      _saveTimerStateToPrefs();
     }
   }
 
@@ -1033,6 +1072,7 @@ class TimerNotifier extends Notifier<TimerState> {
 
     try {
       final notificationService = ref.read(notificationServiceProvider);
+      // Play sound immediately for better user feedback
       notificationService.playSound('focus_timer_start.wav');
       notificationService.showNotification(
         title: 'Focus Session Started!',
@@ -1043,7 +1083,6 @@ class TimerNotifier extends Notifier<TimerState> {
     }
 
     update(
-      // Use update to trigger state saving
       activeTaskId: taskId,
       activeTaskName: taskName,
       focusDurationSeconds: focusDuration,
@@ -1053,32 +1092,42 @@ class TimerNotifier extends Notifier<TimerState> {
       currentCycle: 1,
       timeRemaining: focusDuration,
       currentMode: 'focus',
-      isTimerActive: false,
+      isTimerActive: true, // Mark as active when task starts
       isRunning: true,
       isPermanentlyOverdue: isPermanentlyOverdue,
-      wasInBackground: false, // Reset this flag when starting fresh
-      backgroundStartTime: null, // Clear background start time
+      wasInBackground: false,
+      backgroundStartTime: null,
       pausedTimeTotal: 0,
     );
     startTicker();
-    _scheduleWorkmanagerTask(
-      taskId,
-      taskName,
-      focusDuration,
-    ); // Schedule WM task immediately
+    _scheduleWorkmanagerTask(taskId, taskName, focusDuration);
+    _showPersistentNotification(); // Show persistent notification
     return true;
   }
 
   void pauseTask() {
     update(
       isRunning: false,
+      // Record elapsed time if the timer was active in a phase
       pausedTimeTotal:
           state.pausedTimeTotal +
-          (state.focusDurationSeconds! - state.timeRemaining),
-    ); // Increment paused time based on elapsed time in current phase
+          (state.currentMode == 'focus'
+              ? (state.focusDurationSeconds ?? 0)
+              : (state.breakDurationSeconds ?? 0)) -
+          state.timeRemaining,
+    );
     stopTicker();
     _triggerDeferredAutoSave();
-    _cancelWorkmanagerTask(); // Cancel background task when paused
+    _cancelWorkmanagerTask();
+    ref
+        .read(notificationServiceProvider)
+        .updatePersistentTimerNotification(
+          taskName: state.activeTaskName ?? 'Unknown Task',
+          timeRemaining: formatTime(state.timeRemaining),
+          currentMode: state.currentMode,
+          isRunning: false,
+          isFocusMode: state.currentMode == 'focus',
+        );
   }
 
   void resumeTask() {
@@ -1093,6 +1142,7 @@ class TimerNotifier extends Notifier<TimerState> {
           state.timeRemaining,
         );
       }
+      _showPersistentNotification(); // Update notification on resume
     }
   }
 
@@ -1102,7 +1152,6 @@ class TimerNotifier extends Notifier<TimerState> {
     int? totalCycles,
   }) {
     update(
-      // Use update to trigger state saving
       focusDurationSeconds: focusDuration ?? state.focusDurationSeconds,
       breakDurationSeconds: breakDuration ?? state.breakDurationSeconds,
       totalCycles: totalCycles ?? state.totalCycles,
@@ -1118,20 +1167,18 @@ class TimerNotifier extends Notifier<TimerState> {
 
   void resetForSetupWithTask({
     required int taskId,
-    required String
-    taskName, // Added taskName for consistency with other methods
+    required String taskName,
     required int focusDuration,
     required int breakDuration,
     required int totalCycles,
     required int plannedDuration,
     required bool isPermanentlyOverdue,
   }) {
-    stopTicker(); // This also cancels WM task
+    stopTicker();
     final cache = state.focusedTimeCache;
     update(
-      // Use update to trigger state saving
       activeTaskId: taskId,
-      activeTaskName: taskName, // Pass taskName
+      activeTaskName: taskName,
       focusDurationSeconds: focusDuration,
       breakDurationSeconds: breakDuration,
       totalCycles: totalCycles,
@@ -1153,7 +1200,10 @@ class TimerNotifier extends Notifier<TimerState> {
       pausedTimeTotal: 0,
     );
     _lastAutoSavedSeconds = state.focusedTimeCache[taskId] ?? 0;
-    _cancelWorkmanagerTask(); // Ensure WM task is cancelled
+    _cancelWorkmanagerTask();
+    ref
+        .read(notificationServiceProvider)
+        .cancelPersistentTimerNotification(); // Ensure notification is off
   }
 
   void _startAutoSaveTimer() {
@@ -1186,7 +1236,7 @@ class TimerNotifier extends Notifier<TimerState> {
       final todoRepository = ref.read(todoRepositoryProvider);
       await todoRepository.updateFocusTime(todoId, currentFocused);
       _lastAutoSavedSeconds = currentFocused;
-      _saveTimerStateToPrefs(); // Save state after auto-save to DB
+      _saveTimerStateToPrefs();
     } catch (e) {
       debugLog('TimerNotifier', 'Error auto-saving focused time: $e');
     } finally {
@@ -1198,23 +1248,27 @@ class TimerNotifier extends Notifier<TimerState> {
     final notificationService = ref.read(notificationServiceProvider);
     if (state.currentMode == 'focus') {
       if (state.currentCycle >= state.totalCycles) {
-        update(cycleOverflowBlocked: true); // Use update to save
+        update(cycleOverflowBlocked: true);
         return;
       }
-      notificationService.playSound('break_timer_start.wav');
+      // Play sound with notification for better background operation
+      notificationService.playSoundWithNotification(
+        soundFileName: 'break_timer_start.wav',
+        title: 'Focus Phase Skipped',
+        body: 'Moving to break time for "${state.activeTaskName}".',
+      );
       final completed = state.completedSessions + 1;
       final nextCycle = state.currentCycle + 1;
       update(
-        // Use update to trigger state saving
         currentMode: 'break',
         timeRemaining: state.breakDurationSeconds ?? state.timeRemaining,
         completedSessions: completed,
         currentCycle: nextCycle,
       );
     } else if (state.currentMode == 'break') {
+      // Play sound immediately for better user feedback
       notificationService.playSound('focus_timer_start.wav');
       update(
-        // Use update to trigger state saving
         currentMode: 'focus',
         timeRemaining: state.focusDurationSeconds ?? state.timeRemaining,
       );
@@ -1226,44 +1280,68 @@ class TimerNotifier extends Notifier<TimerState> {
         state.timeRemaining,
       );
     }
+    _showPersistentNotification(); // Update notification on skip
   }
 
   void clearAllSessionsCompleteFlag() {
-    update(allSessionsComplete: false); // Use update to save
-    _prefs.setBool(
-      AppConstants.prefAllSessionsComplete,
-      false,
-    ); // Clear from prefs too
+    update(allSessionsComplete: false);
+    _prefs.setBool(AppConstants.prefAllSessionsComplete, false);
   }
 
   void clearOverdueSessionsCompleteFlag() {
     if (state.overdueSessionsComplete) {
-      update(overdueSessionsComplete: false); // Use update to save
-      _prefs.setBool(
-        AppConstants.prefOverdueSessionsComplete,
-        false,
-      ); // Clear from prefs too
+      update(overdueSessionsComplete: false);
+      _prefs.setBool(AppConstants.prefOverdueSessionsComplete, false);
     }
   }
 
   void clearCycleOverflowBlockedFlag() {
     if (state.cycleOverflowBlocked) {
-      update(cycleOverflowBlocked: false); // Use update to save
+      update(cycleOverflowBlocked: false);
     }
   }
 
   /// Schedule a Workmanager one-off task to persist timer state while app is backgrounded.
   Future<void> scheduleBackgroundPersistence() async {
     if (state.activeTaskId == null || !state.isRunning) return;
+
+    // Set background flags and save state BEFORE scheduling
+    update(
+      wasInBackground: true,
+      backgroundStartTime: DateTime.now().millisecondsSinceEpoch,
+    );
+
     // Save current API config for background isolate usage
     await _persistenceManager.saveApiConfig(_apiBaseUrl, _isDebugMode);
-    await _persistenceManager.setSessionScheduled(true);
+
     await Workmanager().registerOneOffTask(
       AppConstants.pomodoroTimerTask,
       AppConstants.pomodoroTimerTask,
+      // Schedule to fire after the current phase theoretically ends + a buffer
       initialDelay: Duration(seconds: state.timeRemaining + 5),
       existingWorkPolicy: ExistingWorkPolicy.replace,
+      constraints: Constraints(networkType: NetworkType.notRequired),
+      inputData: {
+        'apiBaseUrl': _apiBaseUrl,
+        'isDebugMode': _isDebugMode,
+        // Pass essential current state for the background task to start correctly
+        'activeTaskId': state.activeTaskId!,
+        'activeTaskText': state.activeTaskName!,
+        'timeRemaining': state.timeRemaining,
+        'currentMode': state.currentMode,
+        'focusedTimeCache': json.encode(
+          state.focusedTimeCache.map((k, v) => MapEntry(k.toString(), v)),
+        ),
+        'plannedDurationSeconds': state.plannedDurationSeconds ?? 0,
+        'focusDurationSeconds': state.focusDurationSeconds ?? 0,
+        'breakDurationSeconds': state.breakDurationSeconds ?? 0,
+        'currentCycle': state.currentCycle,
+        'totalCycles': state.totalCycles,
+        'completedSessions': state.completedSessions,
+        'isPermanentlyOverdue': state.isPermanentlyOverdue,
+      },
     );
+    await _persistenceManager.setSessionScheduled(true);
     debugLog(
       'TimerNotifier',
       'Background persistence scheduled via Workmanager.',
@@ -1272,9 +1350,17 @@ class TimerNotifier extends Notifier<TimerState> {
 
   /// Cancel any background persistence Workmanager tasks.
   Future<void> cancelBackgroundPersistence() async {
-    await Workmanager().cancelByUniqueName(AppConstants.pomodoroTimerTask);
-    await _persistenceManager.setSessionScheduled(false);
-    debugLog('TimerNotifier', 'Background persistence cancelled.');
+    if (_persistenceManager.isSessionScheduled()) {
+      await Workmanager().cancelByUniqueName(AppConstants.pomodoroTimerTask);
+      await _persistenceManager.setSessionScheduled(false);
+      debugLog('TimerNotifier', 'Background persistence cancelled.');
+    }
+
+    // Reset background tracking flags when returning to foreground
+    update(wasInBackground: false, backgroundStartTime: null);
+
+    // If a persistent notification was shown by Workmanager, cancel it.
+    ref.read(notificationServiceProvider).cancelPersistentTimerNotification();
   }
 }
 

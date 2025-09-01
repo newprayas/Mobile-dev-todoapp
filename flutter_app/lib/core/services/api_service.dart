@@ -28,19 +28,15 @@ class ApiService {
           connectTimeout: const Duration(seconds: 5),
         ),
       ) {
-    if (kDebugMode) {
-      // IMPORTANT: Only apply dev user-id in debug mode
-      final lower = baseUrl.toLowerCase();
-      if (lower.contains('127.0.0.1') ||
-          lower.contains('localhost') ||
-          lower.contains('10.0.2.2')) {
-        // default dev user id
-        _dio.options.headers['x-user-id'] = _devUserId; // Use _devUserId
-        debugLog(
-          'ApiService',
-          'Set x-user-id header for local dev: $_devUserId',
-        ); // ADD THIS LOG
-      }
+    // If the base URL points to a local development server, always add
+    // the dev user id header so mock authentication works even in release
+    // builds that use a local backend via adb reverse or emulator host.
+    final String lowerBaseUrl = baseUrl.toLowerCase();
+    if (lowerBaseUrl.contains('127.0.0.1') ||
+        lowerBaseUrl.contains('localhost') ||
+        lowerBaseUrl.contains('10.0.2.2')) {
+      _dio.options.headers['x-user-id'] = _devUserId;
+      debugLog('ApiService', 'Set x-user-id header for local dev: $_devUserId');
     }
   }
 
@@ -196,20 +192,30 @@ class ApiService {
             e.type == DioExceptionType.connectionError ||
             e.error is Error ||
             (e.message?.toLowerCase().contains('connection refused') ?? false);
-        if (!isConnError || attempt >= _maxRetries - 1) {
-          if (kDebugMode) {
-            debugPrint(
-              'ApiService retry aborted (attempt ${attempt + 1}/$_maxRetries). Error: $e',
-            );
-          }
-          rethrow;
-        }
-        attempt++;
-        if (kDebugMode) {
-          debugPrint(
-            'ApiService transient connection error, retrying ($attempt/$_maxRetries) in ${_retryDelay.inMilliseconds}ms ...',
+
+        // ALWAYS log detailed errors for tester APK debugging.
+        if (e.type == DioExceptionType.badResponse) {
+          debugLog(
+            'ApiService',
+            'API Error: Status ${e.response?.statusCode}, Data: ${e.response?.data}, Message: ${e.message}',
+          );
+        } else {
+          debugLog(
+            'ApiService',
+            'Network Error: Type ${e.type}, Message: ${e.message}, Error: ${e.error}, Stack: ${e.stackTrace}',
           );
         }
+
+        if (!isConnError || attempt >= _maxRetries - 1) {
+          // If not a transient connection error, or max retries reached, rethrow.
+          rethrow; // Re-throw the original exception to propagate.
+        }
+        attempt++;
+        // Log retry attempts with basic info, still useful for debugging.
+        debugLog(
+          'ApiService',
+          'Transient connection error, retrying ($attempt/$_maxRetries) in ${_retryDelay.inMilliseconds}ms ...',
+        );
         await Future.delayed(_retryDelay);
       }
     }
