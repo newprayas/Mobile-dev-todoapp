@@ -1,26 +1,37 @@
-import 'dart:typed_data'; // For Int32List
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart'; // For kDebugMode
+import 'package:flutter/foundation.dart';
 import '../theme/app_colors.dart';
+import '../utils/debug_logger.dart';
 
 // A unique ID for the persistent timer notification.
 const int _kPersistentTimerNotificationId = 1;
 // Action ID for the pause/resume button within the notification.
 const String _kNotificationActionPauseResume = 'pause_resume';
-// Action ID for the stop button within the notification.
-const String _kNotificationActionStop = 'stop_timer';
 // Payload key to determine if the notification tap is to open the app.
 const String _kNotificationPayloadOpenApp = 'open_app';
 
-class NotificationService {
+abstract class INotificationService {
+  Function(String? payload)? onNotificationTap;
+  Future<void> init();
+  Future<void> showNotification({required String title, required String body, String? payload, String? soundFileName});
+  Future<void> showPersistentTimerNotification({required String taskName, required String timeRemaining, required String currentMode, required bool isRunning, required bool isFocusMode});
+  Future<void> updatePersistentTimerNotification({required String taskName, required String timeRemaining, required String currentMode, required bool isRunning, required bool isFocusMode});
+  Future<void> cancelPersistentTimerNotification();
+  Future<void> playSound(String soundFileName);
+  Future<void> playSoundWithNotification({required String soundFileName, required String title, required String body});
+}
+
+class NotificationService implements INotificationService {
   final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   // Callback to handle notification tap, will be set in main.dart
+  @override
   Function(String? payload)? onNotificationTap;
 
+  @override
   Future<void> init() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -31,26 +42,15 @@ class NotificationService {
     await _notificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse notificationResponse) async {
-        debugPrint(
-          'DEBUG: Notification tapped - Payload: ${notificationResponse.payload}, Action: ${notificationResponse.actionId}',
-        );
+        debugLog('NotificationService', 'Notification tapped payload=${notificationResponse.payload} action=${notificationResponse.actionId}');
         // Handle notification taps
         if (notificationResponse.actionId == _kNotificationActionPauseResume) {
-          // Pause/Resume action button was tapped
-          debugPrint(
-            'DEBUG: Notification Pause/Resume action tapped. Payload: ${notificationResponse.payload}',
-          );
+          // Pause/Resume action button
+          debugLog('NotificationService', 'Pause/Resume action tapped payload=${notificationResponse.payload}');
           onNotificationTap?.call('pause_resume_timer');
-        } else if (notificationResponse.actionId == 'stop_timer') {
-          // Stop action button was tapped
-          debugPrint(
-            'DEBUG: Notification Stop action tapped. Payload: ${notificationResponse.payload}',
-          );
-          onNotificationTap?.call('stop_timer');
-        } else if (notificationResponse.payload ==
+  } else if (notificationResponse.payload ==
             _kNotificationPayloadOpenApp) {
-          // Tapped the body of the notification to open the app
-          debugPrint('DEBUG: Notification body tapped to open app.');
+          debugLog('NotificationService', 'Body tapped to open app');
           // The app will naturally resume if it's in the background
           // No special navigation needed here unless you want to deep-link.
           onNotificationTap?.call(notificationResponse.payload);
@@ -60,9 +60,7 @@ class NotificationService {
           _notificationTapBackground, // For background actions
     );
 
-    if (kDebugMode) {
-      debugPrint('DEBUG: NotificationService initialized');
-    }
+    if (kDebugMode) debugLog('NotificationService', 'Initialized');
   }
 
   // A method for triggering the background tap handler.
@@ -71,9 +69,7 @@ class NotificationService {
   static void _notificationTapBackground(
     NotificationResponse notificationResponse,
   ) {
-    debugPrint(
-      'DEBUG: Background Notification tapped - Payload: ${notificationResponse.payload}, Action: ${notificationResponse.actionId}',
-    );
+  debugLog('NotificationService', 'Background tap payload=${notificationResponse.payload} action=${notificationResponse.actionId}');
 
     // This is where background actions would be handled.
     // For the pause/resume action, we would need to trigger the Workmanager
@@ -81,6 +77,7 @@ class NotificationService {
     // We'll address this in main.dart callbackDispatcher.
   }
 
+  @override
   Future<void> showNotification({
     required String title,
     required String body,
@@ -134,6 +131,7 @@ class NotificationService {
   }
 
   /// Shows a persistent notification for the active timer.
+  @override
   Future<void> showPersistentTimerNotification({
     required String taskName,
     required String timeRemaining,
@@ -152,14 +150,6 @@ class NotificationService {
       AndroidNotificationAction(
         _kNotificationActionPauseResume,
         isRunning ? '⏸️ Pause' : '▶️ Resume',
-        showsUserInterface: false,
-        cancelNotification: false,
-        // Make this action more prominent
-        contextual: false,
-      ),
-      AndroidNotificationAction(
-        'stop_timer',
-        '⏹️ Stop',
         showsUserInterface: false,
         cancelNotification: false,
         contextual: false,
@@ -225,12 +215,11 @@ class NotificationService {
       payload: _kNotificationPayloadOpenApp, // Payload for opening the app
     );
 
-    debugPrint(
-      'DEBUG: Persistent Timer Notification Shown/Updated. Title: $title, Body: $body',
-    );
+  debugLog('NotificationService', 'Persistent shown title="$title" task="$taskName" running=$isRunning mode=$currentMode remaining=$timeRemaining');
   }
 
   /// Updates an existing persistent timer notification.
+  @override
   Future<void> updatePersistentTimerNotification({
     required String taskName,
     required String timeRemaining,
@@ -250,16 +239,16 @@ class NotificationService {
   }
 
   /// Cancels the persistent timer notification.
+  @override
   Future<void> cancelPersistentTimerNotification() async {
     await _notificationsPlugin.cancel(_kPersistentTimerNotificationId);
-    debugPrint('DEBUG: Persistent Timer Notification Cancelled.');
+    debugLog('NotificationService', 'Persistent notification cancelled');
   }
 
+  @override
   Future<void> playSound(String soundFileName) async {
     try {
-      debugPrint(
-        'DEBUG: NotificationService.playSound() called with sound: $soundFileName',
-      );
+      debugLog('NotificationService', 'playSound sound=$soundFileName');
 
       // Stop any currently playing sound first
       await _audioPlayer.stop();
@@ -273,40 +262,34 @@ class NotificationService {
         assetPath = assetPath.substring(7);
       }
 
-      debugPrint('DEBUG: Processed asset path for sound: $assetPath');
+  debugLog('NotificationService', 'Processed assetPath=$assetPath');
 
       // Add a small delay to ensure the previous sound is fully stopped
       await Future.delayed(const Duration(milliseconds: 50));
 
       await _audioPlayer.play(AssetSource('sounds/$assetPath'));
-      debugPrint('DEBUG: Sound played successfully: $soundFileName');
+  debugLog('NotificationService', 'Sound played sound=$soundFileName');
 
       // Add extra debugging for specific sounds
       if (soundFileName.contains('break_timer_start')) {
-        debugPrint('DEBUG: *** BREAK TIMER SOUND SPECIFICALLY PLAYED ***');
+        debugLog('NotificationService', 'Break timer sound played');
       } else if (soundFileName.contains('progress_bar_full')) {
-        debugPrint(
-          'DEBUG: *** PROGRESS BAR FULL SOUND SPECIFICALLY PLAYED ***',
-        );
+        debugLog('NotificationService', 'Progress bar full sound played');
       }
     } catch (e, stackTrace) {
-      debugPrint('DEBUG: Error playing sound $soundFileName: $e');
-      debugPrint('DEBUG: Stack trace: $stackTrace');
+      debugLog('NotificationService', 'Error playing sound=$soundFileName err=$e');
+      debugLog('NotificationService', 'Stack trace: $stackTrace');
 
       // Try alternative approach for problematic sounds
       if (soundFileName.contains('break_timer_start') ||
           soundFileName.contains('progress_bar_full')) {
-        debugPrint('DEBUG: Attempting alternative playback for $soundFileName');
+        debugLog('NotificationService', 'Attempt alternative playback sound=$soundFileName');
         try {
           await _audioPlayer.setSource(AssetSource('sounds/$soundFileName'));
           await _audioPlayer.resume();
-          debugPrint(
-            'DEBUG: Alternative playback successful for $soundFileName',
-          );
+          debugLog('NotificationService', 'Alternative playback success sound=$soundFileName');
         } catch (alternativeError) {
-          debugPrint(
-            'DEBUG: Alternative playback also failed: $alternativeError',
-          );
+          debugLog('NotificationService', 'Alternative playback failed err=$alternativeError');
         }
       }
     }
@@ -314,12 +297,13 @@ class NotificationService {
 
   /// Plays a sound AND shows a notification for critical events (like timer completion)
   /// This ensures sounds are heard even when the app is minimized
+  @override
   Future<void> playSoundWithNotification({
     required String soundFileName,
     required String title,
     required String body,
   }) async {
-    debugPrint('DEBUG: Playing sound with notification - $title: $body');
+    debugLog('NotificationService', 'playSoundWithNotification title="$title" body="$body" sound=$soundFileName');
 
     // First play the sound using the audio player
     await playSound(soundFileName);
@@ -332,89 +316,6 @@ class NotificationService {
       payload: 'sound_notification',
     );
 
-    debugPrint('DEBUG: Sound notification shown for background playback');
-  }
-
-  Future<void> testBreakSound() async {
-    debugPrint('DEBUG: Testing BREAK TIMER sound specifically...');
-    debugPrint('DEBUG: Sound file path: break_timer_start.wav');
-    await playSound('break_timer_start.wav');
-    await Future.delayed(const Duration(seconds: 2));
-    debugPrint('DEBUG: Break timer sound test completed');
-  }
-
-  Future<void> testBreakSoundImmediate() async {
-    debugPrint('DEBUG: IMMEDIATE break timer sound test...');
-    try {
-      await playSound('break_timer_start.wav');
-      debugPrint('DEBUG: IMMEDIATE break timer sound succeeded');
-    } catch (e) {
-      debugPrint('DEBUG: IMMEDIATE break timer sound failed: $e');
-    }
-  }
-
-  Future<void> testAllSounds() async {
-    debugPrint('DEBUG: Testing all sound files...');
-
-    final sounds = [
-      'break_timer_start.wav',
-      'focus_timer_start.wav',
-      'progress_bar_full.wav',
-    ];
-
-    for (int i = 0; i < sounds.length; i++) {
-      final sound = sounds[i];
-      debugPrint('DEBUG: Testing sound ${i + 1}/${sounds.length}: $sound');
-      await playSound(sound);
-      await Future.delayed(
-        const Duration(seconds: 2),
-      ); // Wait longer between sounds
-    }
-
-    debugPrint('DEBUG: All sound tests completed');
-  }
-
-  // Enhanced comprehensive test for break timer sound specifically
-  Future<void> testBreakTimerSoundExtensive() async {
-    debugPrint('DEBUG: === EXTENSIVE BREAK TIMER SOUND TEST ===');
-
-    // Test 1: Direct file path
-    debugPrint('DEBUG: Test 1 - Direct file path');
-    await playSound('break_timer_start.wav');
-    await Future.delayed(const Duration(milliseconds: 1500));
-
-    // Test 2: With sounds/ prefix
-    debugPrint('DEBUG: Test 2 - With sounds/ prefix');
-    await playSound('sounds/break_timer_start.wav');
-    await Future.delayed(const Duration(milliseconds: 1500));
-
-    // Test 3: With assets/sounds/ prefix
-    debugPrint('DEBUG: Test 3 - With assets/sounds/ prefix');
-    await playSound('assets/sounds/break_timer_start.wav');
-    await Future.delayed(const Duration(milliseconds: 1500));
-
-    debugPrint('DEBUG: === BREAK TIMER SOUND TEST COMPLETE ===');
-  }
-
-  // Test progress bar sound specifically
-  Future<void> testProgressBarSoundExtensive() async {
-    debugPrint('DEBUG: === EXTENSIVE PROGRESS BAR SOUND TEST ===');
-
-    // Test 1: Direct file path
-    debugPrint('DEBUG: Test 1 - Direct file path');
-    await playSound('progress_bar_full.wav');
-    await Future.delayed(const Duration(milliseconds: 1500));
-
-    // Test 2: With sounds/ prefix
-    debugPrint('DEBUG: Test 2 - With sounds/ prefix');
-    await playSound('sounds/progress_bar_full.wav');
-    await Future.delayed(const Duration(milliseconds: 1500));
-
-    // Test 3: With assets/sounds/ prefix
-    debugPrint('DEBUG: Test 3 - With assets/sounds/ prefix');
-    await playSound('assets/sounds/progress_bar_full.wav');
-    await Future.delayed(const Duration(milliseconds: 1500));
-
-    debugPrint('DEBUG: === PROGRESS BAR SOUND TEST COMPLETE ===');
+  debugLog('NotificationService', 'Sound notification shown title="$title"');
   }
 }

@@ -221,18 +221,21 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
 
     ref.listen<TimerState>(timerProvider, (previous, next) {
       final overdueTaskId = next.overdueCrossedTaskId;
-      if (overdueTaskId != null &&
-          !next.overduePromptShown.contains(overdueTaskId)) {
-        final overdueTodo = todosAsync.value?.firstWhere(
-          (todo) => todo.id == overdueTaskId,
-          orElse: () => null as dynamic,
-        );
-        if (overdueTodo != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _showOverduePrompt(context, overdueTodo);
-          });
-        }
+      if (overdueTaskId == null || next.overduePromptShown.contains(overdueTaskId)) return;
+      final todoList = todosAsync.value;
+      if (todoList == null) return;
+      Todo? overdue;
+      try {
+        overdue = todoList.firstWhere((t) => t.id == overdueTaskId);
+      } catch (_) {
+        return;
       }
+      if (overdue == null) return;
+      // Schedule prompt safely after frame with mounted check
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _showOverduePrompt(context, overdue!);
+      });
     });
 
     final isTimerBarVisible =

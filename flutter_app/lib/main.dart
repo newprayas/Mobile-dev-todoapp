@@ -14,6 +14,7 @@ import 'app.dart'; // Import the new root widget
 import 'core/services/mock_api_service.dart';
 import 'core/services/api_service.dart';
 import 'core/services/notification_service.dart';
+import 'core/debug/notification_sound_tester.dart';
 import 'core/providers/notification_provider.dart';
 import 'core/utils/debug_logger.dart';
 import 'core/utils/helpers.dart'; // Import formatTime
@@ -61,12 +62,8 @@ void main() async {
 
   // Test break timer sound on app startup (debug only)
   if (kDebugMode) {
-    debugLog('MAIN', 'Testing break timer sound on startup...');
-    try {
-      await notificationService.testBreakSound();
-    } catch (e) {
-      debugLog('MAIN', 'Break sound test failed: $e');
-    }
+    final tester = NotificationSoundTester(notificationService);
+    await tester.testBreakSound();
   }
 
   // Allow overriding the API host at build/run time with --dart-define=API_BASE_URL

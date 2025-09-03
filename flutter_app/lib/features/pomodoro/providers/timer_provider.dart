@@ -420,103 +420,7 @@ class TimerNotifier extends Notifier<TimerState> {
       if (state.timeRemaining > 0) {
         update(timeRemaining: state.timeRemaining - 1);
       } else {
-        // TIMER PHASE COMPLETED
-        if (state.currentMode == 'focus') {
-          final completed = state.completedSessions + 1;
-
-          // Check if all planned cycles are now complete
-          if (completed >= state.totalCycles) {
-            if (state.isPermanentlyOverdue && !state.overdueSessionsComplete) {
-              debugLog(
-                'TimerNotifier',
-                'Overdue task session complete. Firing event.',
-              );
-              ref
-                  .read(notificationServiceProvider)
-                  .playSoundWithNotification(
-                    soundFileName: SoundAsset.sessionComplete.fileName,
-                    title: 'Session Complete!',
-                    body:
-                        'Overdue task session completed for "${state.activeTaskName}".',
-                  );
-              update(
-                overdueSessionsComplete: true,
-                isRunning: false,
-                completedSessions: completed,
-              );
-              stopTicker();
-            } else if (!state.allSessionsComplete) {
-              debugLog(
-                'TimerNotifier',
-                'All focus sessions complete. Firing event.',
-              );
-              ref
-                  .read(notificationServiceProvider)
-                  .playSoundWithNotification(
-                    soundFileName: SoundAsset.sessionComplete.fileName,
-                    title: 'All Sessions Complete!',
-                    body:
-                        'All planned sessions completed for "${state.activeTaskName}".',
-                  );
-              update(
-                allSessionsComplete: true,
-                isRunning: false,
-                completedSessions: completed,
-              );
-              stopTicker();
-            }
-            if (!state.isRunning && state.timeRemaining == 0) {
-              stopTicker();
-              return;
-            }
-          } else {
-            // Move to break session
-            final notificationService = ref.read(notificationServiceProvider);
-            // Play sound with notification for better background operation
-            notificationService.playSoundWithNotification(
-              soundFileName: SoundAsset.breakStart.fileName,
-              title: 'Focus Session Complete!',
-              body: 'Time for a break for "${state.activeTaskName}".',
-            );
-            final nextCycle = (state.currentCycle + 1) <= state.totalCycles
-                ? state.currentCycle + 1
-                : state.totalCycles;
-            update(
-              currentMode: 'break',
-              timeRemaining: state.breakDurationSeconds,
-              currentCycle: nextCycle,
-              completedSessions: completed,
-            );
-          }
-        } else if (state.currentMode == 'break' &&
-            state.focusDurationSeconds != null) {
-          // Move to focus session
-          final notificationService = ref.read(notificationServiceProvider);
-          // Play sound immediately for better user feedback
-          notificationService.playSound(SoundAsset.focusStart.fileName);
-          notificationService.showNotification(
-            title: 'Break Complete!',
-            body: 'Time to focus on "${state.activeTaskName}" again!',
-          );
-          update(
-            currentMode: 'focus',
-            timeRemaining: state.focusDurationSeconds,
-          );
-        } else {
-          stop();
-        }
-        // After phase completion or transition, reschedule Workmanager if timer is still running
-        if (state.isRunning &&
-            state.activeTaskId != null &&
-            state.activeTaskName != null) {
-          _scheduleWorkmanagerTask(
-            state.activeTaskId!,
-            state.activeTaskName!,
-            state.timeRemaining,
-          );
-        } else {
-          _cancelWorkmanagerTask();
-        }
+        _handlePhaseCompletion();
       }
 
       final focused = state.focusedTimeCache[state.activeTaskId] ?? 0;
@@ -535,6 +439,86 @@ class TimerNotifier extends Notifier<TimerState> {
         }
       }
     });
+  }
+
+  void _handlePhaseCompletion() {
+    if (state.currentMode == 'focus') {
+      _handleFocusPhaseCompletion();
+    } else if (state.currentMode == 'break') {
+      _handleBreakPhaseCompletion();
+    } else {
+      stop();
+    }
+
+    // Reschedule or cancel background task depending on new state
+    if (state.isRunning && state.activeTaskId != null && state.activeTaskName != null) {
+      _scheduleWorkmanagerTask(
+        state.activeTaskId!,
+        state.activeTaskName!,
+        state.timeRemaining,
+      );
+    } else {
+      _cancelWorkmanagerTask();
+    }
+  }
+
+  void _handleFocusPhaseCompletion() {
+    final int completed = state.completedSessions + 1;
+    if (completed >= state.totalCycles) {
+      if (state.isPermanentlyOverdue && !state.overdueSessionsComplete) {
+        debugLog('TimerNotifier', 'Overdue task session complete taskId=${state.activeTaskId}');
+        ref.read(notificationServiceProvider).playSoundWithNotification(
+          soundFileName: SoundAsset.sessionComplete.fileName,
+          title: 'Session Complete!',
+          body: 'Overdue task session completed for "${state.activeTaskName}".',
+        );
+        update(overdueSessionsComplete: true, isRunning: false, completedSessions: completed);
+        stopTicker();
+      } else if (!state.allSessionsComplete) {
+        debugLog('TimerNotifier', 'All focus sessions complete taskId=${state.activeTaskId}');
+        ref.read(notificationServiceProvider).playSoundWithNotification(
+          soundFileName: SoundAsset.sessionComplete.fileName,
+          title: 'All Sessions Complete!',
+          body: 'All planned sessions completed for "${state.activeTaskName}".',
+        );
+        update(allSessionsComplete: true, isRunning: false, completedSessions: completed);
+        stopTicker();
+      }
+      if (!state.isRunning && state.timeRemaining == 0) {
+        stopTicker();
+        return;
+      }
+    } else {
+      final notificationService = ref.read(notificationServiceProvider);
+      notificationService.playSoundWithNotification(
+        soundFileName: SoundAsset.breakStart.fileName,
+        title: 'Focus Session Complete!',
+        body: 'Time for a break for "${state.activeTaskName}".',
+      );
+      final nextCycle = (state.currentCycle + 1) <= state.totalCycles
+          ? state.currentCycle + 1
+          : state.totalCycles;
+      update(
+        currentMode: 'break',
+        timeRemaining: state.breakDurationSeconds,
+        currentCycle: nextCycle,
+        completedSessions: completed,
+      );
+    }
+  }
+
+  void _handleBreakPhaseCompletion() {
+    if (state.focusDurationSeconds != null) {
+      final notificationService = ref.read(notificationServiceProvider);
+      notificationService.playSound(SoundAsset.focusStart.fileName);
+      notificationService.showNotification(
+        title: 'Break Complete!',
+        body: 'Time to focus on "${state.activeTaskName}" again!',
+      );
+      update(currentMode: 'focus', timeRemaining: state.focusDurationSeconds);
+    } else {
+      stop();
+    }
   }
 
   void stopTicker() {
