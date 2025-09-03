@@ -1,0 +1,46 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "output": {
+    "filePath": "repomix-output-flutter.txt",
+    "style": "plain",
+    "headerText": "This file contains the core source code for a Flutter productivity app named BETAFLOW. The context also includes unit and widget tests from the 'test/' directory, which serve as executable documentation. The target platform is Android.",
+    "fileSummary": true,
+    "directoryStructure": true,
+    "files": true,
+    "removeComments": true,
+    "removeEmptyLines": true,
+    "git": {
+      "sortByChanges": true,
+      "sortByChangesMaxCommits": 200
+    }
+  },
+  "include": [
+    "flutter_app/lib/**/*.dart",
+    "flutter_app/test/**/*.dart",
+    "flutter_app/pubspec.yaml",
+    "flutter_app/analysis_options.yaml",
+    "flutter_app/android/app/src/main/AndroidManifest.xml",
+    "flutter_app/android/app/build.gradle.kts"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "backend/",
+      "**/*.g.dart",
+      "**/*.freezed.dart",
+      "flutter_app/ios/",
+      "flutter_app/linux/",
+      "flutter_app/macos/",
+      "flutter_app/web/",
+      "flutter_app/windows/",
+      "flutter_app/android/app/src/main/res/",
+      "flutter_app/android/app/src/main/kotlin/",
+      "flutter_app/pubspec.lock",
+      "flutter_app/.metadata"
+    ]
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}
