@@ -1,13 +1,17 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
-import '../theme/app_colors.dart';
 import '../utils/debug_logger.dart';
+import 'dart:io' show Platform; // For platform checks
 
 // A unique ID for the persistent timer notification.
 const int _kPersistentTimerNotificationId = 1;
 // Action ID for the pause/resume button within the notification.
-const String _kNotificationActionPauseResume = 'pause_resume';
+const String _kNotificationActionPause = 'pause_timer';
+const String _kNotificationActionResume = 'resume_timer';
+const String _kNotificationActionStop = 'stop_timer';
+const String _kNotificationActionMarkComplete = 'mark_complete';
+const String _kNotificationActionContinueWorking = 'continue_working';
 // Payload key to determine if the notification tap is to open the app.
 const String _kNotificationPayloadOpenApp = 'open_app';
 
@@ -36,26 +40,23 @@ class NotificationService implements INotificationService {
 
   @override
   Future<void> init() async {
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    final InitializationSettings initializationSettings =
-        InitializationSettings(android: initializationSettingsAndroid);
+  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
 
     await _notificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse notificationResponse) async {
         debugLog('NotificationService', 'Notification tapped payload=${notificationResponse.payload} action=${notificationResponse.actionId}');
-        // Handle notification taps
-        if (notificationResponse.actionId == _kNotificationActionPauseResume) {
-          // Pause/Resume action button
-          debugLog('NotificationService', 'Pause/Resume action tapped payload=${notificationResponse.payload}');
-          onNotificationTap?.call('pause_resume_timer');
-  } else if (notificationResponse.payload ==
-            _kNotificationPayloadOpenApp) {
-          debugLog('NotificationService', 'Body tapped to open app');
-          // The app will naturally resume if it's in the background
-          // No special navigation needed here unless you want to deep-link.
+        final action = notificationResponse.actionId;
+        if (action == _kNotificationActionPause || action == _kNotificationActionResume) {
+          onNotificationTap?.call(action); // pass through
+        } else if (action == _kNotificationActionStop) {
+          onNotificationTap?.call(action);
+        } else if (action == _kNotificationActionMarkComplete) {
+          onNotificationTap?.call(action);
+        } else if (action == _kNotificationActionContinueWorking) {
+          onNotificationTap?.call(action);
+        } else if (notificationResponse.payload == _kNotificationPayloadOpenApp) {
           onNotificationTap?.call(notificationResponse.payload);
         }
       },
@@ -63,7 +64,32 @@ class NotificationService implements INotificationService {
           _notificationTapBackground, // For background actions
     );
 
-    if (kDebugMode) debugLog('NotificationService', 'Initialized');
+    if (Platform.isAndroid) {
+      // Explicitly create channels to avoid reliance on implicit creation.
+      final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
+          _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      if (androidPlugin != null) {
+        await androidPlugin.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'pomodoro_persistent_channel',
+            'Persistent Pomodoro Timer',
+            description: 'Ongoing notifications for your active Pomodoro timer.',
+            importance: Importance.max,
+            showBadge: false,
+          ),
+        );
+        await androidPlugin.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'pomodoro_channel',
+            'Pomodoro Notifications',
+            description: 'Notifications for Pomodoro timer events',
+            importance: Importance.max,
+          ),
+        );
+      }
+    }
+
+    if (kDebugMode) debugLog('NotificationService', 'Initialized & channels created');
   }
 
   // A method for triggering the background tap handler.
@@ -140,23 +166,20 @@ class NotificationService implements INotificationService {
     required List<String> actionIds,
   }) async {
     // Map simple string action IDs to AndroidNotificationAction
-    final List<AndroidNotificationAction> actions = actionIds.map(
-      (String id) => AndroidNotificationAction(
+    final List<AndroidNotificationAction> actions = actionIds.map((String id) {
+      return AndroidNotificationAction(
         id,
         _mapActionLabel(id),
         showsUserInterface: false,
         cancelNotification: false,
         contextual: false,
-      ),
-    ).toList();
+      );
+    }).toList();
 
-    final MediaStyleInformation mediaStyleInformation = MediaStyleInformation(
-      htmlFormatContent: true,
-      htmlFormatTitle: true,
-    );
+    // Use BigTextStyle to keep layout simple and ensure actions are visible.
+    final BigTextStyleInformation bigText = BigTextStyleInformation(body);
 
-    final AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails(
+    final AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
       'pomodoro_persistent_channel',
       'Persistent Pomodoro Timer',
       channelDescription: 'Ongoing notifications for your active Pomodoro timer.',
@@ -167,9 +190,8 @@ class NotificationService implements INotificationService {
       showWhen: false,
       onlyAlertOnce: true,
       largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-      styleInformation: mediaStyleInformation,
+      styleInformation: bigText,
       actions: actions,
-      additionalFlags: Int32List.fromList([4, 16, 64]),
       category: AndroidNotificationCategory.service,
       visibility: NotificationVisibility.public,
       enableLights: false,
@@ -191,20 +213,40 @@ class NotificationService implements INotificationService {
     );
 
     debugLog('NotificationService', 'Persistent update title="$title" body="$body" actions=$actionIds');
+    if (kDebugMode) {
+      await debugDumpActiveNotifications();
+    }
   }
 
   String _mapActionLabel(String id) {
     switch (id) {
-      case 'pause_resume':
-        return 'Pause/Resume';
-      case 'stop_timer':
+      case _kNotificationActionPause:
+        return 'Pause';
+      case _kNotificationActionResume:
+        return 'Resume';
+      case _kNotificationActionStop:
         return 'Stop';
-      case 'mark_complete':
-        return 'Mark Complete';
-      case 'continue_working':
+      case _kNotificationActionMarkComplete:
+        return 'Complete';
+      case _kNotificationActionContinueWorking:
         return 'Continue';
       default:
         return id;
+    }
+  }
+
+  /// Debug helper: logs currently active notifications (Android only)
+  Future<void> debugDumpActiveNotifications() async {
+    if (!Platform.isAndroid) return;
+    final androidImpl = _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (androidImpl == null) return;
+    try {
+      final active = await androidImpl.getActiveNotifications();
+      for (final n in active) {
+        debugLog('NotificationService', 'ACTIVE notif id=${n.id} tag=${n.tag} title=${n.title} text=${n.body}');
+      }
+    } catch (e) {
+      debugLog('NotificationService', 'Error dumping active notifications: $e');
     }
   }
 

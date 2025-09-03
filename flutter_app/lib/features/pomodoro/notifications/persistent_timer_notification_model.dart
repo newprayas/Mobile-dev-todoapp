@@ -15,7 +15,8 @@ class PersistentTimerNotificationModel {
     required this.ongoing,
   });
 
-  static const String actionPauseResume = 'pause_resume';
+  static const String actionPause = 'pause_timer';
+  static const String actionResume = 'resume_timer';
   static const String actionStop = 'stop_timer';
   static const String actionMarkComplete = 'mark_complete';
   static const String actionContinueWorking = 'continue_working';
@@ -62,7 +63,7 @@ class PersistentTimerNotificationModel {
       return PersistentTimerNotificationModel(
         title: '🔴 FOCUS TIME',
         body: '$taskName • $elapsedStr',
-        actionIds: const [actionPauseResume, actionStop],
+        actionIds: [state.isRunning ? actionPause : actionResume, actionStop],
         ongoing: true,
       );
     }
@@ -74,8 +75,8 @@ class PersistentTimerNotificationModel {
       title: title,
       body: '$taskName • $remaining',
       actionIds: state.isRunning
-          ? const [actionPauseResume, actionStop]
-          : const [actionPauseResume, actionStop],
+          ? [actionPause, actionStop]
+          : [actionResume, actionStop],
       ongoing: true,
     );
   }

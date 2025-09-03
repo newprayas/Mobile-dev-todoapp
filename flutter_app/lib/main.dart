@@ -21,6 +21,7 @@ import 'core/utils/helpers.dart'; // Import formatTime
 import 'features/pomodoro/notifications/persistent_timer_notification_model.dart';
 import 'features/pomodoro/models/timer_state.dart';
 import 'features/todo/models/todo.dart';
+import 'core/providers/notification_action_provider.dart';
 
 // Define actualApiService globally so it's accessible to Workmanager for initial config saving
 late final ApiService actualApiService;
@@ -36,31 +37,13 @@ void main() async {
 
   // Assign the foreground notification tap handler
   notificationService.onNotificationTap = (String? payload) {
-    if (payload == 'open_app') {
-      // Logic to bring the app to foreground if needed.
-      // For Flutter, simply handling the payload and potentially navigating
-      // in the main app is usually enough; the OS will bring the app forward.
-      debugLog(
-        'MAIN',
-        'Notification tapped, app will be brought to foreground.',
-      );
-    } else if (payload == 'pause_resume_timer') {
-      // Handle pause/resume action from notification
-      debugLog('MAIN', 'Notification pause/resume action triggered');
-      // We'll handle this in the app widget by listening to a provider
-      // For now, just log it
-    } else if (payload == 'stop_timer') {
-      // Handle stop action from notification
-      debugLog('MAIN', 'Notification stop action triggered');
-      // We'll handle this in the app widget by listening to a provider
-      // For now, just log it
-    } else if (payload != null && payload.startsWith('toggle_')) {
-      // This is a placeholder. Real implementation needs a way to communicate
-      // with the active TimerNotifier in the foreground or trigger a WM task.
-      debugLog('MAIN', 'Foreground notification action: $payload');
-      // A more robust solution might use a local event bus or a simple shared pref flag
-      // that the TimerNotifier listens to. For now, we'll focus on background handling.
-    }
+    if (payload == null) return;
+    debugLog('MAIN', 'Notification action received payload=$payload');
+    // Persist last action for background -> foreground handoff
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString('last_notification_action', payload);
+    });
+    _PendingNotificationActionHolder.latest = payload;
   };
 
   // Test break timer sound on app startup (debug only)
@@ -109,6 +92,11 @@ void main() async {
       child: const App(),
     ),
   );
+}
+
+/// Simple in-memory handoff for notification actions before ProviderScope builds.
+class _PendingNotificationActionHolder {
+  static String? latest;
 }
 
 @pragma('vm:entry-point')
@@ -223,6 +211,19 @@ void callbackDispatcher() {
         );
 
         // Update persistent notification
+        final bool isProgressBarFull = prefs.getBool(AppConstants.prefIsProgressBarFull) ?? false;
+        final bool allSessionsComplete = prefs.getBool(AppConstants.prefAllSessionsComplete) ?? false;
+        final bool overdueSessionsComplete = prefs.getBool(AppConstants.prefOverdueSessionsComplete) ?? false;
+        final int? overdueCrossedTaskId = prefs.getInt(AppConstants.prefOverdueCrossedTaskId);
+        final Set<int> overduePromptShown = {
+          for (final id in (prefs.getStringList(AppConstants.prefOverduePromptShown) ?? [])) int.tryParse(id) ?? -1
+        }..remove(-1);
+        final Set<int> overdueContinued = {
+          for (final id in (prefs.getStringList(AppConstants.prefOverdueContinued) ?? [])) int.tryParse(id) ?? -1
+        }..remove(-1);
+        final bool suppressNextActivation = prefs.getBool(AppConstants.prefSuppressNextActivation) ?? false;
+        final bool cycleOverflowBlocked = prefs.getBool(AppConstants.prefCycleOverflowBlocked) ?? false;
+        final int pausedTimeTotal = prefs.getInt(AppConstants.prefPausedTimeTotal) ?? 0;
         final pseudoState = TimerState(
           activeTaskId: activeTaskId,
           activeTaskName: activeTaskText,

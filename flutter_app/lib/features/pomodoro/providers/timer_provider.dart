@@ -980,10 +980,10 @@ class TimerNotifier extends Notifier<TimerState> {
   /// Handle action button taps from the persistent notification.
   Future<void> handleNotificationAction(String actionId) async {
     switch (actionId) {
-      case 'pause_timer':
+  case 'pause_timer':
         if (state.isRunning) pauseTask();
         break;
-      case 'resume_timer':
+  case 'resume_timer':
         if (!state.isRunning) resumeTask();
         break;
       case 'stop_timer':

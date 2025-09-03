@@ -35,7 +35,7 @@ void main() {
         activeTodo: sampleTodo(),
       );
       expect(model.title, '🎯 FOCUS TIME');
-      expect(model.actionIds, contains('pause_resume'));
+  expect(model.actionIds.first, anyOf(['pause_timer','resume_timer']));
       expect(model.actionIds, contains('stop_timer'));
     });
 
@@ -56,7 +56,7 @@ void main() {
         activeTodo: sampleTodo(overdue: true),
       );
       expect(model.title, '🔴 FOCUS TIME');
-      expect(model.actionIds, contains('pause_resume'));
+  expect(model.actionIds.first, anyOf(['pause_timer','resume_timer']));
     });
 
     test('overdue all planned sessions complete', () {
@@ -71,6 +71,26 @@ void main() {
       );
       expect(model.title, '✅ SESSIONS COMPLETE');
       expect(model.actionIds, ['mark_complete', 'continue_working']);
+    });
+
+    test('paused session shows resume action', () {
+      final state = baseState().copyWith(isRunning: false);
+      final model = PersistentTimerNotificationModel.fromState(
+        state: state,
+        activeTodo: sampleTodo(),
+      );
+      expect(model.actionIds.first, 'resume_timer');
+    });
+
+    test('running session shows pause action then stop', () {
+      final state = baseState();
+      final model = PersistentTimerNotificationModel.fromState(
+        state: state,
+        activeTodo: sampleTodo(),
+      );
+      expect(model.actionIds, isNotEmpty);
+      expect(model.actionIds.first, 'pause_timer');
+      expect(model.actionIds[1], 'stop_timer');
     });
   });
 }

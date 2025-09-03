@@ -44,6 +44,98 @@
 				"isDefault": true
 			},
 			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Clean",
+			"type": "shell",
+			"command": "cd flutter_app && flutter clean",
+			"group": "build",
+			"presentation": {
+				"reveal": "silent",
+				"panel": "shared"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Analyze",
+			"type": "shell",
+			"command": "cd flutter_app && flutter analyze",
+			"group": "test",
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Flutter Pub Get",
+			"type": "shell",
+			"command": "cd flutter_app && flutter pub get",
+			"group": "build",
+			"presentation": {
+				"reveal": "silent",
+				"panel": "shared"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Uninstall App (adb)",
+			"type": "shell",
+			"command": "adb uninstall com.todoapp.focus_timer",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Full Relaunch (Uninstall, Clean, Run)",
+			"dependsOrder": "sequence",
+			"dependsOn": [
+				"Uninstall App (adb)",
+				"Flutter Clean",
+				"Launch App with Server"
+			],
+			"type": "shell",
+			"command": "echo 'Starting full app relaunch: uninstall, clean, and run...'",
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Clean & Relaunch App",
+			"dependsOrder": "sequence",
+			"dependsOn": [
+				"Flutter Clean",
+				"Launch App with Server"
+			],
+			"type": "shell",
+			"command": "echo 'Starting clean and relaunch...'",
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Clear Terminal",
+			"type": "shell",
+			"command": "clear",
+			"presentation": {
+				"reveal": "silent",
+				"panel": "shared"
+			},
+			"problemMatcher": []
 		}
 	]
 }

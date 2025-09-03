@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'core/theme/app_colors.dart';
 import 'core/widgets/auth_wrapper.dart';
 import 'features/pomodoro/providers/timer_provider.dart';
+import 'core/providers/notification_action_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class App extends ConsumerStatefulWidget {
   const App({super.key});
@@ -41,6 +43,24 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    // On first build, flush any pending notification action captured pre-ProviderScope.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final prefs = await SharedPreferences.getInstance();
+      final last = prefs.getString('last_notification_action');
+      if (last != null) {
+        ref.read(notificationActionProvider.notifier).state = last;
+        await prefs.remove('last_notification_action');
+      }
+    });
+
+    // Listen to action provider changes and route to TimerNotifier
+    ref.listen<String?>(notificationActionProvider, (prev, next) {
+      if (next != null) {
+        ref.read(timerProvider.notifier).handleNotificationAction(next);
+        // Clear after handling
+        ref.read(notificationActionProvider.notifier).state = null;
+      }
+    });
     return MaterialApp(
       title: 'Todo Flutter',
       theme: ThemeData.dark().copyWith(
