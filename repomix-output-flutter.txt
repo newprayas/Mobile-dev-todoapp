@@ -69,15 +69,24 @@ flutter_app/
         notification_action_dispatcher.dart
       constants/
         sound_assets.dart
+        timer_defaults.dart
       data/
         app_database.dart
+        todo_mutation_service.dart
         todo_repository.dart
+        todo_sync_service.dart
       debug/
         notification_sound_tester.dart
       providers/
         notification_action_provider.dart
         notification_provider.dart
       services/
+        notifications/
+          notification_constants.dart
+          notification_permission_manager.dart
+          notification_sound_player.dart
+          notification_sound_utils.dart
+          persistent_notification_manager.dart
         api_service.dart
         auth_service.dart
         mock_api_service.dart
@@ -110,6 +119,12 @@ flutter_app/
         providers/
           timer_provider.dart
         services/
+          foreground_ticker.dart
+          notification_action_handler.dart
+          phase_transition_service.dart
+          timer_autosave_service.dart
+          timer_background_scheduler.dart
+          timer_overdue_service.dart
           timer_persistence_manager.dart
         widgets/
           mini_timer_bar.dart
@@ -135,10 +150,13 @@ flutter_app/
     main.dart
   test/
     notification_action_integration_test.dart
+    notification_sound_utils_test.dart
     persistent_timer_notification_model_test.dart
+    timer_notifier_smoke_test.dart
     timer_persistence_manager_test.dart
     timer_provider_overdue_test.dart
     timer_service_test.dart
+    todo_repository_test.dart
     widget_test.dart
   analysis_options.yaml
   pubspec.yaml
@@ -176,226 +194,33 @@ enum SoundAsset {
 }
 
 ================
-File: flutter_app/lib/core/data/app_database.dart
+File: flutter_app/lib/core/constants/timer_defaults.dart
 ================
-import 'dart:io';
-import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
-import '../../features/todo/models/todo.dart'
-    as todo_model;
-part 'app_database.g.dart';
-@DataClassName(
-  'TodoEntry',
-)
-class Todos extends Table {
-  IntColumn get id => integer().autoIncrement()();
-  TextColumn get userId => text()();
-  TextColumn get taskText =>
-      text()();
-  BoolColumn get completed => boolean().withDefault(const Constant(false))();
-  IntColumn get durationHours => integer().withDefault(const Constant(0))();
-  IntColumn get durationMinutes => integer().withDefault(const Constant(0))();
-  IntColumn get focusedTime => integer().withDefault(const Constant(0))();
-  IntColumn get wasOverdue => integer().withDefault(const Constant(0))();
-  IntColumn get overdueTime => integer().withDefault(const Constant(0))();
-  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
-}
-@DriftDatabase(tables: [Todos])
-class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
-  @override
-  int get schemaVersion => 1;
-  Stream<List<todo_model.Todo>> watchAllTodos() {
-    return (select(todos)..orderBy([
-          (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
-        ]))
-        .watch()
-        .map((rows) => rows.map(mapTodoEntryToTodoModel).toList());
-  }
-  Future<todo_model.Todo?> getTodoById(int id) {
-    return (select(todos)..where((t) => t.id.equals(id)))
-        .getSingleOrNull()
-        .then((entry) => entry != null ? mapTodoEntryToTodoModel(entry) : null);
-  }
-  Future<todo_model.Todo> insertTodo(TodosCompanion entry) async {
-    final id = await into(todos).insert(entry);
-    return (await getTodoById(id))!;
-  }
-  Future<bool> updateTodo(int id, TodosCompanion entry) {
-    return (update(todos)..where((t) => t.id.equals(id)))
-        .write(entry)
-        .then((affectedRows) => affectedRows > 0);
-  }
-  Future<int> deleteTodo(int id) {
-    return (delete(todos)..where((t) => t.id.equals(id))).go();
-  }
-  Future<void> clearCompletedTodos() {
-    return (delete(todos)..where((t) => t.completed.equals(true))).go();
-  }
-  todo_model.Todo mapTodoEntryToTodoModel(TodoEntry entry) {
-    return todo_model.Todo(
-      id: entry.id,
-      userId: entry.userId,
-      text: entry.taskText,
-      completed: entry.completed,
-      durationHours: entry.durationHours,
-      durationMinutes: entry.durationMinutes,
-      focusedTime: entry.focusedTime,
-      wasOverdue: entry.wasOverdue,
-      overdueTime: entry.overdueTime,
-      createdAt: entry.createdAt,
-    );
-  }
-  static TodosCompanion toTodosCompanion(
-    todo_model.Todo todo, {
-    bool isInsert = false,
-  }) {
-    return TodosCompanion(
-      id: Value(todo.id),
-      userId: Value(todo.userId),
-      taskText: Value(todo.text),
-      completed: Value(todo.completed),
-      durationHours: Value(todo.durationHours),
-      durationMinutes: Value(todo.durationMinutes),
-      focusedTime: Value(todo.focusedTime),
-      wasOverdue: Value(todo.wasOverdue),
-      overdueTime: Value(todo.overdueTime),
-      createdAt: isInsert
-          ? Value.absent()
-          : Value(todo.createdAt),
-    );
-  }
-}
-LazyDatabase _openConnection() {
-  return LazyDatabase(() async {
-    final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'db.sqlite'));
-    return NativeDatabase(file);
-  });
+class TimerDefaults {
+  TimerDefaults._();
+  static const int focusSeconds = 25 * 60;
+  static const int breakSeconds = 5 * 60;
+  static const int minFocusSeconds = 5 * 60;
+  static const int maxFocusSeconds = 2 * 60 * 60;
+  static const int autoSaveIntervalSeconds = 30;
 }
 
 ================
-File: flutter_app/lib/core/data/todo_repository.dart
+File: flutter_app/lib/core/data/todo_mutation_service.dart
 ================
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/api_service.dart';
-import '../services/mock_api_service.dart';
 import '../../features/todo/models/todo.dart';
-import 'app_database.dart';
 import '../utils/debug_logger.dart';
-class TodoRepository {
-  final AppDatabase _localDb;
-  final ApiService
-  _apiService;
-  TodoRepository(this._localDb, this._apiService);
-  Stream<List<Todo>> watchTodos() {
-    return _localDb.watchAllTodos();
-  }
-  Future<void> syncTodos() async {
-    debugLog('TodoRepository', 'Attempting to sync todos with API...');
-    try {
-      final remoteData = await _apiService.fetchTodos();
-      final List<Todo> remoteTodos = remoteData.map((e) {
-        final Map<String, dynamic> rawJson = Map<String, dynamic>.from(e);
-        return Todo(
-          id: rawJson['id'] is int
-              ? rawJson['id']
-              : int.parse('${rawJson['id']}'),
-          userId: rawJson['user_id'] ?? rawJson['userId'] ?? '',
-          text:
-              rawJson['text'] ??
-              '', // Use 'text' from API, maps to taskText in DB
-          completed:
-              (rawJson['completed'] == 1 || rawJson['completed'] == true),
-          durationHours: rawJson['duration_hours'] != null
-              ? (rawJson['duration_hours'] is int
-                    ? rawJson['duration_hours']
-                    : int.parse('${rawJson['duration_hours']}'))
-              : 0,
-          durationMinutes: rawJson['duration_minutes'] != null
-              ? (rawJson['duration_minutes'] is int
-                    ? rawJson['duration_minutes']
-                    : int.parse('${rawJson['duration_minutes']}'))
-              : 0,
-          focusedTime: rawJson['focused_time'] != null
-              ? (rawJson['focused_time'] is int
-                    ? rawJson['focused_time']
-                    : int.parse('${rawJson['focused_time']}'))
-              : 0,
-          wasOverdue: rawJson['was_overdue'] != null
-              ? (rawJson['was_overdue'] is int
-                    ? rawJson['was_overdue']
-                    : int.parse('${rawJson['was_overdue']}'))
-              : 0,
-          overdueTime: rawJson['overdue_time'] != null
-              ? (rawJson['overdue_time'] is int
-                    ? rawJson['overdue_time']
-                    : int.parse('${rawJson['overdue_time']}'))
-              : 0,
-          createdAt: DateTime.parse(rawJson['created_at']),
-        );
-      }).toList();
-      final allLocalEntries = await _localDb.select(_localDb.todos).get();
-      final List<Todo> allLocalTodos = allLocalEntries
-          .map(_localDb.mapTodoEntryToTodoModel)
-          .toList();
-      final remoteIds = remoteTodos.map((t) => t.id).toSet();
-      for (final localTodo in allLocalTodos) {
-        if (!remoteIds.contains(localTodo.id)) {
-          await _localDb.deleteTodo(localTodo.id);
-          debugLog(
-            'TodoRepository',
-            'Deleted local todo ID: ${localTodo.id} (not found on server)',
-          );
-        }
-      }
-      for (final remoteTodo in remoteTodos) {
-        final existingLocal = allLocalTodos.firstWhereOrNull(
-          (t) => t.id == remoteTodo.id,
-        );
-        if (existingLocal == null) {
-          final TodosCompanion companion =
-              AppDatabase.toTodosCompanion(remoteTodo, isInsert: true).copyWith(
-                id: const Value.absent(),
-              );
-          await _localDb.insertTodo(companion);
-          debugLog(
-            'TodoRepository',
-            'Inserted new remote todo: ${remoteTodo.text}',
-          );
-        } else {
-          if (remoteTodo.text != existingLocal.text ||
-              remoteTodo.completed != existingLocal.completed ||
-              remoteTodo.durationHours != existingLocal.durationHours ||
-              remoteTodo.durationMinutes != existingLocal.durationMinutes ||
-              remoteTodo.focusedTime != existingLocal.focusedTime ||
-              remoteTodo.wasOverdue != existingLocal.wasOverdue ||
-              remoteTodo.overdueTime != existingLocal.overdueTime ||
-              remoteTodo.createdAt != existingLocal.createdAt) {
-            await _localDb.updateTodo(
-              remoteTodo.id,
-              AppDatabase.toTodosCompanion(remoteTodo, isInsert: false),
-            );
-            debugLog(
-              'TodoRepository',
-              'Updated local todo ID: ${remoteTodo.id} with remote data',
-            );
-          }
-        }
-      }
-      debugLog('TodoRepository', 'Todos synced successfully.');
-    } catch (e, st) {
-      debugLog('TodoRepository', 'Error syncing todos: $e\n$st');
-      rethrow;
-    }
-  }
-  Future<void> addTodo(String text, int hours, int minutes) async {
-    final optimisticLocalTodo = Todo(
+import 'app_database.dart';
+import '../services/api_service.dart';
+class TodoMutationService {
+  final AppDatabase _db;
+  final ApiService _api;
+  TodoMutationService(this._db, this._api);
+  Future<Todo> addTodo(String text, int hours, int minutes) async {
+    final Todo optimistic = Todo(
       id: -1,
-      userId: _apiService.devUserId,
+      userId: _api.devUserId,
       text: text,
       completed: false,
       durationHours: hours,
@@ -405,329 +230,189 @@ class TodoRepository {
       overdueTime: 0,
       createdAt: DateTime.now(),
     );
-    final TodosCompanion insertCompanion = AppDatabase.toTodosCompanion(
-      optimisticLocalTodo,
-      isInsert: true,
-    ).copyWith(id: Value.absent());
-    final insertedLocalTodo = await _localDb.insertTodo(insertCompanion);
-    debugLog(
-      'TodoRepository',
-      'Optimistically added local todo with DB ID: ${insertedLocalTodo.id} (${insertedLocalTodo.text})',
+    final inserted = await _db.insertTodo(
+      AppDatabase.toTodosCompanion(optimistic, isInsert: true)
+          .copyWith(id: const Value.absent()),
     );
+    debugLog('TodoMutationService', 'Optimistic add local id=${inserted.id}');
     try {
-      final newTodoData = await _apiService.addTodo(text, hours, minutes);
-      final newTodoFromServer = Todo(
-        id: newTodoData['id'],
-        userId: newTodoData['user_id'],
-        text: newTodoData['text'],
-        completed: newTodoData['completed'] == 1,
-        durationHours: newTodoData['duration_hours'],
-        durationMinutes: newTodoData['duration_minutes'],
-        focusedTime: newTodoData['focused_time'],
-        wasOverdue: newTodoData['was_overdue'] ?? 0,
-        overdueTime: newTodoData['overdue_time'] ?? 0,
-        createdAt: DateTime.parse(newTodoData['created_at']),
+      final data = await _api.addTodo(text, hours, minutes);
+      final Todo serverTodo = Todo(
+        id: data['id'],
+        userId: data['user_id'],
+        text: data['text'],
+        completed: data['completed'] == 1,
+        durationHours: data['duration_hours'],
+        durationMinutes: data['duration_minutes'],
+        focusedTime: data['focused_time'],
+        wasOverdue: data['was_overdue'] ?? 0,
+        overdueTime: data['overdue_time'] ?? 0,
+        createdAt: DateTime.parse(data['created_at']),
       );
-      await _localDb.deleteTodo(insertedLocalTodo.id);
-      await _localDb.insertTodo(
-        AppDatabase.toTodosCompanion(newTodoFromServer, isInsert: false),
-      );
-      debugLog(
-        'TodoRepository',
-        'Successfully synced new todo with API, replaced local entry. Old ID: ${insertedLocalTodo.id}, New ID: ${newTodoFromServer.id}',
-      );
+      await _db.deleteTodo(inserted.id);
+      await _db.insertTodo(AppDatabase.toTodosCompanion(serverTodo, isInsert: false));
+      return serverTodo;
     } catch (e, st) {
-      debugLog(
-        'TodoRepository',
-        'Failed to add todo to API: $e\n$st. Deleting local optimistic entry ID: ${insertedLocalTodo.id}.',
-      );
-      await _localDb.deleteTodo(
-        insertedLocalTodo.id,
-      );
+      debugLog('TodoMutationService', 'API add failed, reverting: $e\n$st');
+      await _db.deleteTodo(inserted.id);
       rethrow;
     }
   }
   Future<void> deleteTodo(int id) async {
-    final originalTodo = await _localDb.getTodoById(id);
-    if (originalTodo == null) {
-      debugLog(
-        'TodoRepository',
-        'Attempted to delete non-existent todo ID: $id',
-      );
-      return;
-    }
-    await _localDb.deleteTodo(id);
-    debugLog('TodoRepository', 'Optimistically deleted local todo ID: $id');
+    final original = await _db.getTodoById(id);
+    if (original == null) return;
+    await _db.deleteTodo(id);
     try {
-      await _apiService.deleteTodo(id);
-      debugLog('TodoRepository', 'Successfully deleted todo ID: $id from API');
+      await _api.deleteTodo(id);
     } catch (e, st) {
-      debugLog(
-        'TodoRepository',
-        'Failed to delete todo ID: $id from API: $e\n$st. Reverting local delete.',
-      );
-      await _localDb.insertTodo(
-        AppDatabase.toTodosCompanion(originalTodo, isInsert: false),
-      );
+      debugLog('TodoMutationService', 'Delete revert due API fail: $e\n$st');
+      await _db.insertTodo(AppDatabase.toTodosCompanion(original, isInsert: false));
       rethrow;
     }
   }
   Future<void> toggleTodo(int id, {int? liveFocusedTime}) async {
-    final originalTodo = await _localDb.getTodoById(id);
-    if (originalTodo == null) {
-      debugLog(
-        'TodoRepository',
-        'Attempted to toggle non-existent todo ID: $id',
-      );
-      return;
-    }
-    final focusedTime = liveFocusedTime ?? originalTodo.focusedTime;
-    final plannedSeconds =
-        (originalTodo.durationHours * 3600) +
-        (originalTodo.durationMinutes * 60);
-    final bool wasOverdue =
-        (plannedSeconds > 0 && focusedTime > plannedSeconds) ||
-        originalTodo.wasOverdue == 1;
-    final int finalOverdueTime = wasOverdue
-        ? (focusedTime - plannedSeconds).clamp(0, double.infinity).toInt()
-        : originalTodo.overdueTime;
-    final updatedLocalTodo = originalTodo.copyWith(
-      completed: !originalTodo.completed,
-      focusedTime: focusedTime,
-      wasOverdue: wasOverdue ? 1 : 0,
-      overdueTime: finalOverdueTime,
-    );
-    await _localDb.updateTodo(
-      id,
-      AppDatabase.toTodosCompanion(updatedLocalTodo, isInsert: false),
-    );
-    debugLog(
-      'TodoRepository',
-      'Optimistically toggled todo ID: $id to completed: ${updatedLocalTodo.completed}',
-    );
-    try {
-      await _apiService.toggleTodoWithOverdue(
-        id,
-        wasOverdue: updatedLocalTodo.wasOverdue == 1,
-        overdueTime: updatedLocalTodo.overdueTime,
-      );
-      debugLog('TodoRepository', 'Successfully toggled todo ID: $id on API');
-    } catch (e, st) {
-      debugLog(
-        'TodoRepository',
-        'Failed to toggle todo ID: $id on API: $e\n$st. Reverting local toggle.',
-      );
-      await _localDb.updateTodo(
-        id,
-        AppDatabase.toTodosCompanion(originalTodo, isInsert: false),
-      );
-      rethrow;
-    }
-  }
-  Future<void> toggleTodoWithOverdue(
-    int id, {
-    required bool wasOverdue,
-    required int overdueTime,
-  }) async {
-    final originalTodo = await _localDb.getTodoById(id);
-    if (originalTodo == null) {
-      debugLog(
-        'TodoRepository',
-        'Attempted to toggle with overdue non-existent todo ID: $id',
-      );
-      return;
-    }
-    final updatedLocalTodo = originalTodo.copyWith(
-      completed: !originalTodo.completed,
-      wasOverdue: wasOverdue ? 1 : 0,
+    final original = await _db.getTodoById(id);
+    if (original == null) return;
+    final int focused = liveFocusedTime ?? original.focusedTime;
+    final int planned = (original.durationHours * 3600) + (original.durationMinutes * 60);
+    final bool overdue = (planned > 0 && focused > planned) || original.wasOverdue == 1;
+    final int overdueTime = overdue ? (focused - planned).clamp(0, double.infinity).toInt() : original.overdueTime;
+    final updated = original.copyWith(
+      completed: !original.completed,
+      focusedTime: focused,
+      wasOverdue: overdue ? 1 : 0,
       overdueTime: overdueTime,
     );
-    await _localDb.updateTodo(
-      id,
-      AppDatabase.toTodosCompanion(updatedLocalTodo, isInsert: false),
-    );
-    debugLog(
-      'TodoRepository',
-      'Optimistically toggled todo ID: $id with overdue info locally',
-    );
+    await _db.updateTodo(id, AppDatabase.toTodosCompanion(updated, isInsert: false));
     try {
-      await _apiService.toggleTodoWithOverdue(
-        id,
-        wasOverdue: wasOverdue,
-        overdueTime: overdueTime,
-      );
-      debugLog(
-        'TodoRepository',
-        'Successfully toggled todo ID: $id with overdue info on API',
-      );
+      await _api.toggleTodoWithOverdue(id, wasOverdue: overdue, overdueTime: overdueTime);
     } catch (e, st) {
-      debugLog(
-        'TodoRepository',
-        'Failed to toggle todo ID: $id with overdue info on API: $e\n$st. Reverting local toggle.',
-      );
-      await _localDb.updateTodo(
-        id,
-        AppDatabase.toTodosCompanion(originalTodo, isInsert: false),
-      );
+      debugLog('TodoMutationService', 'Toggle revert API fail: $e\n$st');
+      await _db.updateTodo(id, AppDatabase.toTodosCompanion(original, isInsert: false));
       rethrow;
     }
   }
-  Future<void> updateTodo({
-    required int id,
-    String? text,
-    int? hours,
-    int? minutes,
-  }) async {
-    final originalTodo = await _localDb.getTodoById(id);
-    if (originalTodo == null) {
-      debugLog(
-        'TodoRepository',
-        'Attempted to update non-existent todo ID: $id',
-      );
-      return;
-    }
-    final updatedLocalTodo = originalTodo.copyWith(
-      text: text ?? originalTodo.text,
-      durationHours: hours ?? originalTodo.durationHours,
-      durationMinutes: minutes ?? originalTodo.durationMinutes,
+  Future<void> updateTodo({required int id, String? text, int? hours, int? minutes}) async {
+    final original = await _db.getTodoById(id);
+    if (original == null) return;
+    final updated = original.copyWith(
+      text: text ?? original.text,
+      durationHours: hours ?? original.durationHours,
+      durationMinutes: minutes ?? original.durationMinutes,
     );
-    await _localDb.updateTodo(
-      id,
-      AppDatabase.toTodosCompanion(updatedLocalTodo, isInsert: false),
-    );
-    debugLog('TodoRepository', 'Optimistically updated local todo ID: $id');
+    await _db.updateTodo(id, AppDatabase.toTodosCompanion(updated, isInsert: false));
     try {
-      await _apiService.updateTodo(
-        id,
-        text: text,
-        hours: hours,
-        minutes: minutes,
-      );
-      debugLog('TodoRepository', 'Successfully updated todo ID: $id on API');
+      await _api.updateTodo(id, text: text, hours: hours, minutes: minutes);
     } catch (e, st) {
-      debugLog(
-        'TodoRepository',
-        'Failed to update todo ID: $id on API: $e\n$st. Reverting local update.',
-      );
-      await _localDb.updateTodo(
-        id,
-        AppDatabase.toTodosCompanion(originalTodo, isInsert: false),
-      );
+      debugLog('TodoMutationService', 'Update revert API fail: $e\n$st');
+      await _db.updateTodo(id, AppDatabase.toTodosCompanion(original, isInsert: false));
       rethrow;
     }
   }
-  Future<void> markTaskPermanentlyOverdue(
-    int id, {
-    required int overdueTime,
-  }) async {
-    final originalTodo = await _localDb.getTodoById(id);
-    if (originalTodo == null) {
-      debugLog(
-        'TodoRepository',
-        'Attempted to mark non-existent todo ID: $id as overdue',
-      );
-      return;
-    }
-    final updatedLocalTodo = originalTodo.copyWith(
-      wasOverdue: 1,
-      overdueTime: overdueTime,
-    );
-    await _localDb.updateTodo(
-      id,
-      AppDatabase.toTodosCompanion(updatedLocalTodo, isInsert: false),
-    );
-    debugLog(
-      'TodoRepository',
-      'Marked todo ID: $id as permanently overdue locally',
-    );
+  Future<void> markTaskPermanentlyOverdue(int id, {required int overdueTime}) async {
+    final original = await _db.getTodoById(id);
+    if (original == null) return;
+    final updated = original.copyWith(wasOverdue: 1, overdueTime: overdueTime);
+    await _db.updateTodo(id, AppDatabase.toTodosCompanion(updated, isInsert: false));
   }
   Future<void> clearCompleted() async {
-    final completedTodos = (await _localDb.select(_localDb.todos).get())
-        .where((entry) => entry.completed)
-        .map(
-          _localDb.mapTodoEntryToTodoModel,
-        )
-        .toList();
-    if (completedTodos.isEmpty) {
-      debugLog('TodoRepository', 'No completed todos to clear.');
-      return;
-    }
-    await _localDb.clearCompletedTodos();
-    debugLog(
-      'TodoRepository',
-      'Optimistically cleared completed todos locally',
-    );
+    final all = await _db.select(_db.todos).get();
+    final completed = all.where((e) => e.completed).map(_db.mapTodoEntryToTodoModel).toList();
+    if (completed.isEmpty) return;
+    await _db.clearCompletedTodos();
     try {
-      await Future.wait(
-        completedTodos.map((todo) => _apiService.deleteTodo(todo.id)),
-      );
-      debugLog(
-        'TodoRepository',
-        'Successfully cleared completed todos from API',
-      );
+      await Future.wait(completed.map((t) => _api.deleteTodo(t.id)));
     } catch (e, st) {
-      debugLog(
-        'TodoRepository',
-        'Failed to clear completed todos from API: $e\n$st. Local and remote might be out of sync.',
-      );
+      debugLog('TodoMutationService', 'Clear completed remote fail: $e\n$st');
       rethrow;
     }
   }
   Future<void> updateFocusTime(int id, int focusedTime) async {
-    final originalTodo = await _localDb.getTodoById(id);
-    if (originalTodo == null) {
-      debugLog(
-        'TodoRepository',
-        'Attempted to update focus time for non-existent todo ID: $id',
-      );
-      return;
-    }
-    final updatedLocalTodo = originalTodo.copyWith(focusedTime: focusedTime);
-    await _localDb.updateTodo(
-      id,
-      AppDatabase.toTodosCompanion(updatedLocalTodo, isInsert: false),
-    );
-    debugLog(
-      'TodoRepository',
-      'Updated focused time for todo ID: $id locally to $focusedTime',
-    );
+    final original = await _db.getTodoById(id);
+    if (original == null) return;
+    final updated = original.copyWith(focusedTime: focusedTime);
+    await _db.updateTodo(id, AppDatabase.toTodosCompanion(updated, isInsert: false));
     try {
-      await _apiService.updateFocusTime(id, focusedTime);
-      debugLog(
-        'TodoRepository',
-        'Updated focused time for todo ID: $id on API',
-      );
+      await _api.updateFocusTime(id, focusedTime);
     } catch (e, st) {
-      debugLog(
-        'TodoRepository',
-        'Failed to update focused time for todo ID: $id on API: $e\n$st. Local changes will be out of sync.',
-      );
+      debugLog('TodoMutationService', 'Focus time sync fail: $e\n$st');
       rethrow;
     }
   }
 }
-extension IterableExtension<E> on Iterable<E> {
-  E? firstWhereOrNull(bool Function(E element) test) {
-    for (final element in this) {
-      if (test(element)) {
-        return element;
+
+================
+File: flutter_app/lib/core/data/todo_sync_service.dart
+================
+import 'package:drift/drift.dart' as drift;
+import '../../features/todo/models/todo.dart';
+import '../utils/debug_logger.dart';
+import 'app_database.dart';
+import '../services/api_service.dart';
+class TodoSyncService {
+  final AppDatabase _db;
+  final ApiService _api;
+  TodoSyncService(this._db, this._api);
+  Future<void> syncTodos() async {
+    debugLog('TodoSyncService', 'Sync start');
+    final remoteData = await _api.fetchTodos();
+    final List<Todo> remoteTodos = remoteData.map((e) {
+      final Map<String, dynamic> raw = Map<String, dynamic>.from(e);
+      return Todo(
+        id: raw['id'] is int ? raw['id'] : int.parse('${raw['id']}'),
+        userId: raw['user_id'] ?? raw['userId'] ?? '',
+        text: raw['text'] ?? '',
+        completed: (raw['completed'] == 1 || raw['completed'] == true),
+        durationHours: _asInt(raw['duration_hours']),
+        durationMinutes: _asInt(raw['duration_minutes']),
+        focusedTime: _asInt(raw['focused_time']),
+        wasOverdue: _asInt(raw['was_overdue']),
+        overdueTime: _asInt(raw['overdue_time']),
+        createdAt: DateTime.parse(raw['created_at']),
+      );
+    }).toList();
+    final localRows = await _db.select(_db.todos).get();
+    final localTodos = localRows.map(_db.mapTodoEntryToTodoModel).toList();
+    final remoteIds = remoteTodos.map((t) => t.id).toSet();
+    for (final local in localTodos) {
+      if (!remoteIds.contains(local.id)) {
+        await _db.deleteTodo(local.id);
       }
     }
-    return null;
+    for (final remote in remoteTodos) {
+      final existing = localTodos.where((t) => t.id == remote.id).toList();
+      if (existing.isEmpty) {
+        final companion = AppDatabase.toTodosCompanion(remote, isInsert: true)
+            .copyWith(id: const drift.Value.absent());
+        await _db.insertTodo(companion);
+      } else {
+        final current = existing.first;
+        if (!_equivalent(current, remote)) {
+          await _db.updateTodo(
+            remote.id,
+            AppDatabase.toTodosCompanion(remote, isInsert: false),
+          );
+        }
+      }
+    }
+    debugLog('TodoSyncService', 'Sync complete');
+  }
+  static int _asInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    return int.parse('$v');
+  }
+  bool _equivalent(Todo a, Todo b) {
+    return a.text == b.text &&
+        a.completed == b.completed &&
+        a.durationHours == b.durationHours &&
+        a.durationMinutes == b.durationMinutes &&
+        a.focusedTime == b.focusedTime &&
+        a.wasOverdue == b.wasOverdue &&
+        a.overdueTime == b.overdueTime &&
+        a.createdAt == b.createdAt;
   }
 }
-final databaseProvider = Provider<AppDatabase>((ref) {
-  final db = AppDatabase();
-  ref.onDispose(() => db.close());
-  return db;
-});
-final todoRepositoryProvider = Provider<TodoRepository>((ref) {
-  final localDb = ref.watch(databaseProvider);
-  final apiService = ref.watch(
-    apiServiceProvider,
-  );
-  return TodoRepository(localDb, apiService);
-});
 
 ================
 File: flutter_app/lib/core/debug/notification_sound_tester.dart
@@ -768,6 +453,210 @@ import '../services/notification_service.dart';
 final notificationServiceProvider = Provider<NotificationService>((ref) {
   throw UnimplementedError('notificationServiceProvider must be overridden');
 });
+
+================
+File: flutter_app/lib/core/services/notifications/notification_constants.dart
+================
+const int kPersistentTimerNotificationId = 1;
+const String kActionPause = 'pause_timer';
+const String kActionResume = 'resume_timer';
+const String kActionStop = 'stop_timer';
+const String kActionMarkComplete = 'mark_complete';
+const String kActionContinueWorking = 'continue_working';
+const String kPayloadOpenApp = 'open_app';
+String mapActionLabel(String id) {
+  switch (id) {
+    case kActionPause:
+      return 'Pause';
+    case kActionResume:
+      return 'Resume';
+    case kActionStop:
+      return 'Stop';
+    case kActionMarkComplete:
+      return 'Complete';
+    case kActionContinueWorking:
+      return 'Continue';
+    default:
+      return id;
+  }
+}
+
+================
+File: flutter_app/lib/core/services/notifications/notification_permission_manager.dart
+================
+import 'dart:io' show Platform;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../../utils/debug_logger.dart';
+class NotificationPermissionManager {
+  final FlutterLocalNotificationsPlugin _plugin;
+  NotificationPermissionManager(this._plugin);
+  Future<void> ensurePermissions() async {
+    try {
+      if (Platform.isAndroid) {
+        final AndroidFlutterLocalNotificationsPlugin? androidImpl =
+            _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        if (androidImpl != null) {
+          final bool? enabled = await androidImpl.areNotificationsEnabled();
+            if (enabled == false) {
+              final bool? granted = await androidImpl.requestNotificationsPermission();
+              debugLog('NotificationPermissions', 'Requested Android permission granted=$granted');
+            } else {
+              debugLog('NotificationPermissions', 'Android notifications already enabled');
+            }
+        }
+      } else if (Platform.isIOS) {
+        final IOSFlutterLocalNotificationsPlugin? iosImpl =
+            _plugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+        if (iosImpl != null) {
+          final bool? granted = await iosImpl.requestPermissions(alert: true, badge: true, sound: true);
+          debugLog('NotificationPermissions', 'iOS permission granted=$granted');
+        }
+      } else if (Platform.isMacOS) {
+        final MacOSFlutterLocalNotificationsPlugin? macImpl =
+            _plugin.resolvePlatformSpecificImplementation<MacOSFlutterLocalNotificationsPlugin>();
+        if (macImpl != null) {
+          final bool? granted = await macImpl.requestPermissions(alert: true, badge: true, sound: true);
+          debugLog('NotificationPermissions', 'macOS permission granted=$granted');
+        }
+      }
+    } catch (e) {
+      debugLog('NotificationPermissions', 'Error requesting permissions err=$e');
+    }
+  }
+}
+
+================
+File: flutter_app/lib/core/services/notifications/notification_sound_player.dart
+================
+import 'package:audioplayers/audioplayers.dart';
+import '../../utils/debug_logger.dart';
+import 'notification_sound_utils.dart';
+class NotificationSoundPlayer {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  Future<void> playSound(String soundFileName) async {
+    try {
+      debugLog('NotificationSoundPlayer', 'playSound sound=$soundFileName');
+      await _audioPlayer.stop();
+      final String assetPath = normalizeSoundAsset(soundFileName);
+      await Future.delayed(const Duration(milliseconds: 50));
+      await _audioPlayer.play(AssetSource('sounds/$assetPath'));
+      debugLog('NotificationSoundPlayer', 'Sound played sound=$soundFileName');
+      if (soundFileName.contains('break_timer_start')) {
+        debugLog('NotificationSoundPlayer', 'Break timer sound played');
+      } else if (soundFileName.contains('progress_bar_full')) {
+        debugLog('NotificationSoundPlayer', 'Progress bar full sound played');
+      }
+    } catch (e, st) {
+      debugLog('NotificationSoundPlayer', 'Error playing $soundFileName err=$e');
+      debugLog('NotificationSoundPlayer', 'Stack trace: $st');
+      if (soundFileName.contains('break_timer_start') || soundFileName.contains('progress_bar_full')) {
+        try {
+          await _audioPlayer.setSource(AssetSource('sounds/$soundFileName'));
+          await _audioPlayer.resume();
+          debugLog('NotificationSoundPlayer', 'Alternative playback success sound=$soundFileName');
+        } catch (alt) {
+          debugLog('NotificationSoundPlayer', 'Alternative playback failed err=$alt');
+        }
+      }
+    }
+  }
+}
+
+================
+File: flutter_app/lib/core/services/notifications/notification_sound_utils.dart
+================
+String normalizeSoundAsset(String rawPath) {
+  if (rawPath.isEmpty) return rawPath;
+  String result = rawPath;
+  if (result.startsWith('assets/sounds/')) {
+    result = result.substring('assets/sounds/'.length);
+  } else if (result.startsWith('assets/')) {
+    result = result.substring('assets/'.length);
+  } else if (result.startsWith('sounds/')) {
+    result = result.substring('sounds/'.length);
+  }
+  return result;
+}
+
+================
+File: flutter_app/lib/core/services/notifications/persistent_notification_manager.dart
+================
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../../utils/debug_logger.dart';
+import 'notification_constants.dart';
+class PersistentNotificationManager {
+  final FlutterLocalNotificationsPlugin _plugin;
+  PersistentNotificationManager(this._plugin);
+  Future<void> showOrUpdate({
+    required String title,
+    required String body,
+    required List<String> actionIds,
+  }) async {
+    final List<AndroidNotificationAction> actions = actionIds
+        .map(
+          (id) => AndroidNotificationAction(
+            id,
+            mapActionLabel(id),
+            showsUserInterface: false,
+            cancelNotification: false,
+            contextual: false,
+          ),
+        )
+        .toList();
+    final BigTextStyleInformation bigText = BigTextStyleInformation(body);
+    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'pomodoro_persistent_channel',
+      'Persistent Pomodoro Timer',
+      channelDescription: 'Ongoing notifications for your active Pomodoro timer.',
+      importance: Importance.max,
+      priority: Priority.max,
+      ongoing: true,
+      autoCancel: false,
+      showWhen: false,
+      onlyAlertOnce: true,
+      largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+      styleInformation: bigText,
+      actions: actions,
+      category: AndroidNotificationCategory.service,
+      visibility: NotificationVisibility.public,
+      enableLights: false,
+      enableVibration: false,
+      playSound: false,
+      ticker: title,
+    );
+    final NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
+    await _plugin.show(
+      kPersistentTimerNotificationId,
+      title,
+      body,
+      platformDetails,
+      payload: kPayloadOpenApp,
+    );
+    debugLog('PersistentNotificationManager', 'Updated persistent title="$title" actions=$actionIds');
+    if (kDebugMode) {
+      await debugDumpActiveNotifications();
+    }
+  }
+  Future<void> cancel() async {
+    await _plugin.cancel(kPersistentTimerNotificationId);
+    debugLog('PersistentNotificationManager', 'Cancelled persistent notification');
+  }
+  Future<void> debugDumpActiveNotifications() async {
+    if (!Platform.isAndroid) return;
+    final androidImpl = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (androidImpl == null) return;
+    try {
+      final active = await androidImpl.getActiveNotifications();
+      for (final n in active) {
+        debugLog('PersistentNotificationManager', 'ACTIVE id=${n.id} tag=${n.tag} title=${n.title} text=${n.body}');
+      }
+    } catch (e) {
+      debugLog('PersistentNotificationManager', 'Error dumping active notifications: $e');
+    }
+  }
+}
 
 ================
 File: flutter_app/lib/core/services/mock_api_service.dart
@@ -1523,6 +1412,397 @@ class TimerState {
 }
 
 ================
+File: flutter_app/lib/features/pomodoro/services/foreground_ticker.dart
+================
+import 'dart:async';
+import '../models/timer_state.dart';
+import '../../../core/constants/timer_defaults.dart';
+typedef TickCallback = void Function();
+typedef PhaseCompleteCallback = void Function();
+typedef OverdueCheckCallback = void Function();
+class ForegroundTicker {
+  Timer? _timer;
+  bool get isActive => _timer != null;
+  void start({
+    required TickCallback onTick,
+    required PhaseCompleteCallback onPhaseComplete,
+    required OverdueCheckCallback onOverdueCheck,
+    required TimerState Function() stateProvider,
+  }) {
+    stop();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      final TimerState state = stateProvider();
+      if (!state.isRunning) return;
+      onOverdueCheck();
+      if (state.currentMode == 'focus' && state.activeTaskId != null) {
+        onTick();
+      }
+      if (state.timeRemaining > 0) {
+        onTick();
+      } else {
+        onPhaseComplete();
+      }
+    });
+  }
+  void stop() {
+    _timer?.cancel();
+    _timer = null;
+  }
+}
+
+================
+File: flutter_app/lib/features/pomodoro/services/notification_action_handler.dart
+================
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/timer_provider.dart';
+import '../../todo/providers/todos_provider.dart';
+class NotificationActionHandler {
+  final TimerNotifier notifier;
+  final Ref ref;
+  NotificationActionHandler({required this.notifier, required this.ref});
+  Future<void> handle(String actionId) async {
+    switch (actionId) {
+      case 'pause_timer':
+        if (notifier.state.isRunning) notifier.pauseTask();
+        break;
+      case 'resume_timer':
+        if (!notifier.state.isRunning) notifier.resumeTask();
+        break;
+      case 'stop_timer':
+        if (notifier.state.activeTaskId != null) {
+          await notifier.stopAndSaveProgress(notifier.state.activeTaskId!);
+        } else {
+          notifier.clear();
+        }
+        break;
+      case 'mark_complete':
+        if (notifier.state.activeTaskId != null) {
+          await ref.read(todosProvider.notifier).toggleTodo(notifier.state.activeTaskId!);
+          await notifier.stopAndSaveProgress(notifier.state.activeTaskId!);
+        }
+        break;
+      case 'continue_working':
+        if (notifier.state.activeTaskId != null) {
+          notifier.state = notifier.state.copyWith(
+            overdueContinued: Set<int>.from(notifier.state.overdueContinued)
+              ..add(notifier.state.activeTaskId!),
+            isPermanentlyOverdue: true,
+            isProgressBarFull: false,
+            plannedDurationSeconds: null,
+            focusDurationSeconds: null,
+          );
+          notifier.update();
+        }
+        break;
+    }
+  }
+}
+
+================
+File: flutter_app/lib/features/pomodoro/services/phase_transition_service.dart
+================
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/sound_assets.dart';
+import '../../../core/providers/notification_provider.dart';
+import '../models/timer_state.dart';
+import '../providers/timer_provider.dart';
+import '../../../core/utils/debug_logger.dart';
+class PhaseTransitionService {
+  final TimerNotifier notifier;
+  final Ref ref;
+  PhaseTransitionService({required this.notifier, required this.ref});
+  void handlePhaseCompletion(TimerState current) {
+    if (current.currentMode == 'focus') {
+      _handleFocusCompletion(current);
+    } else if (current.currentMode == 'break') {
+      _handleBreakCompletion(current);
+    } else {
+      notifier.stop();
+    }
+  }
+  void skipPhase(TimerState state) {
+    final notificationService = ref.read(notificationServiceProvider);
+    if (state.currentMode == 'focus') {
+      if (state.currentCycle >= state.totalCycles) {
+        notifier.update(cycleOverflowBlocked: true);
+        return;
+      }
+      notificationService.playSoundWithNotification(
+        soundFileName: SoundAsset.breakStart.fileName,
+        title: 'Focus Phase Skipped',
+        body: 'Moving to break time for "${state.activeTaskName}".',
+      );
+      final int completed = state.completedSessions + 1;
+      final int nextCycle = state.currentCycle + 1;
+      notifier.update(
+        currentMode: 'break',
+        timeRemaining: state.breakDurationSeconds ?? state.timeRemaining,
+        completedSessions: completed,
+        currentCycle: nextCycle,
+      );
+    } else if (state.currentMode == 'break') {
+      notificationService.playSound(SoundAsset.focusStart.fileName);
+      notifier.update(
+        currentMode: 'focus',
+        timeRemaining: state.focusDurationSeconds ?? state.timeRemaining,
+      );
+    }
+  }
+  void _handleFocusCompletion(TimerState state) {
+    final int completed = state.completedSessions + 1;
+    if (completed >= state.totalCycles) {
+      final service = ref.read(notificationServiceProvider);
+      if (state.isPermanentlyOverdue && !state.overdueSessionsComplete) {
+        service.playSoundWithNotification(
+          soundFileName: SoundAsset.sessionComplete.fileName,
+          title: 'Session Complete!',
+          body: 'Overdue task session completed for "${state.activeTaskName}".',
+        );
+        notifier.update(
+          overdueSessionsComplete: true,
+          isRunning: false,
+          completedSessions: completed,
+        );
+        notifier.stopTicker();
+      } else if (!state.allSessionsComplete) {
+        service.playSoundWithNotification(
+          soundFileName: SoundAsset.sessionComplete.fileName,
+          title: 'All Sessions Complete!',
+          body: 'All planned sessions completed for "${state.activeTaskName}".',
+        );
+        notifier.update(
+          allSessionsComplete: true,
+          isRunning: false,
+          completedSessions: completed,
+        );
+        notifier.stopTicker();
+      }
+      if (!notifier.state.isRunning && notifier.state.timeRemaining == 0) {
+        notifier.stopTicker();
+        return;
+      }
+    } else {
+      final notificationService = ref.read(notificationServiceProvider);
+      notificationService.playSoundWithNotification(
+        soundFileName: SoundAsset.breakStart.fileName,
+        title: 'Focus Session Complete!',
+        body: 'Time for a break for "${state.activeTaskName}".',
+      );
+      final int nextCycle = (state.currentCycle + 1) <= state.totalCycles
+          ? state.currentCycle + 1
+          : state.totalCycles;
+      notifier.update(
+        currentMode: 'break',
+        timeRemaining: state.breakDurationSeconds,
+        currentCycle: nextCycle,
+        completedSessions: completed,
+      );
+    }
+  }
+  void _handleBreakCompletion(TimerState state) {
+    if (state.focusDurationSeconds != null) {
+      final service = ref.read(notificationServiceProvider);
+      service.playSound(SoundAsset.focusStart.fileName);
+      service.showNotification(
+        title: 'Break Complete!',
+        body: 'Time to focus on "${state.activeTaskName}" again!',
+      );
+      notifier.update(
+        currentMode: 'focus',
+        timeRemaining: state.focusDurationSeconds,
+      );
+    } else {
+      notifier.stop();
+    }
+  }
+}
+
+================
+File: flutter_app/lib/features/pomodoro/services/timer_autosave_service.dart
+================
+import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/utils/debug_logger.dart';
+import '../../../core/constants/timer_defaults.dart';
+import '../../../core/data/todo_repository.dart';
+import '../providers/timer_provider.dart';
+class TimerAutoSaveService {
+  final TimerNotifier _notifier;
+  final Ref _ref;
+  Timer? _autoSaveTimer;
+  bool _isAutoSaving = false;
+  int _lastAutoSavedSeconds = 0;
+  TimerAutoSaveService(this._notifier, this._ref);
+  void start() {
+    stop();
+    _autoSaveTimer = Timer.periodic(
+      const Duration(seconds: TimerDefaults.autoSaveIntervalSeconds),
+      (_) => triggerDeferredAutoSave(),
+    );
+  }
+  void stop() {
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = null;
+  }
+  void resetLastSavedForTask(int taskId) {
+    _lastAutoSavedSeconds = _notifier.state.focusedTimeCache[taskId] ?? 0;
+  }
+  void triggerDeferredAutoSave() {
+    final int? taskId = _notifier.state.activeTaskId;
+    if (taskId == null) return;
+    final int currentFocused = _notifier.state.focusedTimeCache[taskId] ?? 0;
+    if (currentFocused - _lastAutoSavedSeconds <
+        TimerDefaults.autoSaveIntervalSeconds) return;
+    _autoSaveFocusedTime(todoId: taskId);
+  }
+  Future<void> forceSaveIfNeeded() async {
+    final int? taskId = _notifier.state.activeTaskId;
+    if (taskId == null) return;
+    await _autoSaveFocusedTime(todoId: taskId, force: true);
+  }
+  Future<void> _autoSaveFocusedTime({
+    required int todoId,
+    bool force = false,
+  }) async {
+    final int? taskId = _notifier.state.activeTaskId;
+    if (taskId == null) return;
+    final int currentFocused = _notifier.state.focusedTimeCache[taskId] ?? 0;
+    if (!force && currentFocused <= _lastAutoSavedSeconds) return;
+    if (_isAutoSaving) return;
+    _isAutoSaving = true;
+    try {
+      final todoRepository = _ref.read(todoRepositoryProvider);
+      await todoRepository.updateFocusTime(todoId, currentFocused);
+      _lastAutoSavedSeconds = currentFocused;
+      await _notifier.persistState();
+    } catch (e) {
+      debugLog('TimerAutoSaveService', 'Error auto-saving focused time: $e');
+    } finally {
+      _isAutoSaving = false;
+    }
+  }
+}
+
+================
+File: flutter_app/lib/features/pomodoro/services/timer_background_scheduler.dart
+================
+import 'dart:convert';
+import 'package:workmanager/workmanager.dart';
+import '../../../core/utils/debug_logger.dart';
+import '../../../core/utils/app_constants.dart';
+import '../models/timer_state.dart';
+import '../services/timer_persistence_manager.dart';
+class TimerBackgroundScheduler {
+  final TimerPersistenceManager persistenceManager;
+  TimerBackgroundScheduler(this.persistenceManager);
+  Future<void> scheduleSession({
+    required TimerState state,
+    required String apiBaseUrl,
+    required bool isDebugMode,
+    required int remainingSeconds,
+  }) async {
+    if (remainingSeconds <= 0 || !state.isRunning || state.activeTaskId == null) {
+      await cancelSession();
+      return;
+    }
+    await cancelSession();
+    await persistenceManager.saveApiConfig(apiBaseUrl, isDebugMode);
+    await persistenceManager.saveTimerState(state);
+    final int delaySeconds = remainingSeconds + 5;
+    debugLog('TimerBackgroundScheduler', 'Scheduling in $delaySeconds s');
+    await Workmanager().registerOneOffTask(
+      AppConstants.pomodoroTimerTask,
+      AppConstants.pomodoroTimerTask,
+      initialDelay: Duration(seconds: delaySeconds),
+      existingWorkPolicy: ExistingWorkPolicy.replace,
+      constraints: Constraints(
+        networkType: NetworkType.notRequired,
+        requiresCharging: false,
+        requiresBatteryNotLow: false,
+      ),
+      inputData: _buildInputData(state, apiBaseUrl, isDebugMode, remainingSeconds),
+    );
+    await persistenceManager.setSessionScheduled(true);
+  }
+  Future<void> cancelSession() async {
+    await Workmanager().cancelByUniqueName(AppConstants.pomodoroTimerTask);
+    await persistenceManager.setSessionScheduled(false);
+  }
+  Map<String, dynamic> _buildInputData(
+    TimerState state,
+    String apiBaseUrl,
+    bool isDebugMode,
+    int remainingSeconds,
+  ) {
+    return {
+      'apiBaseUrl': apiBaseUrl,
+      'isDebugMode': isDebugMode,
+      'activeTaskId': state.activeTaskId,
+      'activeTaskText': state.activeTaskName,
+      'timeRemaining': remainingSeconds,
+      'currentMode': state.currentMode,
+      'focusedTimeCache': json.encode(
+        state.focusedTimeCache.map((k, v) => MapEntry(k.toString(), v)),
+      ),
+      'plannedDurationSeconds': state.plannedDurationSeconds ?? 0,
+      'focusDurationSeconds': state.focusDurationSeconds ?? 0,
+      'breakDurationSeconds': state.breakDurationSeconds ?? 0,
+      'currentCycle': state.currentCycle,
+      'totalCycles': state.totalCycles,
+      'completedSessions': state.completedSessions,
+      'isPermanentlyOverdue': state.isPermanentlyOverdue,
+    };
+  }
+}
+
+================
+File: flutter_app/lib/features/pomodoro/services/timer_overdue_service.dart
+================
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/sound_assets.dart';
+import '../../../core/utils/debug_logger.dart';
+import '../../../core/data/todo_repository.dart';
+import '../../todo/providers/todos_provider.dart';
+import '../../../core/providers/notification_provider.dart';
+import '../providers/timer_provider.dart';
+class TimerOverdueService {
+  final TimerNotifier notifier;
+  final Ref ref;
+  TimerOverdueService({required this.notifier, required this.ref});
+  void markOverdueAndFreeze(int taskId) {
+    try {
+      final notificationService = ref.read(notificationServiceProvider);
+      final todos = ref.read(todosProvider).value ?? [];
+      final task = todos.where((t) => t.id == taskId).toList();
+      if (task.isNotEmpty) {
+        notificationService.playSoundWithNotification(
+          soundFileName: SoundAsset.sessionComplete.fileName,
+          title: 'Planned Time Complete!',
+          body: 'Time for "${task.first.text}" is up. Decide whether to continue or complete.',
+        );
+      }
+    } catch (e) {
+      debugLog('TimerOverdueService', 'Notification error: $e');
+    }
+    notifier.update(
+      isRunning: false,
+      timeRemaining: 0,
+      isProgressBarFull: true,
+      overdueCrossedTaskId: taskId,
+      plannedDurationSeconds: null,
+      focusDurationSeconds: null,
+      breakDurationSeconds: null,
+      currentCycle: 1,
+      totalCycles: 1,
+    );
+  }
+  Future<void> markTaskPermanentlyOverdue(int taskId, int overdueSeconds) async {
+    final repo = ref.read(todoRepositoryProvider);
+    await repo.markTaskPermanentlyOverdue(taskId, overdueTime: overdueSeconds);
+  }
+}
+
+================
 File: flutter_app/lib/features/pomodoro/services/timer_persistence_manager.dart
 ================
 import 'dart:convert';
@@ -1655,113 +1935,55 @@ class TimerPersistenceManager {
 }
 
 ================
-File: flutter_app/test/notification_action_integration_test.dart
+File: flutter_app/test/notification_sound_utils_test.dart
 ================
-import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:focus_timer_app/core/services/notifications/notification_sound_utils.dart';
+void main() {
+  group('normalizeSoundAsset', () {
+    test('leaves simple filename unchanged', () {
+      expect(normalizeSoundAsset('focus_timer_start.wav'), 'focus_timer_start.wav');
+    });
+    test('strips sounds/ prefix', () {
+      expect(normalizeSoundAsset('sounds/focus_timer_start.wav'), 'focus_timer_start.wav');
+    });
+    test('strips assets/sounds/ prefix', () {
+      expect(normalizeSoundAsset('assets/sounds/focus_timer_start.wav'), 'focus_timer_start.wav');
+    });
+    test('strips assets/ prefix', () {
+      expect(normalizeSoundAsset('assets/focus_timer_start.wav'), 'focus_timer_start.wav');
+    });
+    test('returns empty unchanged', () {
+      expect(normalizeSoundAsset(''), '');
+    });
+  });
+}
+
+================
+File: flutter_app/test/timer_notifier_smoke_test.dart
+================
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:focus_timer_app/features/pomodoro/models/timer_state.dart';
 import 'package:focus_timer_app/features/pomodoro/providers/timer_provider.dart';
-import 'package:focus_timer_app/core/providers/notification_action_provider.dart';
-import 'package:focus_timer_app/core/providers/notification_provider.dart';
-import 'package:focus_timer_app/core/services/notification_service.dart';
-class _FakeNotificationService implements NotificationService {
-  @override
-  Function(String? payload)? onNotificationTap;
-  @override
-  Future<void> init() async {}
-  @override
-  Future<void> cancelPersistentTimerNotification() async {}
-  @override
-  Future<void> playSound(String soundFileName) async {}
-  @override
-  Future<void> playSoundWithNotification({required String soundFileName, required String title, required String body}) async {}
-  @override
-  Future<void> showNotification({required String title, required String body, String? payload, String? soundFileName}) async {}
-  @override
-  Future<void> showOrUpdatePersistent({required String title, required String body, required List<String> actionIds}) async {}
-  @override
-  Future<void> debugDumpActiveNotifications() async {}
-}
-class _FakeTimerNotifier extends TimerNotifier {
-  String? lastAction;
-  @override
-  TimerState build() {
-    return const TimerState(
-      isRunning: true,
-      isTimerActive: true,
-      currentMode: 'focus',
-      timeRemaining: 100,
-      focusDurationSeconds: 100,
-      breakDurationSeconds: 20,
-      plannedDurationSeconds: 100,
-    );
-  }
-  @override
-  Future<void> handleNotificationAction(String actionId) async {
-    lastAction = actionId;
-    if (actionId == 'pause_timer') {
-      state = state.copyWith(isRunning: false);
-    } else if (actionId == 'resume_timer') {
-      state = state.copyWith(isRunning: true);
-    } else if (actionId == 'stop_timer') {
-      state = state.copyWith(isTimerActive: false, activeTaskId: null, activeTaskName: null, isRunning: false);
-    }
-  }
-}
+import 'package:focus_timer_app/features/pomodoro/models/timer_state.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  Widget _buildHarness() {
-    return Consumer(
-      builder: (context, ref, _) {
-        ref.listen<String?>(notificationActionProvider, (prev, next) {
-          if (next != null) {
-            ref.read(timerProvider.notifier).handleNotificationAction(next);
-            ref.read(notificationActionProvider.notifier).state = null;
-          }
-        });
-        final timerState = ref.watch(timerProvider);
-        return Text(timerState.isRunning ? 'running' : 'paused', textDirection: TextDirection.ltr);
-      },
+  test('TimerNotifier startTask sets initial running state', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(timerProvider.notifier);
+    final started = notifier.startTask(
+      taskId: 1,
+      taskName: 'Demo',
+      focusDuration: 5,
+      breakDuration: 3,
+      plannedDuration: 5,
+      totalCycles: 1,
     );
-  }
-  group('notificationActionProvider -> TimerNotifier wiring', () {
-    testWidgets('pause then resume updates timer state', (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            notificationServiceProvider.overrideWithValue(_FakeNotificationService()),
-            timerProvider.overrideWith(_FakeTimerNotifier.new),
-          ],
-          child: _buildHarness(),
-        ),
-      );
-      expect(find.text('running'), findsOneWidget);
-      final container = ProviderScope.containerOf(tester.element(find.text('running')));
-      container.read(notificationActionProvider.notifier).state = 'pause_timer';
-      await tester.pump();
-      expect(find.text('paused'), findsOneWidget, reason: 'Should reflect paused after pause action');
-      container.read(notificationActionProvider.notifier).state = 'resume_timer';
-      await tester.pump();
-      expect(find.text('running'), findsOneWidget, reason: 'Should reflect running after resume action');
-    });
-    testWidgets('stop_timer clears active timer flag', (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            notificationServiceProvider.overrideWithValue(_FakeNotificationService()),
-            timerProvider.overrideWith(_FakeTimerNotifier.new),
-          ],
-          child: _buildHarness(),
-        ),
-      );
-      final container = ProviderScope.containerOf(tester.element(find.text('running')));
-      container.read(notificationActionProvider.notifier).state = 'stop_timer';
-      await tester.pump();
-      final state = container.read(timerProvider);
-      expect(state.isTimerActive, isFalse);
-      expect(state.activeTaskId, isNull);
-    });
+    expect(started, true);
+    final state = container.read(timerProvider);
+    expect(state.isRunning, true);
+    expect(state.activeTaskId, 1);
   });
 }
 
@@ -1813,11 +2035,211 @@ void main() {
 }
 
 ================
+File: flutter_app/test/todo_repository_test.dart
+================
+import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:focus_timer_app/core/data/todo_repository.dart';
+import 'package:focus_timer_app/core/data/app_database.dart';
+import 'package:focus_timer_app/core/services/mock_api_service.dart';
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  late AppDatabase db;
+  late TodoRepository repo;
+  setUp(() {
+  db = AppDatabase();
+  repo = TodoRepository(db, MockApiService('http://localhost:5000'));
+  });
+  tearDown(() async {
+    await db.close();
+  });
+  group('TodoRepository', () {
+    test('addTodo inserts and syncs (optimistic then replaces)', () async {
+      await repo.addTodo('Test Task', 0, 30);
+      final todos = await db.select(db.todos).get();
+      expect(todos.isNotEmpty, true);
+    });
+    test('toggleTodo flips completed flag', () async {
+      await repo.addTodo('Toggle Task', 0, 25);
+      final inserted = await db.select(db.todos).get();
+      final id = inserted.first.id;
+      await repo.toggleTodo(id);
+      final after = await db.getTodoById(id);
+      expect(after?.completed, true);
+    });
+  });
+}
+
+================
 File: flutter_app/analysis_options.yaml
 ================
 include: package:flutter_lints/flutter.yaml
 linter:
   rules:
+
+================
+File: flutter_app/lib/core/data/app_database.dart
+================
+import 'dart:io';
+import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
+import '../../features/todo/models/todo.dart'
+    as todo_model;
+part 'app_database.g.dart';
+@DataClassName(
+  'TodoEntry',
+)
+class Todos extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get userId => text()();
+  TextColumn get taskText =>
+      text()();
+  BoolColumn get completed => boolean().withDefault(const Constant(false))();
+  IntColumn get durationHours => integer().withDefault(const Constant(0))();
+  IntColumn get durationMinutes => integer().withDefault(const Constant(0))();
+  IntColumn get focusedTime => integer().withDefault(const Constant(0))();
+  IntColumn get wasOverdue => integer().withDefault(const Constant(0))();
+  IntColumn get overdueTime => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+@DriftDatabase(tables: [Todos])
+class AppDatabase extends _$AppDatabase {
+  AppDatabase() : super(_openConnection());
+  AppDatabase.memory() : super(NativeDatabase.memory());
+  @override
+  int get schemaVersion => 1;
+  Stream<List<todo_model.Todo>> watchAllTodos() {
+    return (select(todos)..orderBy([
+          (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
+        ]))
+        .watch()
+        .map((rows) => rows.map(mapTodoEntryToTodoModel).toList());
+  }
+  Future<todo_model.Todo?> getTodoById(int id) {
+    return (select(todos)..where((t) => t.id.equals(id)))
+        .getSingleOrNull()
+        .then((entry) => entry != null ? mapTodoEntryToTodoModel(entry) : null);
+  }
+  Future<todo_model.Todo> insertTodo(TodosCompanion entry) async {
+    final id = await into(todos).insert(entry);
+    return (await getTodoById(id))!;
+  }
+  Future<bool> updateTodo(int id, TodosCompanion entry) {
+    return (update(todos)..where((t) => t.id.equals(id)))
+        .write(entry)
+        .then((affectedRows) => affectedRows > 0);
+  }
+  Future<int> deleteTodo(int id) {
+    return (delete(todos)..where((t) => t.id.equals(id))).go();
+  }
+  Future<void> clearCompletedTodos() {
+    return (delete(todos)..where((t) => t.completed.equals(true))).go();
+  }
+  todo_model.Todo mapTodoEntryToTodoModel(TodoEntry entry) {
+    return todo_model.Todo(
+      id: entry.id,
+      userId: entry.userId,
+      text: entry.taskText,
+      completed: entry.completed,
+      durationHours: entry.durationHours,
+      durationMinutes: entry.durationMinutes,
+      focusedTime: entry.focusedTime,
+      wasOverdue: entry.wasOverdue,
+      overdueTime: entry.overdueTime,
+      createdAt: entry.createdAt,
+    );
+  }
+  static TodosCompanion toTodosCompanion(
+    todo_model.Todo todo, {
+    bool isInsert = false,
+  }) {
+    return TodosCompanion(
+      id: Value(todo.id),
+      userId: Value(todo.userId),
+      taskText: Value(todo.text),
+      completed: Value(todo.completed),
+      durationHours: Value(todo.durationHours),
+      durationMinutes: Value(todo.durationMinutes),
+      focusedTime: Value(todo.focusedTime),
+      wasOverdue: Value(todo.wasOverdue),
+      overdueTime: Value(todo.overdueTime),
+      createdAt: isInsert
+          ? Value.absent()
+          : Value(todo.createdAt),
+    );
+  }
+}
+LazyDatabase _openConnection() {
+  return LazyDatabase(() async {
+    final dbFolder = await getApplicationDocumentsDirectory();
+    final file = File(p.join(dbFolder.path, 'db.sqlite'));
+    return NativeDatabase(file);
+  });
+}
+
+================
+File: flutter_app/lib/core/data/todo_repository.dart
+================
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/api_service.dart';
+import '../services/mock_api_service.dart';
+import '../../features/todo/models/todo.dart';
+import 'app_database.dart';
+import 'todo_mutation_service.dart';
+import 'todo_sync_service.dart';
+class TodoRepository {
+  final AppDatabase _localDb;
+  final ApiService _apiService;
+  late final TodoMutationService _mutations;
+  late final TodoSyncService _sync;
+  TodoRepository(this._localDb, this._apiService) {
+    _mutations = TodoMutationService(_localDb, _apiService);
+    _sync = TodoSyncService(_localDb, _apiService);
+  }
+  Stream<List<Todo>> watchTodos() {
+    return _localDb.watchAllTodos();
+  }
+  Future<void> syncTodos() async => _sync.syncTodos();
+  Future<void> addTodo(String text, int hours, int minutes) async =>
+      _mutations.addTodo(text, hours, minutes);
+  Future<void> deleteTodo(int id) async => _mutations.deleteTodo(id);
+  Future<void> toggleTodo(int id, {int? liveFocusedTime}) async =>
+      _mutations.toggleTodo(id, liveFocusedTime: liveFocusedTime);
+  Future<void> toggleTodoWithOverdue(int id, {required bool wasOverdue, required int overdueTime}) async {
+    await _mutations.toggleTodo(id, liveFocusedTime: null);
+  }
+  Future<void> updateTodo({required int id, String? text, int? hours, int? minutes}) async =>
+      _mutations.updateTodo(id: id, text: text, hours: hours, minutes: minutes);
+  Future<void> markTaskPermanentlyOverdue(int id, {required int overdueTime}) async =>
+      _mutations.markTaskPermanentlyOverdue(id, overdueTime: overdueTime);
+  Future<void> clearCompleted() async => _mutations.clearCompleted();
+  Future<void> updateFocusTime(int id, int focusedTime) async =>
+      _mutations.updateFocusTime(id, focusedTime);
+}
+extension IterableExtension<E> on Iterable<E> {
+  E? firstWhereOrNull(bool Function(E element) test) {
+    for (final element in this) {
+      if (test(element)) {
+        return element;
+      }
+    }
+    return null;
+  }
+}
+final databaseProvider = Provider<AppDatabase>((ref) {
+  final db = AppDatabase();
+  ref.onDispose(() => db.close());
+  return db;
+});
+final todoRepositoryProvider = Provider<TodoRepository>((ref) {
+  final localDb = ref.watch(databaseProvider);
+  final apiService = ref.watch(
+    apiServiceProvider,
+  );
+  return TodoRepository(localDb, apiService);
+});
 
 ================
 File: flutter_app/lib/core/utils/debug_logger.dart
@@ -2256,6 +2678,119 @@ class TodoListAppBar extends ConsumerWidget {
       }
     }
   }
+}
+
+================
+File: flutter_app/test/notification_action_integration_test.dart
+================
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:focus_timer_app/features/pomodoro/models/timer_state.dart';
+import 'package:focus_timer_app/features/pomodoro/providers/timer_provider.dart';
+import 'package:focus_timer_app/core/providers/notification_action_provider.dart';
+import 'package:focus_timer_app/core/providers/notification_provider.dart';
+import 'package:focus_timer_app/core/services/notification_service.dart';
+class _FakeNotificationService implements NotificationService {
+  @override
+  Function(String? payload)? onNotificationTap;
+  @override
+  Future<void> init() async {}
+  @override
+  Future<void> cancelPersistentTimerNotification() async {}
+  @override
+  Future<void> playSound(String soundFileName) async {}
+  @override
+  Future<void> playSoundWithNotification({required String soundFileName, required String title, required String body}) async {}
+  @override
+  Future<void> showNotification({required String title, required String body, String? payload, String? soundFileName}) async {}
+  @override
+  Future<void> showOrUpdatePersistent({required String title, required String body, required List<String> actionIds}) async {}
+  @override
+  Future<void> debugDumpActiveNotifications() async {}
+  @override
+  Future<void> ensurePermissions() async {}
+}
+class _FakeTimerNotifier extends TimerNotifier {
+  String? lastAction;
+  @override
+  TimerState build() {
+    return const TimerState(
+      isRunning: true,
+      isTimerActive: true,
+      currentMode: 'focus',
+      timeRemaining: 100,
+      focusDurationSeconds: 100,
+      breakDurationSeconds: 20,
+      plannedDurationSeconds: 100,
+    );
+  }
+  @override
+  Future<void> handleNotificationAction(String actionId) async {
+    lastAction = actionId;
+    if (actionId == 'pause_timer') {
+      state = state.copyWith(isRunning: false);
+    } else if (actionId == 'resume_timer') {
+      state = state.copyWith(isRunning: true);
+    } else if (actionId == 'stop_timer') {
+      state = state.copyWith(isTimerActive: false, activeTaskId: null, activeTaskName: null, isRunning: false);
+    }
+  }
+}
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  Widget _buildHarness() {
+    return Consumer(
+      builder: (context, ref, _) {
+        ref.listen<String?>(notificationActionProvider, (prev, next) {
+          if (next != null) {
+            ref.read(timerProvider.notifier).handleNotificationAction(next);
+            ref.read(notificationActionProvider.notifier).state = null;
+          }
+        });
+        final timerState = ref.watch(timerProvider);
+        return Text(timerState.isRunning ? 'running' : 'paused', textDirection: TextDirection.ltr);
+      },
+    );
+  }
+  group('notificationActionProvider -> TimerNotifier wiring', () {
+    testWidgets('pause then resume updates timer state', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            notificationServiceProvider.overrideWithValue(_FakeNotificationService()),
+            timerProvider.overrideWith(_FakeTimerNotifier.new),
+          ],
+          child: _buildHarness(),
+        ),
+      );
+      expect(find.text('running'), findsOneWidget);
+      final container = ProviderScope.containerOf(tester.element(find.text('running')));
+      container.read(notificationActionProvider.notifier).state = 'pause_timer';
+      await tester.pump();
+      expect(find.text('paused'), findsOneWidget, reason: 'Should reflect paused after pause action');
+      container.read(notificationActionProvider.notifier).state = 'resume_timer';
+      await tester.pump();
+      expect(find.text('running'), findsOneWidget, reason: 'Should reflect running after resume action');
+    });
+    testWidgets('stop_timer clears active timer flag', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            notificationServiceProvider.overrideWithValue(_FakeNotificationService()),
+            timerProvider.overrideWith(_FakeTimerNotifier.new),
+          ],
+          child: _buildHarness(),
+        ),
+      );
+      final container = ProviderScope.containerOf(tester.element(find.text('running')));
+      container.read(notificationActionProvider.notifier).state = 'stop_timer';
+      await tester.pump();
+      final state = container.read(timerProvider);
+      expect(state.isTimerActive, isFalse);
+      expect(state.activeTaskId, isNull);
+    });
+  });
 }
 
 ================
@@ -3234,90 +3769,6 @@ File: flutter_app/android/app/src/main/AndroidManifest.xml
 </manifest>
 
 ================
-File: flutter_app/lib/features/pomodoro/widgets/pomodoro_timer_view.dart
-================
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../models/timer_state.dart';
-class PomodoroTimerView extends StatelessWidget {
-  final TimerState timerState;
-  const PomodoroTimerView({required this.timerState, super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          '${(timerState.focusDurationSeconds ?? 1500) ~/ 60} / ${(timerState.breakDurationSeconds ?? 300) ~/ 60} / ${timerState.totalCycles}',
-          style: const TextStyle(
-            fontSize: 16.0,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '${timerState.currentCycle} / ${timerState.totalCycles}',
-              style: const TextStyle(
-                fontSize: 28.0,
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        const Divider(color: Color(0xFF262626)),
-        const SizedBox(height: 12),
-        Flexible(
-          flex: 5,
-          fit: FlexFit.loose,
-          child: Center(
-            child: IntrinsicWidth(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: timerState.currentMode == 'focus'
-                        ? Colors.redAccent
-                        : Colors.greenAccent,
-                    width: 6.0,
-                  ),
-                  borderRadius: BorderRadius.circular(14.0),
-                ),
-                child: Container(
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.all(20.0),
-                  child: Text(
-                    _formatTime(timerState.timeRemaining),
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.oswald(
-                      fontSize: 120.0,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -2.0,
-                      height: 1.05,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        const Divider(color: Color(0xFF262626)),
-      ],
-    );
-  }
-  String _formatTime(int seconds) {
-    final m = (seconds ~/ 60).toString().padLeft(2, '0');
-    final s = (seconds % 60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
-}
-
-================
 File: flutter_app/lib/features/todo/widgets/inline_task_input.dart
 ================
 import 'package:flutter/material.dart';
@@ -3707,6 +4158,91 @@ class PomodoroActionButtons extends StatelessWidget {
 }
 
 ================
+File: flutter_app/lib/features/pomodoro/widgets/pomodoro_timer_view.dart
+================
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../core/constants/timer_defaults.dart';
+import '../models/timer_state.dart';
+class PomodoroTimerView extends StatelessWidget {
+  final TimerState timerState;
+  const PomodoroTimerView({required this.timerState, super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          '${(timerState.focusDurationSeconds ?? TimerDefaults.focusSeconds) ~/ 60} / ${(timerState.breakDurationSeconds ?? TimerDefaults.breakSeconds) ~/ 60} / ${timerState.totalCycles}',
+          style: const TextStyle(
+            fontSize: 16.0,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '${timerState.currentCycle} / ${timerState.totalCycles}',
+              style: const TextStyle(
+                fontSize: 28.0,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        const Divider(color: Color(0xFF262626)),
+        const SizedBox(height: 12),
+        Flexible(
+          flex: 5,
+          fit: FlexFit.loose,
+          child: Center(
+            child: IntrinsicWidth(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: timerState.currentMode == 'focus'
+                        ? Colors.redAccent
+                        : Colors.greenAccent,
+                    width: 6.0,
+                  ),
+                  borderRadius: BorderRadius.circular(14.0),
+                ),
+                child: Container(
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.all(20.0),
+                  child: Text(
+                    _formatTime(timerState.timeRemaining),
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.oswald(
+                      fontSize: 120.0,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -2.0,
+                      height: 1.05,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        const Divider(color: Color(0xFF262626)),
+      ],
+    );
+  }
+  String _formatTime(int seconds) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+}
+
+================
 File: flutter_app/test/timer_provider_overdue_test.dart
 ================
 import 'package:flutter_test/flutter_test.dart';
@@ -4010,325 +4546,6 @@ class AuthService extends ChangeNotifier {
     _isAuthenticated = token != null;
     notifyListeners();
     return _isAuthenticated;
-  }
-}
-
-================
-File: flutter_app/lib/core/services/notification_service.dart
-================
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/foundation.dart';
-import '../utils/debug_logger.dart';
-import 'dart:io' show Platform;
-const int _kPersistentTimerNotificationId = 1;
-const String _kNotificationActionPause = 'pause_timer';
-const String _kNotificationActionResume = 'resume_timer';
-const String _kNotificationActionStop = 'stop_timer';
-const String _kNotificationActionMarkComplete = 'mark_complete';
-const String _kNotificationActionContinueWorking = 'continue_working';
-const String _kNotificationPayloadOpenApp = 'open_app';
-abstract class INotificationService {
-  Function(String? payload)? onNotificationTap;
-  Future<void> init();
-  Future<void> ensurePermissions();
-  Future<void> showNotification({required String title, required String body, String? payload, String? soundFileName});
-  Future<void> showOrUpdatePersistent({
-    required String title,
-    required String body,
-    required List<String> actionIds,
-  });
-  Future<void> cancelPersistentTimerNotification();
-  Future<void> playSound(String soundFileName);
-  Future<void> playSoundWithNotification({required String soundFileName, required String title, required String body});
-}
-class NotificationService implements INotificationService {
-  final FlutterLocalNotificationsPlugin _notificationsPlugin =
-      FlutterLocalNotificationsPlugin();
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  @override
-  Function(String? payload)? onNotificationTap;
-  @override
-  Future<void> init() async {
-  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
-  const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
-    await _notificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse notificationResponse) async {
-        debugLog('NotificationService', 'Notification tapped payload=${notificationResponse.payload} action=${notificationResponse.actionId}');
-        final action = notificationResponse.actionId;
-        if (action == _kNotificationActionPause || action == _kNotificationActionResume) {
-          onNotificationTap?.call(action);
-        } else if (action == _kNotificationActionStop) {
-          onNotificationTap?.call(action);
-        } else if (action == _kNotificationActionMarkComplete) {
-          onNotificationTap?.call(action);
-        } else if (action == _kNotificationActionContinueWorking) {
-          onNotificationTap?.call(action);
-        } else if (notificationResponse.payload == _kNotificationPayloadOpenApp) {
-          onNotificationTap?.call(notificationResponse.payload);
-        }
-      },
-      onDidReceiveBackgroundNotificationResponse:
-          _notificationTapBackground,
-    );
-    if (Platform.isAndroid) {
-      final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
-          _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-      if (androidPlugin != null) {
-        await androidPlugin.createNotificationChannel(
-          const AndroidNotificationChannel(
-            'pomodoro_persistent_channel',
-            'Persistent Pomodoro Timer',
-            description: 'Ongoing notifications for your active Pomodoro timer.',
-            importance: Importance.max,
-            showBadge: false,
-          ),
-        );
-        await androidPlugin.createNotificationChannel(
-          const AndroidNotificationChannel(
-            'pomodoro_channel',
-            'Pomodoro Notifications',
-            description: 'Notifications for Pomodoro timer events',
-            importance: Importance.max,
-          ),
-        );
-      }
-    }
-    if (kDebugMode) debugLog('NotificationService', 'Initialized & channels created');
-  }
-  @override
-  Future<void> ensurePermissions() async {
-    try {
-      if (Platform.isAndroid) {
-        final AndroidFlutterLocalNotificationsPlugin? androidImpl =
-            _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-        if (androidImpl != null) {
-          final bool? areEnabled = await androidImpl.areNotificationsEnabled();
-          if (areEnabled == false) {
-            final bool? granted = await androidImpl.requestNotificationsPermission();
-            debugLog('NotificationService', 'Android notifications permission requested granted=$granted');
-          } else {
-            debugLog('NotificationService', 'Android notifications already enabled');
-          }
-        }
-      } else if (Platform.isIOS) {
-        final IOSFlutterLocalNotificationsPlugin? iosImpl =
-            _notificationsPlugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
-        if (iosImpl != null) {
-          final bool? granted = await iosImpl.requestPermissions(alert: true, badge: true, sound: true);
-          debugLog('NotificationService', 'iOS notification permissions requested granted=$granted');
-        }
-      } else if (Platform.isMacOS) {
-        final MacOSFlutterLocalNotificationsPlugin? macImpl =
-            _notificationsPlugin.resolvePlatformSpecificImplementation<MacOSFlutterLocalNotificationsPlugin>();
-        if (macImpl != null) {
-          final bool? granted = await macImpl.requestPermissions(alert: true, badge: true, sound: true);
-          debugLog('NotificationService', 'macOS notification permissions requested granted=$granted');
-        }
-      }
-    } catch (e) {
-      debugLog('NotificationService', 'Error ensuring permissions err=$e');
-    }
-  }
-  @pragma('vm:entry-point')
-  static void _notificationTapBackground(
-    NotificationResponse notificationResponse,
-  ) {
-    debugLog('NotificationService', 'Background tap payload=${notificationResponse.payload} action=${notificationResponse.actionId}');
-    final String? action = notificationResponse.actionId ?? notificationResponse.payload;
-    if (action == null) return;
-    SharedPreferences.getInstance().then((prefs) async {
-      await prefs.setString('last_notification_action', action);
-      debugLog('NotificationService', 'Background action persisted action=$action');
-    });
-  }
-  @override
-  Future<void> showNotification({
-    required String title,
-    required String body,
-    String? payload,
-    String? soundFileName,
-  }) async {
-    AndroidNotificationDetails androidPlatformChannelSpecifics;
-    if (soundFileName != null) {
-      final soundName = soundFileName.replaceAll(
-        '.wav',
-        '',
-      ); // Remove extension
-      androidPlatformChannelSpecifics = AndroidNotificationDetails(
-        'pomodoro_channel',
-        'Pomodoro Notifications',
-        channelDescription: 'Notifications for Pomodoro timer events',
-        importance: Importance.max,
-        priority: Priority.high,
-        showWhen: false,
-        sound: RawResourceAndroidNotificationSound(soundName),
-        enableLights: true,
-        enableVibration: true,
-        playSound: true,
-      );
-    } else {
-      androidPlatformChannelSpecifics = const AndroidNotificationDetails(
-        'pomodoro_channel',
-        'Pomodoro Notifications',
-        channelDescription: 'Notifications for Pomodoro timer events',
-        importance: Importance.max,
-        priority: Priority.high,
-        showWhen: false,
-      );
-    }
-    final NotificationDetails platformChannelSpecifics = NotificationDetails(
-      android: androidPlatformChannelSpecifics,
-    );
-    await _notificationsPlugin.show(
-      DateTime.now()
-          .millisecondsSinceEpoch,
-      title,
-      body,
-      platformChannelSpecifics,
-      payload: payload,
-    );
-  }
-  @override
-  Future<void> showOrUpdatePersistent({
-    required String title,
-    required String body,
-    required List<String> actionIds,
-  }) async {
-    final List<AndroidNotificationAction> actions = actionIds.map((String id) {
-      return AndroidNotificationAction(
-        id,
-        _mapActionLabel(id),
-        showsUserInterface: false,
-        cancelNotification: false,
-        contextual: false,
-      );
-    }).toList();
-    final BigTextStyleInformation bigText = BigTextStyleInformation(body);
-    final AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
-      'pomodoro_persistent_channel',
-      'Persistent Pomodoro Timer',
-      channelDescription: 'Ongoing notifications for your active Pomodoro timer.',
-      importance: Importance.max,
-      priority: Priority.max,
-      ongoing: true,
-      autoCancel: false,
-      showWhen: false,
-      onlyAlertOnce: true,
-      largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-      styleInformation: bigText,
-      actions: actions,
-      category: AndroidNotificationCategory.service,
-      visibility: NotificationVisibility.public,
-      enableLights: false,
-      enableVibration: false,
-      playSound: false,
-      ticker: title,
-    );
-    final NotificationDetails platformChannelSpecifics = NotificationDetails(
-      android: androidPlatformChannelSpecifics,
-    );
-    await _notificationsPlugin.show(
-      _kPersistentTimerNotificationId,
-      title,
-      body,
-      platformChannelSpecifics,
-      payload: _kNotificationPayloadOpenApp,
-    );
-    debugLog('NotificationService', 'Persistent update title="$title" body="$body" actions=$actionIds');
-    if (kDebugMode) {
-      await debugDumpActiveNotifications();
-    }
-  }
-  String _mapActionLabel(String id) {
-    switch (id) {
-      case _kNotificationActionPause:
-        return 'Pause';
-      case _kNotificationActionResume:
-        return 'Resume';
-      case _kNotificationActionStop:
-        return 'Stop';
-      case _kNotificationActionMarkComplete:
-        return 'Complete';
-      case _kNotificationActionContinueWorking:
-        return 'Continue';
-      default:
-        return id;
-    }
-  }
-  Future<void> debugDumpActiveNotifications() async {
-    if (!Platform.isAndroid) return;
-    final androidImpl = _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    if (androidImpl == null) return;
-    try {
-      final active = await androidImpl.getActiveNotifications();
-      for (final n in active) {
-        debugLog('NotificationService', 'ACTIVE notif id=${n.id} tag=${n.tag} title=${n.title} text=${n.body}');
-      }
-    } catch (e) {
-      debugLog('NotificationService', 'Error dumping active notifications: $e');
-    }
-  }
-  @override
-  Future<void> cancelPersistentTimerNotification() async {
-    await _notificationsPlugin.cancel(_kPersistentTimerNotificationId);
-    debugLog('NotificationService', 'Persistent notification cancelled');
-  }
-  @override
-  Future<void> playSound(String soundFileName) async {
-    try {
-      debugLog('NotificationService', 'playSound sound=$soundFileName');
-      await _audioPlayer.stop();
-      String assetPath = soundFileName;
-      if (assetPath.startsWith('assets/sounds/')) {
-        assetPath = assetPath.substring(14);
-      } else if (assetPath.startsWith('assets/')) {
-        assetPath = assetPath.substring(7);
-      } else if (assetPath.startsWith('sounds/')) {
-        assetPath = assetPath.substring(7);
-      }
-  debugLog('NotificationService', 'Processed assetPath=$assetPath');
-      await Future.delayed(const Duration(milliseconds: 50));
-      await _audioPlayer.play(AssetSource('sounds/$assetPath'));
-  debugLog('NotificationService', 'Sound played sound=$soundFileName');
-      if (soundFileName.contains('break_timer_start')) {
-        debugLog('NotificationService', 'Break timer sound played');
-      } else if (soundFileName.contains('progress_bar_full')) {
-        debugLog('NotificationService', 'Progress bar full sound played');
-      }
-    } catch (e, stackTrace) {
-      debugLog('NotificationService', 'Error playing sound=$soundFileName err=$e');
-      debugLog('NotificationService', 'Stack trace: $stackTrace');
-      if (soundFileName.contains('break_timer_start') ||
-          soundFileName.contains('progress_bar_full')) {
-        debugLog('NotificationService', 'Attempt alternative playback sound=$soundFileName');
-        try {
-          await _audioPlayer.setSource(AssetSource('sounds/$soundFileName'));
-          await _audioPlayer.resume();
-          debugLog('NotificationService', 'Alternative playback success sound=$soundFileName');
-        } catch (alternativeError) {
-          debugLog('NotificationService', 'Alternative playback failed err=$alternativeError');
-        }
-      }
-    }
-  }
-  @override
-  Future<void> playSoundWithNotification({
-    required String soundFileName,
-    required String title,
-    required String body,
-  }) async {
-    debugLog('NotificationService', 'playSoundWithNotification title="$title" body="$body" sound=$soundFileName');
-    await playSound(soundFileName);
-    await showNotification(
-      title: title,
-      body: body,
-      soundFileName: soundFileName,
-      payload: 'sound_notification',
-    );
-  debugLog('NotificationService', 'Sound notification shown title="$title"');
   }
 }
 
@@ -4643,10 +4860,173 @@ flutter_native_splash:
   fullscreen: true
 
 ================
+File: flutter_app/lib/core/services/notification_service.dart
+================
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io' show Platform;
+import '../utils/debug_logger.dart';
+import 'notifications/notification_constants.dart';
+import 'notifications/notification_permission_manager.dart';
+import 'notifications/persistent_notification_manager.dart';
+import 'notifications/notification_sound_player.dart';
+abstract class INotificationService {
+  Function(String? payload)? onNotificationTap;
+  Future<void> init();
+  Future<void> ensurePermissions();
+  Future<void> showNotification({required String title, required String body, String? payload, String? soundFileName});
+  Future<void> showOrUpdatePersistent({
+    required String title,
+    required String body,
+    required List<String> actionIds,
+  });
+  Future<void> cancelPersistentTimerNotification();
+  Future<void> playSound(String soundFileName);
+  Future<void> playSoundWithNotification({required String soundFileName, required String title, required String body});
+}
+class NotificationService implements INotificationService {
+  final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  late final NotificationPermissionManager _permissionManager = NotificationPermissionManager(_plugin);
+  late final PersistentNotificationManager _persistentManager = PersistentNotificationManager(_plugin);
+  late final NotificationSoundPlayer _soundPlayer = NotificationSoundPlayer();
+  @override
+  Function(String? payload)? onNotificationTap;
+  @override
+  Future<void> init() async {
+    const AndroidInitializationSettings initAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings settings = InitializationSettings(android: initAndroid);
+    await _plugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: (NotificationResponse resp) async {
+        debugLog('NotificationService', 'Tap payload=${resp.payload} action=${resp.actionId}');
+        final String? action = resp.actionId;
+        if (action != null) {
+          onNotificationTap?.call(action);
+          return;
+        }
+        if (resp.payload == kPayloadOpenApp) {
+          onNotificationTap?.call(resp.payload);
+        }
+      },
+      onDidReceiveBackgroundNotificationResponse: _notificationTapBackground,
+    );
+    if (Platform.isAndroid) {
+      final AndroidFlutterLocalNotificationsPlugin? android =
+          _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        await android.createNotificationChannel(const AndroidNotificationChannel(
+          'pomodoro_persistent_channel',
+          'Persistent Pomodoro Timer',
+          description: 'Ongoing notifications for your active Pomodoro timer.',
+          importance: Importance.max,
+          showBadge: false,
+        ));
+        await android.createNotificationChannel(const AndroidNotificationChannel(
+          'pomodoro_channel',
+          'Pomodoro Notifications',
+          description: 'Notifications for Pomodoro timer events',
+          importance: Importance.max,
+        ));
+      }
+    }
+    debugLog('NotificationService', 'Initialized & channels created');
+  }
+  @override
+  Future<void> ensurePermissions() => _permissionManager.ensurePermissions();
+  @pragma('vm:entry-point')
+  static void _notificationTapBackground(
+    NotificationResponse notificationResponse,
+  ) {
+    debugLog('NotificationService', 'Background tap payload=${notificationResponse.payload} action=${notificationResponse.actionId}');
+    final String? action = notificationResponse.actionId ?? notificationResponse.payload;
+    if (action == null) return;
+    SharedPreferences.getInstance().then((prefs) async {
+      await prefs.setString('last_notification_action', action);
+      debugLog('NotificationService', 'Background action persisted action=$action');
+    });
+  }
+  @override
+  Future<void> showNotification({
+    required String title,
+    required String body,
+    String? payload,
+    String? soundFileName,
+  }) async {
+  AndroidNotificationDetails androidPlatformChannelSpecifics;
+    if (soundFileName != null) {
+      final soundName = soundFileName.replaceAll(
+        '.wav',
+        '',
+      ); // Remove extension
+      androidPlatformChannelSpecifics = AndroidNotificationDetails(
+        'pomodoro_channel',
+        'Pomodoro Notifications',
+        channelDescription: 'Notifications for Pomodoro timer events',
+        importance: Importance.max,
+        priority: Priority.high,
+        showWhen: false,
+        sound: RawResourceAndroidNotificationSound(soundName),
+        enableLights: true,
+        enableVibration: true,
+        playSound: true,
+      );
+    } else {
+      androidPlatformChannelSpecifics = const AndroidNotificationDetails(
+        'pomodoro_channel',
+        'Pomodoro Notifications',
+        channelDescription: 'Notifications for Pomodoro timer events',
+        importance: Importance.max,
+        priority: Priority.high,
+        showWhen: false,
+      );
+    }
+    final NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
+  await _plugin.show(
+      DateTime.now()
+          .millisecondsSinceEpoch,
+      title,
+      body,
+      platformChannelSpecifics,
+      payload: payload,
+    );
+  }
+  @override
+  Future<void> showOrUpdatePersistent({
+    required String title,
+    required String body,
+    required List<String> actionIds,
+  }) => _persistentManager.showOrUpdate(title: title, body: body, actionIds: actionIds);
+  Future<void> debugDumpActiveNotifications() => _persistentManager.debugDumpActiveNotifications();
+  @override
+  Future<void> cancelPersistentTimerNotification() => _persistentManager.cancel();
+  @override
+  Future<void> playSound(String soundFileName) => _soundPlayer.playSound(soundFileName);
+  @override
+  Future<void> playSoundWithNotification({
+    required String soundFileName,
+    required String title,
+    required String body,
+  }) async {
+    debugLog('NotificationService', 'playSoundWithNotification title="$title" body="$body" sound=$soundFileName');
+  await playSound(soundFileName);
+    await showNotification(
+      title: title,
+      body: body,
+  soundFileName: soundFileName,
+      payload: 'sound_notification',
+    );
+  debugLog('NotificationService', 'Sound notification shown title="$title"');
+  }
+}
+
+================
 File: flutter_app/lib/features/pomodoro/widgets/mini_timer_bar.dart
 ================
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/timer_defaults.dart';
 import '../providers/timer_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/notification_service.dart';
@@ -4766,7 +5146,7 @@ class MiniTimerBar extends ConsumerWidget {
                     final bool wasRunning = timer.isRunning;
                     if (wasRunning) notifier.pauseTask();
                     final int totalFocusDuration =
-                        timer.focusDurationSeconds ?? 1500;
+                        timer.focusDurationSeconds ?? TimerDefaults.focusSeconds;
                     final int timeRemaining = timer.timeRemaining;
                     final int minutesWorked =
                         ((totalFocusDuration - timeRemaining) / 60).round();
@@ -4797,6 +5177,68 @@ class MiniTimerBar extends ConsumerWidget {
 }
 
 ================
+File: flutter_app/lib/features/pomodoro/pomodoro_router.dart
+================
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/services/api_service.dart';
+import '../../core/services/notification_service.dart';
+import '../../core/theme/app_colors.dart';
+import '../todo/models/todo.dart';
+import 'pomodoro_screen.dart';
+import 'providers/timer_provider.dart';
+typedef TaskCompletedCallback =
+    Future<void> Function({bool wasOverdue, int overdueTime});
+class PomodoroRouter {
+  static Future<void> showPomodoroSheet(
+    BuildContext context,
+    ApiService api,
+    Todo todo,
+    NotificationService notificationService,
+    TaskCompletedCallback onTaskCompleted,
+  ) async {
+    void updateMinibarOnDismiss() {
+      final container = ProviderScope.containerOf(context, listen: false);
+      final timerState = container.read(timerProvider);
+      final timerNotifier = container.read(timerProvider.notifier);
+      final bool isSetupMode =
+          !timerState.isRunning && timerState.currentCycle == 0;
+      if (timerState.activeTaskId != null) {
+        if (isSetupMode) {
+          timerNotifier.clearPreserveProgress();
+        } else {
+          timerNotifier.update(isTimerActive: true);
+        }
+      }
+    }
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black,
+      builder: (context) => FractionallySizedBox(
+        heightFactor: 0.85,
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: AppColors.cardBg,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: PomodoroScreen(
+            api: api,
+            todo: todo,
+            notificationService: notificationService,
+            asSheet: true,
+            onTaskCompleted: onTaskCompleted,
+          ),
+        ),
+      ),
+    );
+    updateMinibarOnDismiss();
+  }
+}
+
+================
 File: flutter_app/lib/features/pomodoro/pomodoro_screen.dart
 ================
 import 'package:flutter/material.dart';
@@ -4807,6 +5249,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/widgets/progress_bar.dart';
 import '../../core/utils/app_dialogs.dart';
 import '../todo/models/todo.dart';
+import '../../core/constants/timer_defaults.dart';
 import 'providers/timer_provider.dart';
 import 'models/timer_state.dart';
 import 'widgets/pomodoro_action_buttons.dart';
@@ -4840,10 +5283,10 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
     super.initState();
     final timerState = ref.read(timerProvider);
     _focusController = TextEditingController(
-      text: ((timerState.focusDurationSeconds ?? 1500) ~/ 60).toString(),
+  text: ((timerState.focusDurationSeconds ?? TimerDefaults.focusSeconds) ~/ 60).toString(),
     );
     _breakController = TextEditingController(
-      text: ((timerState.breakDurationSeconds ?? 300) ~/ 60).toString(),
+  text: ((timerState.breakDurationSeconds ?? TimerDefaults.breakSeconds) ~/ 60).toString(),
     );
     _cyclesController = TextEditingController(
       text: timerState.totalCycles.toString(),
@@ -5146,68 +5589,6 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
 }
 
 ================
-File: flutter_app/lib/features/pomodoro/pomodoro_router.dart
-================
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/services/api_service.dart';
-import '../../core/services/notification_service.dart';
-import '../../core/theme/app_colors.dart';
-import '../todo/models/todo.dart';
-import 'pomodoro_screen.dart';
-import 'providers/timer_provider.dart';
-typedef TaskCompletedCallback =
-    Future<void> Function({bool wasOverdue, int overdueTime});
-class PomodoroRouter {
-  static Future<void> showPomodoroSheet(
-    BuildContext context,
-    ApiService api,
-    Todo todo,
-    NotificationService notificationService,
-    TaskCompletedCallback onTaskCompleted,
-  ) async {
-    void updateMinibarOnDismiss() {
-      final container = ProviderScope.containerOf(context, listen: false);
-      final timerState = container.read(timerProvider);
-      final timerNotifier = container.read(timerProvider.notifier);
-      final bool isSetupMode =
-          !timerState.isRunning && timerState.currentCycle == 0;
-      if (timerState.activeTaskId != null) {
-        if (isSetupMode) {
-          timerNotifier.clearPreserveProgress();
-        } else {
-          timerNotifier.update(isTimerActive: true);
-        }
-      }
-    }
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black,
-      builder: (context) => FractionallySizedBox(
-        heightFactor: 0.85,
-        alignment: Alignment.bottomCenter,
-        child: Container(
-          decoration: const BoxDecoration(
-            color: AppColors.cardBg,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: PomodoroScreen(
-            api: api,
-            todo: todo,
-            notificationService: notificationService,
-            asSheet: true,
-            onTaskCompleted: onTaskCompleted,
-          ),
-        ),
-      ),
-    );
-    updateMinibarOnDismiss();
-  }
-}
-
-================
 File: flutter_app/lib/features/todo/widgets/task_card.dart
 ================
 import 'package:flutter/material.dart';
@@ -5492,7 +5873,6 @@ import '../../../core/services/timer_session_controller.dart';
 import '../../../core/providers/notification_provider.dart';
 import '../../../core/utils/debug_logger.dart';
 import '../../../core/utils/app_constants.dart';
-import '../../../core/utils/helpers.dart';
 import '../../todo/providers/todos_provider.dart';
 import '../../todo/models/todo.dart';
 import '../notifications/persistent_timer_notification_model.dart';
@@ -5501,6 +5881,13 @@ import '../models/timer_state.dart';
 import '../services/timer_persistence_manager.dart';
 import '../../../core/constants/sound_assets.dart';
 import '../../../core/services/workmanager_timer_service.dart';
+import '../services/timer_autosave_service.dart';
+import '../services/timer_background_scheduler.dart';
+import '../services/timer_overdue_service.dart';
+import '../services/phase_transition_service.dart';
+import '../services/foreground_ticker.dart';
+import '../services/notification_action_handler.dart';
+import '../../../core/constants/timer_defaults.dart';
 class TimerNotifier extends Notifier<TimerState> {
   Timer? _ticker;
   Timer? _autoSaveTimer;
@@ -5514,6 +5901,12 @@ class TimerNotifier extends Notifier<TimerState> {
   late String _apiBaseUrl;
   late bool _isDebugMode;
   final WorkmanagerTimerService _wmService = WorkmanagerTimerService();
+  TimerAutoSaveService? _autoSaveService;
+  TimerBackgroundScheduler? _backgroundScheduler;
+  TimerOverdueService? _overdueService;
+  PhaseTransitionService? _phaseService;
+  ForegroundTicker? _foregroundTicker;
+  NotificationActionHandler? _actionHandler;
   @override
   TimerState build() {
     _sessionController ??= TimerSessionController();
@@ -5524,7 +5917,13 @@ class TimerNotifier extends Notifier<TimerState> {
           _prefs.getString(AppConstants.prefApiBaseUrl) ??
           'http://127.0.0.1:5000';
       _isDebugMode = _prefs.getBool(AppConstants.prefIsDebugMode) ?? kDebugMode;
-      await _restoreTimerState();
+  await _restoreTimerState();
+  _autoSaveService ??= TimerAutoSaveService(this, ref);
+  _backgroundScheduler ??= TimerBackgroundScheduler(_persistenceManager);
+  _overdueService ??= TimerOverdueService(notifier: this, ref: ref);
+  _phaseService ??= PhaseTransitionService(notifier: this, ref: ref);
+  _foregroundTicker ??= ForegroundTicker();
+  _actionHandler ??= NotificationActionHandler(notifier: this, ref: ref);
     });
     ref.listen<AsyncValue<List<Todo>>>(todosProvider, (_, next) {
       next.whenData((todos) {
@@ -5547,8 +5946,9 @@ class TimerNotifier extends Notifier<TimerState> {
       });
     });
     ref.onDispose(() {
-      _ticker?.cancel();
-      _autoSaveTimer?.cancel();
+    _ticker?.cancel();
+    _autoSaveTimer?.cancel();
+    _autoSaveService?.stop();
       _persistenceManager.saveTimerState(
         state.copyWith(
           isRunning: false,
@@ -5567,6 +5967,9 @@ class TimerNotifier extends Notifier<TimerState> {
       }
     });
     return const TimerState();
+  }
+  Future<void> persistState() async {
+    await _persistenceManager.saveTimerState(state);
   }
   Future<void> _restoreTimerState() async {
     final TimerState? savedState = _persistenceManager.loadTimerState();
@@ -5821,45 +6224,44 @@ class TimerNotifier extends Notifier<TimerState> {
   void startTicker() {
     _ticker?.cancel();
     _startAutoSaveTimer();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!state.isRunning) return;
-      if (state.currentMode == 'focus' && state.activeTaskId != null) {
-        final taskId = state.activeTaskId!;
-        final currentFocused = state.focusedTimeCache[taskId] ?? 0;
-        final newCache = Map<int, int>.from(state.focusedTimeCache);
-        newCache[taskId] = currentFocused + 1;
-        update(focusedTimeCache: newCache);
-      }
-      if (state.timeRemaining > 0) {
-        update(timeRemaining: state.timeRemaining - 1);
-      } else {
-        _handlePhaseCompletion();
-      }
-      final focused = state.focusedTimeCache[state.activeTaskId] ?? 0;
-      final planned = state.plannedDurationSeconds;
-      if (!state.isPermanentlyOverdue &&
-          !_processingOverdue &&
-          state.currentMode == 'focus' &&
-          state.activeTaskId != null &&
-          planned != null &&
-          planned > 0) {
-        if (focused >= planned &&
-            state.overdueCrossedTaskId != state.activeTaskId) {
-          _processingOverdue = true;
-          _markOverdueAndFreeze(state.activeTaskId!);
-          _processingOverdue = false;
+    _autoSaveService?.start();
+    _foregroundTicker?.start(
+      onTick: () {
+        if (state.currentMode == 'focus' && state.activeTaskId != null) {
+          final int taskId = state.activeTaskId!;
+          final int currentFocused = state.focusedTimeCache[taskId] ?? 0;
+          final newCache = Map<int, int>.from(state.focusedTimeCache);
+            newCache[taskId] = currentFocused + 1;
+          update(focusedTimeCache: newCache);
         }
-      }
-    });
+        if (state.timeRemaining > 0) {
+          update(timeRemaining: state.timeRemaining - 1);
+        }
+      },
+      onPhaseComplete: () {
+        _handlePhaseCompletion();
+      },
+      onOverdueCheck: () {
+        final int focused = state.focusedTimeCache[state.activeTaskId] ?? 0;
+        final int? planned = state.plannedDurationSeconds;
+        if (!state.isPermanentlyOverdue &&
+            !_processingOverdue &&
+            state.currentMode == 'focus' &&
+            state.activeTaskId != null &&
+            planned != null && planned > 0) {
+          if (focused >= planned &&
+              state.overdueCrossedTaskId != state.activeTaskId) {
+            _processingOverdue = true;
+            _markOverdueAndFreeze(state.activeTaskId!);
+            _processingOverdue = false;
+          }
+        }
+      },
+      stateProvider: () => state,
+    );
   }
   void _handlePhaseCompletion() {
-    if (state.currentMode == 'focus') {
-      _handleFocusPhaseCompletion();
-    } else if (state.currentMode == 'break') {
-      _handleBreakPhaseCompletion();
-    } else {
-      stop();
-    }
+  _phaseService?.handlePhaseCompletion(state);
     if (state.isRunning && state.activeTaskId != null && state.activeTaskName != null) {
       _scheduleWorkmanagerTask(
         state.activeTaskId!,
@@ -5870,73 +6272,17 @@ class TimerNotifier extends Notifier<TimerState> {
       _cancelWorkmanagerTask();
     }
   }
-  void _handleFocusPhaseCompletion() {
-    final int completed = state.completedSessions + 1;
-    if (completed >= state.totalCycles) {
-      if (state.isPermanentlyOverdue && !state.overdueSessionsComplete) {
-        debugLog('TimerNotifier', 'Overdue task session complete taskId=${state.activeTaskId}');
-        ref.read(notificationServiceProvider).playSoundWithNotification(
-          soundFileName: SoundAsset.sessionComplete.fileName,
-          title: 'Session Complete!',
-          body: 'Overdue task session completed for "${state.activeTaskName}".',
-        );
-        update(overdueSessionsComplete: true, isRunning: false, completedSessions: completed);
-        stopTicker();
-      } else if (!state.allSessionsComplete) {
-        debugLog('TimerNotifier', 'All focus sessions complete taskId=${state.activeTaskId}');
-        ref.read(notificationServiceProvider).playSoundWithNotification(
-          soundFileName: SoundAsset.sessionComplete.fileName,
-          title: 'All Sessions Complete!',
-          body: 'All planned sessions completed for "${state.activeTaskName}".',
-        );
-        update(allSessionsComplete: true, isRunning: false, completedSessions: completed);
-        stopTicker();
-      }
-      if (!state.isRunning && state.timeRemaining == 0) {
-        stopTicker();
-        return;
-      }
-    } else {
-      final notificationService = ref.read(notificationServiceProvider);
-      notificationService.playSoundWithNotification(
-        soundFileName: SoundAsset.breakStart.fileName,
-        title: 'Focus Session Complete!',
-        body: 'Time for a break for "${state.activeTaskName}".',
-      );
-      final nextCycle = (state.currentCycle + 1) <= state.totalCycles
-          ? state.currentCycle + 1
-          : state.totalCycles;
-      update(
-        currentMode: 'break',
-        timeRemaining: state.breakDurationSeconds,
-        currentCycle: nextCycle,
-        completedSessions: completed,
-      );
-    }
-  }
-  void _handleBreakPhaseCompletion() {
-    if (state.focusDurationSeconds != null) {
-      final notificationService = ref.read(notificationServiceProvider);
-      notificationService.playSound(SoundAsset.focusStart.fileName);
-      notificationService.showNotification(
-        title: 'Break Complete!',
-        body: 'Time to focus on "${state.activeTaskName}" again!',
-      );
-      update(currentMode: 'focus', timeRemaining: state.focusDurationSeconds);
-    } else {
-      stop();
-    }
-  }
   void stopTicker() {
-    _ticker?.cancel();
-    _ticker = null;
-    _autoSaveTimer?.cancel();
-    _autoSaveTimer = null;
+  _ticker?.cancel();
+  _ticker = null;
+  _autoSaveTimer?.cancel();
+  _autoSaveTimer = null;
+  _autoSaveService?.stop();
     _cancelWorkmanagerTask();
     _saveTimerStateToPrefs();
   }
   void _markOverdueAndFreeze(int taskId) {
-    _sessionController?.handleEvent(TimerSessionEvent.overdueReached);
+  _sessionController?.handleEvent(TimerSessionEvent.overdueReached);
     try {
       final notificationService = ref.read(notificationServiceProvider);
       final todos = ref.read(todosProvider).value ?? [];
@@ -5953,19 +6299,9 @@ class TimerNotifier extends Notifier<TimerState> {
     } catch (e) {
       debugLog('TimerNotifier', 'SOUND/NOTIFICATION ERROR: $e');
     }
-    _ticker?.cancel();
-    _ticker = null;
-    update(
-      isRunning: false,
-      timeRemaining: 0,
-      isProgressBarFull: true,
-      overdueCrossedTaskId: taskId,
-      plannedDurationSeconds: null,
-      focusDurationSeconds: null,
-      breakDurationSeconds: null,
-      currentCycle: 1,
-      totalCycles: 1,
-    );
+  _ticker?.cancel();
+  _ticker = null;
+  _overdueService?.markOverdueAndFreeze(taskId);
     _cancelWorkmanagerTask();
   }
   void stop() {
@@ -5982,9 +6318,9 @@ class TimerNotifier extends Notifier<TimerState> {
   }
   void resetCurrentPhase() {
     if (state.activeTaskId == null) return;
-    final currentPhaseDuration = state.currentMode == 'focus'
-        ? (state.focusDurationSeconds ?? 25 * 60)
-        : (state.breakDurationSeconds ?? 5 * 60);
+  final currentPhaseDuration = state.currentMode == 'focus'
+    ? (state.focusDurationSeconds ?? TimerDefaults.focusSeconds)
+    : (state.breakDurationSeconds ?? TimerDefaults.breakSeconds);
     final elapsedTime = currentPhaseDuration - state.timeRemaining;
     if (state.currentMode == 'focus' && elapsedTime > 0) {
       final taskId = state.activeTaskId!;
@@ -6192,16 +6528,16 @@ class TimerNotifier extends Notifier<TimerState> {
   }
   void _startAutoSaveTimer() {
     _autoSaveTimer?.cancel();
-    _autoSaveTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    _autoSaveTimer = Timer.periodic(const Duration(seconds: TimerDefaults.autoSaveIntervalSeconds), (_) {
       _triggerDeferredAutoSave();
     });
   }
   void _triggerDeferredAutoSave() {
     final taskId = state.activeTaskId;
-    if (taskId == null) return;
-    final currentFocused = state.focusedTimeCache[taskId] ?? 0;
-    if (currentFocused - _lastAutoSavedSeconds < 30) return;
-    _autoSaveFocusedTime(todoId: taskId);
+  if (taskId == null) return;
+  final currentFocused = state.focusedTimeCache[taskId] ?? 0;
+  if (currentFocused - _lastAutoSavedSeconds < TimerDefaults.autoSaveIntervalSeconds) return;
+  _autoSaveService?.triggerDeferredAutoSave();
   }
   Future<void> _autoSaveFocusedTime({
     required int todoId,
@@ -6225,32 +6561,7 @@ class TimerNotifier extends Notifier<TimerState> {
     }
   }
   void skipPhase() {
-    final notificationService = ref.read(notificationServiceProvider);
-    if (state.currentMode == 'focus') {
-      if (state.currentCycle >= state.totalCycles) {
-        update(cycleOverflowBlocked: true);
-        return;
-      }
-      notificationService.playSoundWithNotification(
-        soundFileName: SoundAsset.breakStart.fileName,
-        title: 'Focus Phase Skipped',
-        body: 'Moving to break time for "${state.activeTaskName}".',
-      );
-      final completed = state.completedSessions + 1;
-      final nextCycle = state.currentCycle + 1;
-      update(
-        currentMode: 'break',
-        timeRemaining: state.breakDurationSeconds ?? state.timeRemaining,
-        completedSessions: completed,
-        currentCycle: nextCycle,
-      );
-    } else if (state.currentMode == 'break') {
-  notificationService.playSound(SoundAsset.focusStart.fileName);
-      update(
-        currentMode: 'focus',
-        timeRemaining: state.focusDurationSeconds ?? state.timeRemaining,
-      );
-    }
+  _phaseService?.skipPhase(state);
     if (state.activeTaskId != null && state.activeTaskName != null) {
       _scheduleWorkmanagerTask(
         state.activeTaskId!,
@@ -6323,47 +6634,408 @@ class TimerNotifier extends Notifier<TimerState> {
     ref.read(notificationServiceProvider).cancelPersistentTimerNotification();
   }
   Future<void> handleNotificationAction(String actionId) async {
-  debugLog('TimerNotifier', 'handleNotificationAction received actionId=$actionId isRunning=${state.isRunning} isTimerActive=${state.isTimerActive}');
-    switch (actionId) {
-  case 'pause_timer':
-        if (state.isRunning) pauseTask();
-        break;
-  case 'resume_timer':
-        if (!state.isRunning) resumeTask();
-        break;
-      case 'stop_timer':
-        if (state.activeTaskId != null) {
-          await stopAndSaveProgress(state.activeTaskId!);
-        } else {
-          clear();
-        }
-        break;
-      case 'mark_complete':
-        if (state.activeTaskId != null) {
-          await ref.read(todosProvider.notifier).toggleTodo(state.activeTaskId!);
-          await stopAndSaveProgress(state.activeTaskId!);
-        }
-        break;
-      case 'continue_working':
-        if (state.activeTaskId != null) {
-          state = state.copyWith(
-            overdueContinued: Set<int>.from(state.overdueContinued)
-              ..add(state.activeTaskId!),
-            isPermanentlyOverdue: true,
-            isProgressBarFull: false,
-            plannedDurationSeconds: null,
-            focusDurationSeconds: null,
-          );
-          _showPersistentNotification();
-        }
-        break;
-    }
-  debugLog('TimerNotifier', 'handleNotificationAction completed actionId=$actionId -> isRunning=${state.isRunning} isTimerActive=${state.isTimerActive}');
+  debugLog('TimerNotifier', 'handleNotificationAction received actionId=$actionId');
+  await _actionHandler?.handle(actionId);
+  debugLog('TimerNotifier', 'handleNotificationAction completed actionId=$actionId');
   }
 }
 final timerProvider = NotifierProvider<TimerNotifier, TimerState>(
   () => TimerNotifier(),
 );
+
+================
+File: flutter_app/lib/features/todo/screens/todo_list_screen.dart
+================
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:math';
+import '../../../core/services/mock_api_service.dart';
+import '../../../core/providers/notification_provider.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/app_dialogs.dart';
+import '../../../core/utils/debug_logger.dart';
+import '../../../core/utils/error_handler.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../pomodoro/providers/timer_provider.dart';
+import '../../pomodoro/models/timer_state.dart';
+import '../../pomodoro/widgets/mini_timer_bar.dart';
+import '../models/todo.dart';
+import '../providers/todos_provider.dart';
+import '../widgets/inline_task_input.dart';
+import '../widgets/task_list.dart';
+class TodoListScreen extends ConsumerStatefulWidget {
+  const TodoListScreen({super.key});
+  @override
+  ConsumerState<TodoListScreen> createState() => _TodoListScreenState();
+}
+class _TodoListScreenState extends ConsumerState<TodoListScreen> {
+  bool _isCompletedExpanded = false;
+  Future<void> _addTodo(String taskName, int hours, int minutes) async {
+    debugLog(
+      'TodoListScreen',
+      'Received add task request: "$taskName" (${hours}h ${minutes}m)',
+    );
+    if (!mounted) {
+      debugLog('TodoListScreen', '_addTodo: Widget not mounted, aborting.');
+      return;
+    }
+    try {
+      debugLog('TodoListScreen', 'Calling todosProvider.notifier.addTodo...');
+      await ref.read(todosProvider.notifier).addTodo(taskName, hours, minutes);
+      ErrorHandler.showSuccess(context, 'Task added successfully!');
+      debugLog(
+        'TodoListScreen',
+        'Task added successfully and success message shown.',
+      );
+    } catch (e, st) {
+      debugLog('TodoListScreen', 'Error adding task: $e\n$st');
+      if (mounted) {
+        ErrorHandler.showError(context, e);
+        debugLog('TodoListScreen', 'Error message shown for adding task.');
+      }
+    }
+  }
+  void _showOverduePrompt(BuildContext context, Todo todo) async {
+    final timerNotifier = ref.read(timerProvider.notifier);
+    timerNotifier.markOverduePromptShown(todo.id);
+    final wasRunning = ref.read(timerProvider).isRunning;
+    if (wasRunning) timerNotifier.pauseTask();
+    final result = await AppDialogs.showOverdueDialog(
+      context: context,
+      taskName: todo.text,
+    );
+    if (!mounted) return;
+    final liveFocusedTime = timerNotifier.getFocusedTime(todo.id);
+    if (result == true) {
+      await ref
+          .read(todosProvider.notifier)
+          .toggleTodo(todo.id, liveFocusedTime: liveFocusedTime);
+      timerNotifier.clear();
+    } else if (result == false) {
+      await timerNotifier.stopAndSaveProgress(todo.id);
+      final plannedTime =
+          (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+      final overdueTime = (liveFocusedTime - plannedTime)
+          .clamp(0, double.infinity)
+          .toInt();
+      await ref
+          .read(todosProvider.notifier)
+          .markTaskPermanentlyOverdue(
+            todo.id,
+            overdueTime: overdueTime,
+          );
+    } else {
+      if (wasRunning) timerNotifier.resumeTask();
+    }
+  }
+  Future<void> _handleTaskCompletion(int id, {bool wasOverdue = false}) async {
+    if (!mounted) return;
+    final timerState = ref.read(timerProvider);
+    final currentTodo = ref
+        .read(todosProvider)
+        .value
+        ?.firstWhere((t) => t.id == id);
+    if (currentTodo != null &&
+        timerState.activeTaskId == currentTodo.id &&
+        timerState.isTimerActive) {
+      await ref.read(timerProvider.notifier).stopAndSaveProgress(id);
+    }
+    try {
+      await ref.read(todosProvider.notifier).toggleTodo(id);
+    } catch (e) {
+      if (mounted) {
+        ErrorHandler.showError(context, e);
+      }
+    }
+  }
+  Future<void> _handleTaskDeletion(int id) async {
+    if (!mounted) return;
+    final timerState = ref.read(timerProvider);
+    final currentTodo = ref
+        .read(todosProvider)
+        .value
+        ?.firstWhere((t) => t.id == id);
+    if (currentTodo == null) return;
+    final shouldDelete = await AppDialogs.showDeleteTaskDialog(
+      context: context,
+      taskName: currentTodo.text,
+    );
+    if (shouldDelete != true) return;
+    if (timerState.activeTaskId == currentTodo.id && timerState.isTimerActive) {
+      ref.read(timerProvider.notifier).clear();
+    }
+    try {
+      await ref.read(todosProvider.notifier).deleteTodo(id);
+      ErrorHandler.showSuccess(context, 'Task deleted successfully!');
+    } catch (e) {
+      if (mounted) {
+        ErrorHandler.showError(context, e);
+      }
+    }
+  }
+  Future<void> _handleTaskToggle(int id) async {
+    if (!mounted) return;
+    final todos = ref.read(todosProvider).value ?? [];
+    Todo? currentTodo;
+    try {
+      currentTodo = todos.firstWhere((t) => t.id == id);
+    } catch (e) {
+      return;
+    }
+    if (currentTodo.wasOverdue == 1 && !currentTodo.completed) {
+      final confirm = await AppDialogs.showConfirmCompleteOverdueTaskDialog(
+        context: context,
+        taskName: currentTodo.text,
+      );
+      if (confirm != true) {
+        return;
+      }
+    }
+    final timerState = ref.read(timerProvider);
+    if (timerState.activeTaskId == currentTodo.id &&
+        timerState.isTimerActive &&
+        !currentTodo.completed) {
+      await ref.read(timerProvider.notifier).stopAndSaveProgress(id);
+    }
+    final liveFocusedTime =
+        timerState.focusedTimeCache[id] ?? currentTodo.focusedTime;
+    try {
+      await ref
+          .read(todosProvider.notifier)
+          .toggleTodo(id, liveFocusedTime: liveFocusedTime);
+    } catch (e) {
+      if (mounted) {
+        ErrorHandler.showError(context, e);
+      }
+    }
+  }
+  Future<void> _handleSignOut() async {
+    final shouldLogout = await AppDialogs.showSignOutDialog(context: context);
+    if (shouldLogout == true && mounted) {
+      try {
+        await ref.read(authProvider.notifier).signOut();
+      } catch (e) {
+        if (mounted) {
+          ErrorHandler.showError(context, e);
+        }
+      }
+    }
+  }
+  @override
+  Widget build(BuildContext context) {
+    if (!mounted) {
+      return const SizedBox.shrink();
+    }
+    final screenWidth = MediaQuery.of(context).size.width;
+    final maxCardWidth = min(screenWidth * 0.95, 520.0);
+    final api = ref.watch(apiServiceProvider);
+    final notificationService = ref.watch(notificationServiceProvider);
+    final todosAsync = ref.watch(todosProvider);
+    final authState = ref.watch(authProvider);
+    final timerState = ref.watch(timerProvider);
+    final userName = authState.hasValue && authState.value!.isAuthenticated
+        ? authState.value!.userName
+        : 'User';
+    final activeTaskId = timerState.activeTaskId;
+    Todo? activeTodo;
+    if (activeTaskId != null && todosAsync.hasValue && todosAsync.value != null) {
+      try {
+        activeTodo = todosAsync.value!.firstWhere((todo) => todo.id == activeTaskId);
+      } catch (_) {
+        activeTodo = null;
+      }
+    }
+    ref.listen<TimerState>(timerProvider, (previous, next) {
+      final overdueTaskId = next.overdueCrossedTaskId;
+      if (overdueTaskId == null || next.overduePromptShown.contains(overdueTaskId)) return;
+      final todoList = todosAsync.value;
+      if (todoList == null) return;
+      Todo? overdue;
+      try {
+        overdue = todoList.firstWhere((t) => t.id == overdueTaskId);
+      } catch (_) {
+        return;
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _showOverduePrompt(context, overdue!);
+      });
+    });
+  final isTimerBarVisible = timerState.isTimerActive && timerState.activeTaskId != null;
+    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    final showSignOutButton =
+        !isTimerBarVisible && !isKeyboardVisible && !_isCompletedExpanded;
+    final showCreditTag =
+        !isTimerBarVisible && !isKeyboardVisible && !_isCompletedExpanded;
+    return Scaffold(
+      backgroundColor: AppColors.scaffoldBg,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxCardWidth),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.cardBg,
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 18,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 20),
+                        Text(
+                          'BETAFLOW',
+                          style: TextStyle(
+                            color: AppColors.brightYellow,
+                            fontSize: 48,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.4,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(
+                          height: 32,
+                        ),
+                        Text(
+                          'Welcome, $userName!',
+                          style: const TextStyle(
+                            color: AppColors.lightGray,
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 22),
+                        InlineTaskInput(onAddTask: _addTodo),
+                        const Divider(
+                          color: AppColors.brightYellow,
+                          thickness: 1.5,
+                          height: 48,
+                          indent: 20,
+                          endIndent: 20,
+                        ),
+                        Expanded(
+                          child: todosAsync.when(
+                            loading: () => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                            error: (err, stack) => Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text('Error: $err'),
+                                  ElevatedButton(
+                                    onPressed: () =>
+                                        ref.invalidate(todosProvider),
+                                    child: const Text('Retry'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            data: (todos) => TaskList(
+                              todos: todos,
+                              api: api,
+                              notificationService: notificationService,
+                              onPlay: (id) => _handleTaskCompletion(
+                                int.parse(id),
+                                wasOverdue: false,
+                              ),
+                              onDelete: (id) =>
+                                  _handleTaskDeletion(int.parse(id)),
+                              onToggle: (id) =>
+                                  _handleTaskToggle(int.parse(id)),
+                              onExpansionChanged: (isExpanded) {
+                                setState(() {
+                                  _isCompletedExpanded = isExpanded;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (isTimerBarVisible)
+              Positioned(
+                left: 20,
+                right: 20,
+                bottom: 10,
+                child: MiniTimerBar(
+                  api: api,
+                  notificationService: notificationService,
+                  activeTodo: activeTodo,
+                  onComplete: (id) => _handleTaskCompletion(id),
+                ),
+              ),
+            if (showCreditTag)
+              Positioned(
+                bottom: 12,
+                left: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  child: RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Made with ',
+                          style: TextStyle(
+                            color: AppColors.mediumGray.withValues(alpha: 0.6),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        TextSpan(
+                          text: '❤️',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        TextSpan(
+                          text: ' by Prayas',
+                          style: TextStyle(
+                            color: AppColors.mediumGray.withValues(alpha: 0.6),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            if (showSignOutButton)
+              Positioned(
+                bottom: 16,
+                right: 24,
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.logout,
+                    color: AppColors.mediumGray,
+                    size: 28,
+                  ),
+                  tooltip: 'Sign Out',
+                  onPressed: _handleSignOut,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 ================
 File: flutter_app/lib/features/todo/widgets/task_list.dart
@@ -6381,6 +7053,7 @@ import '../../pomodoro/models/timer_state.dart';
 import '../../pomodoro/pomodoro_router.dart';
 import '../../../core/widgets/progress_bar.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/constants/timer_defaults.dart';
 enum CompletedFilter { none, onTime, overdue, underdue }
 class TaskList extends ConsumerStatefulWidget {
   final List<Todo> todos;
@@ -6806,8 +7479,8 @@ class _TaskListState extends ConsumerState<TaskList> {
     }
     final plannedSeconds =
         (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-    final defaultFocus = 25 * 60;
-    final defaultBreak = 5 * 60;
+  final int defaultFocus = TimerDefaults.focusSeconds;
+  final int defaultBreak = TimerDefaults.breakSeconds;
     final cycles = plannedSeconds > 0
         ? (plannedSeconds / defaultFocus).ceil().clamp(1, 1000)
         : 4;
@@ -6884,400 +7557,6 @@ class _TaskStatusIndicator extends ConsumerWidget {
         ),
       );
     }
-  }
-}
-
-================
-File: flutter_app/lib/features/todo/screens/todo_list_screen.dart
-================
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:math';
-import '../../../core/services/mock_api_service.dart';
-import '../../../core/providers/notification_provider.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/app_dialogs.dart';
-import '../../../core/utils/debug_logger.dart';
-import '../../../core/utils/error_handler.dart';
-import '../../auth/providers/auth_provider.dart';
-import '../../pomodoro/providers/timer_provider.dart';
-import '../../pomodoro/models/timer_state.dart';
-import '../../pomodoro/widgets/mini_timer_bar.dart';
-import '../models/todo.dart';
-import '../providers/todos_provider.dart';
-import '../widgets/inline_task_input.dart';
-import '../widgets/task_list.dart';
-class TodoListScreen extends ConsumerStatefulWidget {
-  const TodoListScreen({super.key});
-  @override
-  ConsumerState<TodoListScreen> createState() => _TodoListScreenState();
-}
-class _TodoListScreenState extends ConsumerState<TodoListScreen> {
-  bool _isCompletedExpanded = false;
-  Future<void> _addTodo(String taskName, int hours, int minutes) async {
-    debugLog(
-      'TodoListScreen',
-      'Received add task request: "$taskName" (${hours}h ${minutes}m)',
-    );
-    if (!mounted) {
-      debugLog('TodoListScreen', '_addTodo: Widget not mounted, aborting.');
-      return;
-    }
-    try {
-      debugLog('TodoListScreen', 'Calling todosProvider.notifier.addTodo...');
-      await ref.read(todosProvider.notifier).addTodo(taskName, hours, minutes);
-      ErrorHandler.showSuccess(context, 'Task added successfully!');
-      debugLog(
-        'TodoListScreen',
-        'Task added successfully and success message shown.',
-      );
-    } catch (e, st) {
-      debugLog('TodoListScreen', 'Error adding task: $e\n$st');
-      if (mounted) {
-        ErrorHandler.showError(context, e);
-        debugLog('TodoListScreen', 'Error message shown for adding task.');
-      }
-    }
-  }
-  void _showOverduePrompt(BuildContext context, Todo todo) async {
-    final timerNotifier = ref.read(timerProvider.notifier);
-    timerNotifier.markOverduePromptShown(todo.id);
-    final wasRunning = ref.read(timerProvider).isRunning;
-    if (wasRunning) timerNotifier.pauseTask();
-    final result = await AppDialogs.showOverdueDialog(
-      context: context,
-      taskName: todo.text,
-    );
-    if (!mounted) return;
-    final liveFocusedTime = timerNotifier.getFocusedTime(todo.id);
-    if (result == true) {
-      await ref
-          .read(todosProvider.notifier)
-          .toggleTodo(todo.id, liveFocusedTime: liveFocusedTime);
-      timerNotifier.clear();
-    } else if (result == false) {
-      await timerNotifier.stopAndSaveProgress(todo.id);
-      final plannedTime =
-          (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-      final overdueTime = (liveFocusedTime - plannedTime)
-          .clamp(0, double.infinity)
-          .toInt();
-      await ref
-          .read(todosProvider.notifier)
-          .markTaskPermanentlyOverdue(
-            todo.id,
-            overdueTime: overdueTime,
-          );
-    } else {
-      if (wasRunning) timerNotifier.resumeTask();
-    }
-  }
-  Future<void> _handleTaskCompletion(int id, {bool wasOverdue = false}) async {
-    if (!mounted) return;
-    final timerState = ref.read(timerProvider);
-    final currentTodo = ref
-        .read(todosProvider)
-        .value
-        ?.firstWhere((t) => t.id == id);
-    if (currentTodo != null &&
-        timerState.activeTaskId == currentTodo.id &&
-        timerState.isTimerActive) {
-      await ref.read(timerProvider.notifier).stopAndSaveProgress(id);
-    }
-    try {
-      await ref.read(todosProvider.notifier).toggleTodo(id);
-    } catch (e) {
-      if (mounted) {
-        ErrorHandler.showError(context, e);
-      }
-    }
-  }
-  Future<void> _handleTaskDeletion(int id) async {
-    if (!mounted) return;
-    final timerState = ref.read(timerProvider);
-    final currentTodo = ref
-        .read(todosProvider)
-        .value
-        ?.firstWhere((t) => t.id == id);
-    if (currentTodo == null) return;
-    final shouldDelete = await AppDialogs.showDeleteTaskDialog(
-      context: context,
-      taskName: currentTodo.text,
-    );
-    if (shouldDelete != true) return;
-    if (timerState.activeTaskId == currentTodo.id && timerState.isTimerActive) {
-      ref.read(timerProvider.notifier).clear();
-    }
-    try {
-      await ref.read(todosProvider.notifier).deleteTodo(id);
-      ErrorHandler.showSuccess(context, 'Task deleted successfully!');
-    } catch (e) {
-      if (mounted) {
-        ErrorHandler.showError(context, e);
-      }
-    }
-  }
-  Future<void> _handleTaskToggle(int id) async {
-    if (!mounted) return;
-    final todos = ref.read(todosProvider).value ?? [];
-    Todo? currentTodo;
-    try {
-      currentTodo = todos.firstWhere((t) => t.id == id);
-    } catch (e) {
-      return;
-    }
-    if (currentTodo.wasOverdue == 1 && !currentTodo.completed) {
-      final confirm = await AppDialogs.showConfirmCompleteOverdueTaskDialog(
-        context: context,
-        taskName: currentTodo.text,
-      );
-      if (confirm != true) {
-        return;
-      }
-    }
-    final timerState = ref.read(timerProvider);
-    if (timerState.activeTaskId == currentTodo.id &&
-        timerState.isTimerActive &&
-        !currentTodo.completed) {
-      await ref.read(timerProvider.notifier).stopAndSaveProgress(id);
-    }
-    final liveFocusedTime =
-        timerState.focusedTimeCache[id] ?? currentTodo.focusedTime;
-    try {
-      await ref
-          .read(todosProvider.notifier)
-          .toggleTodo(id, liveFocusedTime: liveFocusedTime);
-    } catch (e) {
-      if (mounted) {
-        ErrorHandler.showError(context, e);
-      }
-    }
-  }
-  Future<void> _handleSignOut() async {
-    final shouldLogout = await AppDialogs.showSignOutDialog(context: context);
-    if (shouldLogout == true && mounted) {
-      try {
-        await ref.read(authProvider.notifier).signOut();
-      } catch (e) {
-        if (mounted) {
-          ErrorHandler.showError(context, e);
-        }
-      }
-    }
-  }
-  @override
-  Widget build(BuildContext context) {
-    if (!mounted) {
-      return const SizedBox.shrink();
-    }
-    final screenWidth = MediaQuery.of(context).size.width;
-    final maxCardWidth = min(screenWidth * 0.95, 520.0);
-    final api = ref.watch(apiServiceProvider);
-    final notificationService = ref.watch(notificationServiceProvider);
-    final todosAsync = ref.watch(todosProvider);
-    final authState = ref.watch(authProvider);
-    final timerState = ref.watch(timerProvider);
-    final userName = authState.hasValue && authState.value!.isAuthenticated
-        ? authState.value!.userName
-        : 'User';
-    final activeTaskId = timerState.activeTaskId;
-    Todo? activeTodo;
-    if (activeTaskId != null && todosAsync.hasValue && todosAsync.value != null) {
-      try {
-        activeTodo = todosAsync.value!.firstWhere((todo) => todo.id == activeTaskId);
-      } catch (_) {
-        activeTodo = null;
-      }
-    }
-    ref.listen<TimerState>(timerProvider, (previous, next) {
-      final overdueTaskId = next.overdueCrossedTaskId;
-      if (overdueTaskId == null || next.overduePromptShown.contains(overdueTaskId)) return;
-      final todoList = todosAsync.value;
-      if (todoList == null) return;
-      Todo? overdue;
-      try {
-        overdue = todoList.firstWhere((t) => t.id == overdueTaskId);
-      } catch (_) {
-        return;
-      }
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _showOverduePrompt(context, overdue!);
-      });
-    });
-  final isTimerBarVisible = timerState.isTimerActive && timerState.activeTaskId != null;
-    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
-    final showSignOutButton =
-        !isTimerBarVisible && !isKeyboardVisible && !_isCompletedExpanded;
-    final showCreditTag =
-        !isTimerBarVisible && !isKeyboardVisible && !_isCompletedExpanded;
-    return Scaffold(
-      backgroundColor: AppColors.scaffoldBg,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxCardWidth),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.cardBg,
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 18,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 20),
-                        Text(
-                          'BETAFLOW',
-                          style: TextStyle(
-                            color: AppColors.brightYellow,
-                            fontSize: 48,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.4,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(
-                          height: 32,
-                        ),
-                        Text(
-                          'Welcome, $userName!',
-                          style: const TextStyle(
-                            color: AppColors.lightGray,
-                            fontSize: 16,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 22),
-                        InlineTaskInput(onAddTask: _addTodo),
-                        const Divider(
-                          color: AppColors.brightYellow,
-                          thickness: 1.5,
-                          height: 48,
-                          indent: 20,
-                          endIndent: 20,
-                        ),
-                        Expanded(
-                          child: todosAsync.when(
-                            loading: () => const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                            error: (err, stack) => Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text('Error: $err'),
-                                  ElevatedButton(
-                                    onPressed: () =>
-                                        ref.invalidate(todosProvider),
-                                    child: const Text('Retry'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            data: (todos) => TaskList(
-                              todos: todos,
-                              api: api,
-                              notificationService: notificationService,
-                              onPlay: (id) => _handleTaskCompletion(
-                                int.parse(id),
-                                wasOverdue: false,
-                              ),
-                              onDelete: (id) =>
-                                  _handleTaskDeletion(int.parse(id)),
-                              onToggle: (id) =>
-                                  _handleTaskToggle(int.parse(id)),
-                              onExpansionChanged: (isExpanded) {
-                                setState(() {
-                                  _isCompletedExpanded = isExpanded;
-                                });
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            if (isTimerBarVisible)
-              Positioned(
-                left: 20,
-                right: 20,
-                bottom: 10,
-                child: MiniTimerBar(
-                  api: api,
-                  notificationService: notificationService,
-                  activeTodo: activeTodo,
-                  onComplete: (id) => _handleTaskCompletion(id),
-                ),
-              ),
-            if (showCreditTag)
-              Positioned(
-                bottom: 12,
-                left: 16,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  child: RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'Made with ',
-                          style: TextStyle(
-                            color: AppColors.mediumGray.withValues(alpha: 0.6),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                        TextSpan(
-                          text: '❤️',
-                          style: TextStyle(
-                            color: Colors.red,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        TextSpan(
-                          text: ' by Prayas',
-                          style: TextStyle(
-                            color: AppColors.mediumGray.withValues(alpha: 0.6),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            if (showSignOutButton)
-              Positioned(
-                bottom: 16,
-                right: 24,
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.logout,
-                    color: AppColors.mediumGray,
-                    size: 28,
-                  ),
-                  tooltip: 'Sign Out',
-                  onPressed: _handleSignOut,
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
   }
 }
 

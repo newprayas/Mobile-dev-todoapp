@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/utils/debug_logger.dart';
+import 'package:logger/logger.dart';
 import '../../../core/constants/timer_defaults.dart';
 import '../../../core/data/todo_repository.dart';
 import '../providers/timer_provider.dart';
@@ -13,6 +13,7 @@ class TimerAutoSaveService {
   Timer? _autoSaveTimer;
   bool _isAutoSaving = false;
   int _lastAutoSavedSeconds = 0;
+  final Logger logger = Logger();
 
   TimerAutoSaveService(this._notifier, this._ref);
 
@@ -38,7 +39,8 @@ class TimerAutoSaveService {
     if (taskId == null) return;
     final int currentFocused = _notifier.state.focusedTimeCache[taskId] ?? 0;
     if (currentFocused - _lastAutoSavedSeconds <
-        TimerDefaults.autoSaveIntervalSeconds) return;
+        TimerDefaults.autoSaveIntervalSeconds)
+      return;
     _autoSaveFocusedTime(todoId: taskId);
   }
 
@@ -64,7 +66,7 @@ class TimerAutoSaveService {
       _lastAutoSavedSeconds = currentFocused;
       await _notifier.persistState();
     } catch (e) {
-      debugLog('TimerAutoSaveService', 'Error auto-saving focused time: $e');
+      logger.e('[TimerAutoSaveService] Error auto-saving focused time: $e');
     } finally {
       _isAutoSaving = false;
     }

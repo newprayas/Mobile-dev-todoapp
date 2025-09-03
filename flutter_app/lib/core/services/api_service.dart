@@ -31,7 +31,7 @@ class ApiService {
         lowerBaseUrl.contains('localhost') ||
         lowerBaseUrl.contains('10.0.2.2')) {
       _dio.options.headers['x-user-id'] = _devUserId;
-      debugLog('ApiService', 'Set x-user-id header for local dev: $_devUserId');
+      logger.d('[ApiService] Set x-user-id header for local dev: $_devUserId');
     }
   }
 
@@ -56,7 +56,10 @@ class ApiService {
   ///
   /// Returns: Map containing user authentication data
   Future<Map<String, dynamic>> authWithIdToken(String idToken) async {
-    final Response<dynamic> resp = await _dio.post('/api/auth', data: {'id_token': idToken});
+    final Response<dynamic> resp = await _dio.post(
+      '/api/auth',
+      data: {'id_token': idToken},
+    );
     return resp.data as Map<String, dynamic>;
   }
 
@@ -64,7 +67,9 @@ class ApiService {
   ///
   /// Returns: List of todo objects as dynamic maps
   Future<List<dynamic>> fetchTodos() async {
-    final Response<dynamic> resp = await _withRetry(() => _dio.get('/api/todos'));
+    final Response<dynamic> resp = await _withRetry(
+      () => _dio.get('/api/todos'),
+    );
     return resp.data as List<dynamic>;
   }
 
@@ -101,7 +106,9 @@ class ApiService {
   ///
   /// Returns: Server response confirming deletion
   Future<dynamic> deleteTodo(int id) async {
-    final Response<dynamic> resp = await _withRetry(() => _dio.post('/delete', data: {'id': id}));
+    final Response<dynamic> resp = await _withRetry(
+      () => _dio.post('/delete', data: {'id': id}),
+    );
     return resp.data;
   }
 
@@ -137,7 +144,9 @@ class ApiService {
   ///
   /// Returns: Server response containing the toggled todo data
   Future<dynamic> toggleTodo(int id) async {
-    final Response<dynamic> resp = await _withRetry(() => _dio.post('/toggle', data: {'id': id}));
+    final Response<dynamic> resp = await _withRetry(
+      () => _dio.post('/toggle', data: {'id': id}),
+    );
     return resp.data;
   }
 
@@ -159,7 +168,9 @@ class ApiService {
       'was_overdue': wasOverdue ? 1 : 0,
       'overdue_time': overdueTime,
     };
-    final Response<dynamic> resp = await _withRetry(() => _dio.post('/toggle', data: payload));
+    final Response<dynamic> resp = await _withRetry(
+      () => _dio.post('/toggle', data: payload),
+    );
     return resp.data;
   }
 
@@ -201,14 +212,12 @@ class ApiService {
 
         // ALWAYS log detailed errors for tester APK debugging.
         if (e.type == DioExceptionType.badResponse) {
-          debugLog(
-            'ApiService',
-            'API Error: Status ${e.response?.statusCode}, Data: ${e.response?.data}, Message: ${e.message}',
+          logger.e(
+            '[ApiService] API Error: Status ${e.response?.statusCode}, Data: ${e.response?.data}, Message: ${e.message}',
           );
         } else {
-          debugLog(
-            'ApiService',
-            'Network Error: Type ${e.type}, Message: ${e.message}, Error: ${e.error}, Stack: ${e.stackTrace}',
+          logger.e(
+            '[ApiService] Network Error: Type ${e.type}, Message: ${e.message}, Error: ${e.error}, Stack: ${e.stackTrace}',
           );
         }
 
@@ -218,9 +227,8 @@ class ApiService {
         }
         attempt++;
         // Log retry attempts with basic info, still useful for debugging.
-        debugLog(
-          'ApiService',
-          'Transient connection error, retrying ($attempt/$_maxRetries) in ${_retryDelay.inMilliseconds}ms ...',
+        logger.w(
+          '[ApiService] Transient connection error, retrying ($attempt/$_maxRetries) in ${_retryDelay.inMilliseconds}ms ...',
         );
         await Future.delayed(_retryDelay);
       }

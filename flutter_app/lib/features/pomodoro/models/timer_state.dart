@@ -11,7 +11,8 @@ class TimerState {
   final String? activeTaskName;
   final int timeRemaining; // seconds remaining in current phase
   final bool isRunning; // whether ticker counting down
-  final bool isTimerActive; // whether any task has been started (drives mini bar)
+  final bool
+  isTimerActive; // whether any task has been started (drives mini bar)
   final String currentMode; // 'focus' or 'break'
   final int? plannedDurationSeconds; // original planned focused total for task
   final int? focusDurationSeconds; // configured focus phase length
@@ -26,9 +27,11 @@ class TimerState {
   final String? overdueCrossedTaskName; // task name when planned time crossed
   final Set<int> overduePromptShown; // tasks for which prompt already displayed
   final Set<int> overdueContinued; // tasks user chose to continue beyond plan
-  final Map<int, int> focusedTimeCache; // live focused seconds per task (optimistic)
+  final Map<int, int>
+  focusedTimeCache; // live focused seconds per task (optimistic)
   final bool suppressNextActivation; // UI suppression flag
-  final bool cycleOverflowBlocked; // guard for user attempting invalid cycle skip
+  final bool
+  cycleOverflowBlocked; // guard for user attempting invalid cycle skip
   final bool isPermanentlyOverdue; // task previously marked overdue in DB
 
   // Background / lifecycle tracking
@@ -100,7 +103,8 @@ class TimerState {
       isRunning: isRunning ?? this.isRunning,
       isTimerActive: isTimerActive ?? this.isTimerActive,
       currentMode: currentMode ?? this.currentMode,
-      plannedDurationSeconds: plannedDurationSeconds ?? this.plannedDurationSeconds,
+      plannedDurationSeconds:
+          plannedDurationSeconds ?? this.plannedDurationSeconds,
       focusDurationSeconds: focusDurationSeconds ?? this.focusDurationSeconds,
       breakDurationSeconds: breakDurationSeconds ?? this.breakDurationSeconds,
       currentCycle: currentCycle ?? this.currentCycle,
@@ -108,13 +112,16 @@ class TimerState {
       completedSessions: completedSessions ?? this.completedSessions,
       isProgressBarFull: isProgressBarFull ?? this.isProgressBarFull,
       allSessionsComplete: allSessionsComplete ?? this.allSessionsComplete,
-      overdueSessionsComplete: overdueSessionsComplete ?? this.overdueSessionsComplete,
+      overdueSessionsComplete:
+          overdueSessionsComplete ?? this.overdueSessionsComplete,
       overdueCrossedTaskId: overdueCrossedTaskId ?? this.overdueCrossedTaskId,
-      overdueCrossedTaskName: overdueCrossedTaskName ?? this.overdueCrossedTaskName,
+      overdueCrossedTaskName:
+          overdueCrossedTaskName ?? this.overdueCrossedTaskName,
       overduePromptShown: overduePromptShown ?? this.overduePromptShown,
       overdueContinued: overdueContinued ?? this.overdueContinued,
       focusedTimeCache: focusedTimeCache ?? this.focusedTimeCache,
-      suppressNextActivation: suppressNextActivation ?? this.suppressNextActivation,
+      suppressNextActivation:
+          suppressNextActivation ?? this.suppressNextActivation,
       cycleOverflowBlocked: cycleOverflowBlocked ?? this.cycleOverflowBlocked,
       isPermanentlyOverdue: isPermanentlyOverdue ?? this.isPermanentlyOverdue,
       backgroundStartTime: backgroundStartTime ?? this.backgroundStartTime,
@@ -124,6 +131,25 @@ class TimerState {
   }
 
   @override
-  String toString() => 'TimerState(taskId: ' 
-      '$activeTaskId, mode: $currentMode, running: $isRunning, cycle: $currentCycle/$totalCycles, timeRemaining: $timeRemaining)';
+  String toString() {
+    return '''TimerState(
+  activeTaskId: $activeTaskId,
+  activeTaskName: ${activeTaskName != null ? '"$activeTaskName"' : null},
+  isTimerActive: $isTimerActive,
+  isRunning: $isRunning,
+  currentMode: "$currentMode",
+  timeRemaining: $timeRemaining,
+  currentCycle: $currentCycle,
+  totalCycles: $totalCycles,
+  completedSessions: $completedSessions,
+  isProgressBarFull: $isProgressBarFull,
+  allSessionsComplete: $allSessionsComplete,
+  isPermanentlyOverdue: $isPermanentlyOverdue,
+  overdueCrossedTaskId: $overdueCrossedTaskId,
+  pausedTimeTotal: $pausedTimeTotal,
+  focusedTimeCache: $focusedTimeCache,
+  wasInBackground: $wasInBackground,
+  backgroundStartTime: $backgroundStartTime,
+  )''';
+  }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logger/logger.dart';
 import '../../../core/constants/sound_assets.dart';
-import '../../../core/utils/debug_logger.dart';
 import '../../../core/data/todo_repository.dart';
 import '../../todo/providers/todos_provider.dart';
 import '../../../core/providers/notification_provider.dart';
@@ -10,6 +10,7 @@ import '../providers/timer_provider.dart';
 class TimerOverdueService {
   final TimerNotifier notifier;
   final Ref ref;
+  final Logger logger = Logger();
 
   TimerOverdueService({required this.notifier, required this.ref});
 
@@ -22,11 +23,12 @@ class TimerOverdueService {
         notificationService.playSoundWithNotification(
           soundFileName: SoundAsset.sessionComplete.fileName,
           title: 'Planned Time Complete!',
-          body: 'Time for "${task.first.text}" is up. Decide whether to continue or complete.',
+          body:
+              'Time for "${task.first.text}" is up. Decide whether to continue or complete.',
         );
       }
     } catch (e) {
-      debugLog('TimerOverdueService', 'Notification error: $e');
+      logger.e('[TimerOverdueService] Notification error: $e');
     }
 
     notifier.update(
@@ -42,7 +44,10 @@ class TimerOverdueService {
     );
   }
 
-  Future<void> markTaskPermanentlyOverdue(int taskId, int overdueSeconds) async {
+  Future<void> markTaskPermanentlyOverdue(
+    int taskId,
+    int overdueSeconds,
+  ) async {
     final repo = ref.read(todoRepositoryProvider);
     await repo.markTaskPermanentlyOverdue(taskId, overdueTime: overdueSeconds);
   }

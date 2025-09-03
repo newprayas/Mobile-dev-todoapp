@@ -28,28 +28,32 @@ class PersistentNotificationManager {
 
     final BigTextStyleInformation bigText = BigTextStyleInformation(body);
 
-    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'pomodoro_persistent_channel',
-      'Persistent Pomodoro Timer',
-      channelDescription: 'Ongoing notifications for your active Pomodoro timer.',
-      importance: Importance.max,
-      priority: Priority.max,
-      ongoing: true,
-      autoCancel: false,
-      showWhen: false,
-      onlyAlertOnce: true,
-      largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-      styleInformation: bigText,
-      actions: actions,
-      category: AndroidNotificationCategory.service,
-      visibility: NotificationVisibility.public,
-      enableLights: false,
-      enableVibration: false,
-      playSound: false,
-      ticker: title,
-    );
+    final AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'pomodoro_persistent_channel',
+          'Persistent Pomodoro Timer',
+          channelDescription:
+              'Ongoing notifications for your active Pomodoro timer.',
+          importance: Importance.max,
+          priority: Priority.max,
+          ongoing: true,
+          autoCancel: false,
+          showWhen: false,
+          onlyAlertOnce: true,
+          largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          styleInformation: bigText,
+          actions: actions,
+          category: AndroidNotificationCategory.service,
+          visibility: NotificationVisibility.public,
+          enableLights: false,
+          enableVibration: false,
+          playSound: false,
+          ticker: title,
+        );
 
-    final NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
+    final NotificationDetails platformDetails = NotificationDetails(
+      android: androidDetails,
+    );
 
     await _plugin.show(
       kPersistentTimerNotificationId,
@@ -58,7 +62,9 @@ class PersistentNotificationManager {
       platformDetails,
       payload: kPayloadOpenApp,
     );
-    debugLog('PersistentNotificationManager', 'Updated persistent title="$title" actions=$actionIds');
+    logger.i(
+      '[PersistentNotificationManager] Updated persistent title="$title" actions=$actionIds',
+    );
     if (kDebugMode) {
       await debugDumpActiveNotifications();
     }
@@ -66,20 +72,29 @@ class PersistentNotificationManager {
 
   Future<void> cancel() async {
     await _plugin.cancel(kPersistentTimerNotificationId);
-    debugLog('PersistentNotificationManager', 'Cancelled persistent notification');
+    logger.i(
+      '[PersistentNotificationManager] Cancelled persistent notification',
+    );
   }
 
   Future<void> debugDumpActiveNotifications() async {
     if (!Platform.isAndroid) return;
-    final androidImpl = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final androidImpl = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (androidImpl == null) return;
     try {
       final active = await androidImpl.getActiveNotifications();
       for (final n in active) {
-        debugLog('PersistentNotificationManager', 'ACTIVE id=${n.id} tag=${n.tag} title=${n.title} text=${n.body}');
+        logger.d(
+          '[PersistentNotificationManager] ACTIVE id=${n.id} tag=${n.tag} title=${n.title} text=${n.body}',
+        );
       }
     } catch (e) {
-      debugLog('PersistentNotificationManager', 'Error dumping active notifications: $e');
+      logger.e(
+        '[PersistentNotificationManager] Error dumping active notifications: $e',
+      );
     }
   }
 }

@@ -8,6 +8,7 @@ import 'features/pomodoro/providers/timer_provider.dart';
 import 'core/providers/notification_action_provider.dart';
 import 'core/bridge/notification_action_dispatcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'core/utils/debug_logger.dart';
 
 class App extends ConsumerStatefulWidget {
   const App({super.key});
@@ -26,31 +27,36 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
     // Register dispatcher so main.dart callback can deliver actions immediately.
     registerNotificationActionDispatcher((String actionId) {
-      debugPrint('APP_DISPATCHER: delivering action=$actionId to provider');
+      logger.i("App Dispatcher: Delivering action='$actionId' to provider.");
       ref.read(notificationActionProvider.notifier).state = actionId;
       return true; // Indicate handled
     });
     // Poll for background-isolate persisted actions (fallback path).
     _actionPoller = Timer.periodic(const Duration(seconds: 1), (_) async {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final String? last = prefs.getString('last_notification_action');
-        if (last != null) {
-          debugPrint('APP_POLLER: detected pending action=$last');
-          ref.read(notificationActionProvider.notifier).state = last;
-          await prefs.remove('last_notification_action');
-        }
-      } catch (_) {
-        // Silent catch; polling continues.
-      }
+      await _flushPendingAction();
     });
+  }
+
+  /// Flush any pending notification action persisted by the background isolate.
+  Future<void> _flushPendingAction() async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? last = prefs.getString('last_notification_action');
+      if (last != null) {
+        debugPrint('APP_FLUSH: detected pending action=$last');
+        ref.read(notificationActionProvider.notifier).state = last;
+        await prefs.remove('last_notification_action');
+      }
+    } catch (_) {
+      // Ignore; will retry on next poll or lifecycle event.
+    }
   }
 
   @override
   void dispose() {
-  WidgetsBinding.instance.removeObserver(this);
-  clearNotificationActionDispatcher();
-  _actionPoller?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    clearNotificationActionDispatcher();
+    _actionPoller?.cancel();
     super.dispose();
   }
 
@@ -63,6 +69,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // App going to background: schedule Workmanager task to persist timer
       notifier.scheduleBackgroundPersistence();
     } else if (state == AppLifecycleState.resumed) {
+      // Immediately flush any pending background actions on resume for responsiveness.
+      _flushPendingAction();
       // App returned to foreground: cancel background job
       notifier.cancelBackgroundPersistence();
     }
@@ -74,13 +82,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     if (!_initialActionFlushed) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (_initialActionFlushed) return; // Guard
-        final prefs = await SharedPreferences.getInstance();
-        final String? last = prefs.getString('last_notification_action');
-        if (last != null) {
-          debugPrint('APP_INIT: flushing persisted notification action=$last');
-          ref.read(notificationActionProvider.notifier).state = last;
-          await prefs.remove('last_notification_action');
-        }
+        await _flushPendingAction();
         _initialActionFlushed = true;
       });
     }
@@ -88,7 +90,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     // Listen to action provider changes and route to TimerNotifier
     ref.listen<String?>(notificationActionProvider, (prev, next) {
       if (next != null) {
-        debugPrint('APP_LISTENER: handling notification action=$next');
+        logger.d(
+          "App Listener: Provider received action='$next'. Forwarding to TimerNotifier.",
+        );
         ref.read(timerProvider.notifier).handleNotificationAction(next);
         // Clear to avoid replay
         ref.read(notificationActionProvider.notifier).state = null;

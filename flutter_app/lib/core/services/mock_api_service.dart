@@ -1,7 +1,7 @@
 // lib/core/services/mock_api_service.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logger/logger.dart';
 // ...existing imports
-import '../utils/debug_logger.dart'; // Import debugLog
 import 'api_service.dart'; // Import the real ApiService to conform to its interface
 
 /// Mock API service for backward compatibility during transition to local database
@@ -11,15 +11,15 @@ import 'api_service.dart'; // Import the real ApiService to conform to its inter
 class MockApiService extends ApiService {
   // IMPORTANT: extend ApiService so it can be used interchangeably
   String _devUserId = 'dev';
+  final Logger logger = Logger();
 
   @override
   String get devUserId => _devUserId;
 
   // Call super to initialize Dio but then we override network methods for mocking
   MockApiService(String baseUrl) : super(baseUrl) {
-    debugLog(
-      'MockApiService',
-      'Initialized MockApiService with baseUrl: $baseUrl',
+    logger.i(
+      '[MockApiService] Initialized MockApiService with baseUrl: $baseUrl',
     );
     if (baseUrl.contains('127.0.0.1') || baseUrl.contains('localhost')) {
       _devUserId = 'dev';
@@ -29,7 +29,7 @@ class MockApiService extends ApiService {
   // Mimic ApiService methods
   @override // Override from ApiService
   Future<List<dynamic>> fetchTodos() async {
-    debugLog('MockApiService', 'Mock fetchTodos called. Returning empty list.');
+    logger.d('[MockApiService] Mock fetchTodos called. Returning empty list.');
     return Future.value([]);
   }
 
@@ -39,9 +39,8 @@ class MockApiService extends ApiService {
     int hours,
     int minutes,
   ) async {
-    debugLog(
-      'MockApiService',
-      'Mock addTodo called for: $text. Returning dummy data.',
+    logger.d(
+      '[MockApiService] Mock addTodo called for: $text. Returning dummy data.',
     );
     // Simulate a successful add for optimistic updates
     return Future.value({
@@ -60,7 +59,7 @@ class MockApiService extends ApiService {
 
   @override // Override from ApiService
   Future<dynamic> deleteTodo(int id) async {
-    debugLog('MockApiService', 'Mock deleteTodo called for ID: $id');
+    logger.d('[MockApiService] Mock deleteTodo called for ID: $id');
     return Future.value({'result': 'success'});
   }
 
@@ -71,7 +70,7 @@ class MockApiService extends ApiService {
     int? hours,
     int? minutes,
   }) async {
-    debugLog('MockApiService', 'Mock updateTodo called for ID: $id');
+    logger.d('[MockApiService] Mock updateTodo called for ID: $id');
     return Future.value({'result': 'success'});
   }
 
@@ -81,28 +80,27 @@ class MockApiService extends ApiService {
     bool wasOverdue = false,
     int overdueTime = 0,
   }) async {
-    debugLog('MockApiService', 'Mock toggleTodoWithOverdue called for ID: $id');
+    logger.d('[MockApiService] Mock toggleTodoWithOverdue called for ID: $id');
     return Future.value({'result': 'success'});
   }
 
   @override
   Future<dynamic> toggleTodo(int id) async {
-    debugLog('MockApiService', 'Mock toggleTodo called for ID: $id');
+    logger.d('[MockApiService] Mock toggleTodo called for ID: $id');
     return Future.value({'result': 'success'});
   }
 
   @override // Override from ApiService
   Future<dynamic> updateFocusTime(int id, int focusedTime) async {
-    debugLog(
-      'MockApiService',
-      'Mock updateFocusTime called for ID: $id, focusedTime: $focusedTime',
+    logger.d(
+      '[MockApiService] Mock updateFocusTime called for ID: $id, focusedTime: $focusedTime',
     );
     return Future.value({'result': 'success'});
   }
 
   @override // Override from ApiService
   Future<Map<String, dynamic>> authWithIdToken(String idToken) async {
-    debugLog('MockApiService', 'Mock authWithIdToken called.');
+    logger.d('[MockApiService] Mock authWithIdToken called.');
     return Future.value({
       'token': 'mock_server_token',
       'user': {
@@ -115,9 +113,8 @@ class MockApiService extends ApiService {
 
   @override // Override from ApiService
   void setAuthToken(String? token) {
-    debugLog(
-      'MockApiService',
-      'Mock setAuthToken called with token: ${token?.substring(0, 5)}...',
+    logger.d(
+      '[MockApiService] Mock setAuthToken called with token: ${token?.substring(0, 5)}...',
     );
   }
 }

@@ -28,27 +28,25 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
   bool _isCompletedExpanded = false;
 
   Future<void> _addTodo(String taskName, int hours, int minutes) async {
-    debugLog(
-      'TodoListScreen',
-      'Received add task request: "$taskName" (${hours}h ${minutes}m)',
+    logger.d(
+      '[TodoListScreen] Received add task request: "$taskName" (${hours}h ${minutes}m)',
     );
     if (!mounted) {
-      debugLog('TodoListScreen', '_addTodo: Widget not mounted, aborting.');
+      logger.w('[TodoListScreen] _addTodo: Widget not mounted, aborting.');
       return;
     }
     try {
-      debugLog('TodoListScreen', 'Calling todosProvider.notifier.addTodo...');
+      logger.d('[TodoListScreen] Calling todosProvider.notifier.addTodo...');
       await ref.read(todosProvider.notifier).addTodo(taskName, hours, minutes);
       ErrorHandler.showSuccess(context, 'Task added successfully!');
-      debugLog(
-        'TodoListScreen',
-        'Task added successfully and success message shown.',
+      logger.d(
+        '[TodoListScreen] Task added successfully and success message shown.',
       );
     } catch (e, st) {
-      debugLog('TodoListScreen', 'Error adding task: $e\n$st');
+      logger.e('[TodoListScreen] Error adding task', error: e, stackTrace: st);
       if (mounted) {
         ErrorHandler.showError(context, e);
-        debugLog('TodoListScreen', 'Error message shown for adding task.');
+        logger.d('[TodoListScreen] Error message shown for adding task.');
       }
     }
   }
@@ -213,9 +211,13 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
     final activeTaskId = timerState.activeTaskId;
 
     Todo? activeTodo;
-    if (activeTaskId != null && todosAsync.hasValue && todosAsync.value != null) {
+    if (activeTaskId != null &&
+        todosAsync.hasValue &&
+        todosAsync.value != null) {
       try {
-        activeTodo = todosAsync.value!.firstWhere((todo) => todo.id == activeTaskId);
+        activeTodo = todosAsync.value!.firstWhere(
+          (todo) => todo.id == activeTaskId,
+        );
       } catch (_) {
         activeTodo = null;
       }
@@ -223,7 +225,9 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
 
     ref.listen<TimerState>(timerProvider, (previous, next) {
       final overdueTaskId = next.overdueCrossedTaskId;
-      if (overdueTaskId == null || next.overduePromptShown.contains(overdueTaskId)) return;
+      if (overdueTaskId == null ||
+          next.overduePromptShown.contains(overdueTaskId))
+        return;
       final todoList = todosAsync.value;
       if (todoList == null) return;
       Todo? overdue;
@@ -232,7 +236,7 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
       } catch (_) {
         return;
       }
-  // overdue will never be null here because firstWhere either returns or throws
+      // overdue will never be null here because firstWhere either returns or throws
       // Schedule prompt safely after frame with mounted check
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -240,7 +244,8 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
       });
     });
 
-  final isTimerBarVisible = timerState.isTimerActive && timerState.activeTaskId != null;
+    final isTimerBarVisible =
+        timerState.isTimerActive && timerState.activeTaskId != null;
     final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
     final showSignOutButton =
         !isTimerBarVisible && !isKeyboardVisible && !_isCompletedExpanded;

@@ -40,17 +40,21 @@ void main() async {
   // Assign the foreground notification tap handler
   notificationService.onNotificationTap = (String? payload) {
     if (payload == null) return;
-    debugLog('MAIN', 'Notification action received payload=$payload');
+    logger.i("[MAIN] Notification action received: '$payload'");
     // Try immediate in-memory dispatch first (ProviderScope already built case)
     final bool dispatched = dispatchNotificationActionIfPossible(payload);
     if (!dispatched) {
-      debugLog('MAIN', 'Dispatcher not ready, persisting action for later flush');
+      logger.w(
+        "[MAIN] Dispatcher not ready, persisting action '$payload' for later flush.",
+      );
       SharedPreferences.getInstance().then((prefs) {
         prefs.setString('last_notification_action', payload);
       });
       _PendingNotificationActionHolder.latest = payload;
     } else {
-      debugLog('MAIN', 'Action forwarded synchronously via dispatcher');
+      logger.d(
+        "[MAIN] Action '$payload' forwarded synchronously via dispatcher.",
+      );
     }
   };
 
@@ -72,7 +76,7 @@ void main() async {
 
   final baseUrl = chooseBaseUrl();
   // show chosen base for easier debugging during development
-  debugLog('MAIN', 'Using API baseUrl: $baseUrl');
+  logger.i('[MAIN] Using API baseUrl: $baseUrl');
 
   // Decide whether to use real ApiService or MockApiService based on debug mode
   actualApiService = kDebugMode
@@ -113,7 +117,7 @@ void callbackDispatcher() {
     final NotificationService notificationService = NotificationService();
     await notificationService.init();
 
-    debugLog('BackgroundTimer', 'Executing workmanager task: $task');
+    logger.i('[BackgroundTimer] Executing workmanager task: $task');
 
     final SharedPreferences prefs = await SharedPreferences.getInstance();
 
@@ -124,9 +128,8 @@ void callbackDispatcher() {
     final bool? savedIsDebugMode = prefs.getBool(AppConstants.prefIsDebugMode);
 
     if (savedApiBaseUrl == null || savedIsDebugMode == null) {
-      debugLog(
-        'BackgroundTimer',
-        'Missing API config in preferences. Cannot initialize ApiService. Exiting.',
+      logger.e(
+        '[BackgroundTimer] Missing API config in preferences. Cannot initialize ApiService. Exiting.',
       );
       return Future.value(true);
     }
@@ -180,9 +183,8 @@ void callbackDispatcher() {
 
         // Only proceed if there's an active running task
         if (activeTaskIdRaw == null || activeTaskIdRaw == -1 || !isRunning) {
-          debugLog(
-            'BackgroundTimer',
-            'No active/running timer in background or invalid task ID. Cancelling Workmanager task and persistent notification.',
+          logger.w(
+            '[BackgroundTimer] No active/running timer in background or invalid task ID. Cancelling Workmanager task and persistent notification.',
           );
           await Workmanager().cancelByUniqueName(
             AppConstants.pomodoroTimerTask,
@@ -213,25 +215,37 @@ void callbackDispatcher() {
           );
         }
 
-        debugLog(
-          'BackgroundTimer',
-          'Task: $activeTaskText, Mode: $currentMode, Remaining: $timeRemaining s, Focused: ${focusedTimeCache[activeTaskId]} s',
+        logger.i(
+          '[BackgroundTimer] Task: $activeTaskText, Mode: $currentMode, Remaining: $timeRemaining s, Focused: ${focusedTimeCache[activeTaskId]} s',
         );
 
         // Update persistent notification
-        final bool isProgressBarFull = prefs.getBool(AppConstants.prefIsProgressBarFull) ?? false;
-        final bool allSessionsComplete = prefs.getBool(AppConstants.prefAllSessionsComplete) ?? false;
-        final bool overdueSessionsComplete = prefs.getBool(AppConstants.prefOverdueSessionsComplete) ?? false;
-        final int? overdueCrossedTaskId = prefs.getInt(AppConstants.prefOverdueCrossedTaskId);
+        final bool isProgressBarFull =
+            prefs.getBool(AppConstants.prefIsProgressBarFull) ?? false;
+        final bool allSessionsComplete =
+            prefs.getBool(AppConstants.prefAllSessionsComplete) ?? false;
+        final bool overdueSessionsComplete =
+            prefs.getBool(AppConstants.prefOverdueSessionsComplete) ?? false;
+        final int? overdueCrossedTaskId = prefs.getInt(
+          AppConstants.prefOverdueCrossedTaskId,
+        );
         final Set<int> overduePromptShown = {
-          for (final id in (prefs.getStringList(AppConstants.prefOverduePromptShown) ?? [])) int.tryParse(id) ?? -1
+          for (final id
+              in (prefs.getStringList(AppConstants.prefOverduePromptShown) ??
+                  []))
+            int.tryParse(id) ?? -1,
         }..remove(-1);
         final Set<int> overdueContinued = {
-          for (final id in (prefs.getStringList(AppConstants.prefOverdueContinued) ?? [])) int.tryParse(id) ?? -1
+          for (final id
+              in (prefs.getStringList(AppConstants.prefOverdueContinued) ?? []))
+            int.tryParse(id) ?? -1,
         }..remove(-1);
-        final bool suppressNextActivation = prefs.getBool(AppConstants.prefSuppressNextActivation) ?? false;
-        final bool cycleOverflowBlocked = prefs.getBool(AppConstants.prefCycleOverflowBlocked) ?? false;
-        final int pausedTimeTotal = prefs.getInt(AppConstants.prefPausedTimeTotal) ?? 0;
+        final bool suppressNextActivation =
+            prefs.getBool(AppConstants.prefSuppressNextActivation) ?? false;
+        final bool cycleOverflowBlocked =
+            prefs.getBool(AppConstants.prefCycleOverflowBlocked) ?? false;
+        final int pausedTimeTotal =
+            prefs.getInt(AppConstants.prefPausedTimeTotal) ?? 0;
         final pseudoState = TimerState(
           activeTaskId: activeTaskId,
           activeTaskName: activeTaskText,
@@ -292,9 +306,8 @@ void callbackDispatcher() {
 
             if (completedSessions >= totalCycles) {
               if (isPermanentlyOverdue) {
-                debugLog(
-                  'BackgroundTimer',
-                  'Overdue task session complete in background!',
+                logger.i(
+                  '[BackgroundTimer] Overdue task session complete in background!',
                 );
                 await notificationService.playSound('progress_bar_full.wav');
                 await notificationService.showNotification(
@@ -307,9 +320,8 @@ void callbackDispatcher() {
                   true,
                 );
               } else {
-                debugLog(
-                  'BackgroundTimer',
-                  'All focus sessions complete in background!',
+                logger.i(
+                  '[BackgroundTimer] All focus sessions complete in background!',
                 );
                 await notificationService.playSound('progress_bar_full.wav');
                 await notificationService.showNotification(
@@ -404,9 +416,8 @@ void callbackDispatcher() {
               (focusedTimeCache[activeTaskId] ?? 0) >= plannedDurationSeconds &&
               (prefs.getInt(AppConstants.prefOverdueCrossedTaskId) !=
                   activeTaskId)) {
-            debugLog(
-              'BackgroundTimer',
-              'Task "$activeTaskText" crossed planned duration in background!',
+            logger.w(
+              '[BackgroundTimer] Task "$activeTaskText" crossed planned duration in background!',
             );
             await notificationService.playSound('progress_bar_full.wav');
             await notificationService.showNotification(
@@ -441,7 +452,7 @@ void callbackDispatcher() {
       }
       return Future.value(true);
     } catch (e, st) {
-      debugLog('BackgroundTimer', 'Error in callbackDispatcher: $e\n$st');
+      logger.e('[BackgroundTimer] Error in callbackDispatcher: $e\n$st');
       return Future.value(false);
     } finally {
       await db.close();

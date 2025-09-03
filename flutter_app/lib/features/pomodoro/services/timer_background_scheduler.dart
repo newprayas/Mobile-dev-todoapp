@@ -1,6 +1,6 @@
 import 'dart:convert';
+import 'package:logger/logger.dart';
 import 'package:workmanager/workmanager.dart';
-import '../../../core/utils/debug_logger.dart';
 import '../../../core/utils/app_constants.dart';
 import '../models/timer_state.dart';
 import '../services/timer_persistence_manager.dart';
@@ -8,6 +8,7 @@ import '../services/timer_persistence_manager.dart';
 /// Handles scheduling/canceling background tasks for the Pomodoro timer.
 class TimerBackgroundScheduler {
   final TimerPersistenceManager persistenceManager;
+  final Logger logger = Logger();
 
   TimerBackgroundScheduler(this.persistenceManager);
 
@@ -17,7 +18,9 @@ class TimerBackgroundScheduler {
     required bool isDebugMode,
     required int remainingSeconds,
   }) async {
-    if (remainingSeconds <= 0 || !state.isRunning || state.activeTaskId == null) {
+    if (remainingSeconds <= 0 ||
+        !state.isRunning ||
+        state.activeTaskId == null) {
       await cancelSession();
       return;
     }
@@ -27,7 +30,7 @@ class TimerBackgroundScheduler {
     await persistenceManager.saveTimerState(state);
 
     final int delaySeconds = remainingSeconds + 5; // buffer
-    debugLog('TimerBackgroundScheduler', 'Scheduling in $delaySeconds s');
+    logger.i('[TimerBackgroundScheduler] Scheduling in $delaySeconds s');
 
     await Workmanager().registerOneOffTask(
       AppConstants.pomodoroTimerTask,
@@ -39,7 +42,12 @@ class TimerBackgroundScheduler {
         requiresCharging: false,
         requiresBatteryNotLow: false,
       ),
-      inputData: _buildInputData(state, apiBaseUrl, isDebugMode, remainingSeconds),
+      inputData: _buildInputData(
+        state,
+        apiBaseUrl,
+        isDebugMode,
+        remainingSeconds,
+      ),
     );
     await persistenceManager.setSessionScheduled(true);
   }

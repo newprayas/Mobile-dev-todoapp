@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart' as drift;
+import 'package:logger/logger.dart';
 import '../../features/todo/models/todo.dart';
-import '../utils/debug_logger.dart';
 import 'app_database.dart';
 import '../services/api_service.dart';
 
@@ -8,10 +8,12 @@ import '../services/api_service.dart';
 class TodoSyncService {
   final AppDatabase _db;
   final ApiService _api;
+  final Logger logger = Logger();
+
   TodoSyncService(this._db, this._api);
 
   Future<void> syncTodos() async {
-    debugLog('TodoSyncService', 'Sync start');
+    logger.i('[TodoSyncService] Sync start');
     final remoteData = await _api.fetchTodos();
     final List<Todo> remoteTodos = remoteData.map((e) {
       final Map<String, dynamic> raw = Map<String, dynamic>.from(e);
@@ -44,8 +46,10 @@ class TodoSyncService {
     for (final remote in remoteTodos) {
       final existing = localTodos.where((t) => t.id == remote.id).toList();
       if (existing.isEmpty) {
-        final companion = AppDatabase.toTodosCompanion(remote, isInsert: true)
-            .copyWith(id: const drift.Value.absent());
+        final companion = AppDatabase.toTodosCompanion(
+          remote,
+          isInsert: true,
+        ).copyWith(id: const drift.Value.absent());
         await _db.insertTodo(companion);
       } else {
         final current = existing.first;
@@ -57,7 +61,7 @@ class TodoSyncService {
         }
       }
     }
-    debugLog('TodoSyncService', 'Sync complete');
+    logger.i('[TodoSyncService] Sync complete');
   }
 
   static int _asInt(dynamic v) {

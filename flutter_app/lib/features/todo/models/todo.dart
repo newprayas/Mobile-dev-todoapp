@@ -55,6 +55,14 @@ class Todo {
 
   @override
   String toString() {
-    return 'Todo(id: $id, text: $text, completed: $completed, focusedTime: $focusedTime, wasOverdue: $wasOverdue, overdueTime: $overdueTime, createdAt: $createdAt)';
+    return '''Todo(
+  id: $id,
+  text: "${text.replaceAll('\n', '\\n')}",
+  completed: $completed,
+  focusedTime: $focusedTime,
+  wasOverdue: $wasOverdue,
+  overdueTime: $overdueTime,
+  createdAt: $createdAt,
+  )''';
   }
 }

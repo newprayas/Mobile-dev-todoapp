@@ -19,11 +19,10 @@ class ProgressBar extends StatelessWidget {
     final double progress = (plannedSeconds <= 0)
         ? 0.0
         : (focusedSeconds / plannedSeconds).clamp(0.0, 1.0);
-    if (kDebugMode) {
-      debugPrint(
-        'PROGRESS_BAR: focused=$focusedSeconds planned=$plannedSeconds progress=$progress',
-      );
-    }
+    // Progress bar logging is noisy; keep commented unless actively debugging.
+    // if (kDebugMode) {
+    //   logger.v('PROGRESS_BAR: focused=$focusedSeconds planned=$plannedSeconds progress=$progress');
+    // }
     final fillColor = AppColors.brightYellow; // Always use yellow as requested
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -34,11 +33,10 @@ class ProgressBar extends StatelessWidget {
         builder: (ctx, constraints) {
           final width = constraints.maxWidth;
           final progressWidth = width * progress;
-          if (kDebugMode) {
-            debugPrint(
-              'PROGRESS_BAR_UI: maxWidth=$width, progress=$progress, calculatedWidth=$progressWidth, maxHeight=${constraints.maxHeight}',
-            );
-          }
+          // UI-level progress bar logging is noisy; enable only during focused debugging.
+          // if (kDebugMode) {
+          //   logger.v('PROGRESS_BAR_UI: maxWidth=$width, progress=$progress, calculatedWidth=$progressWidth');
+          // }
           // Determine text color based on progress for better visibility
           final textColor = progress > 0.5
               ? Colors.black
