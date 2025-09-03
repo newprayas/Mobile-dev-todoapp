@@ -18,6 +18,9 @@ import 'core/debug/notification_sound_tester.dart';
 import 'core/providers/notification_provider.dart';
 import 'core/utils/debug_logger.dart';
 import 'core/utils/helpers.dart'; // Import formatTime
+import 'features/pomodoro/notifications/persistent_timer_notification_model.dart';
+import 'features/pomodoro/models/timer_state.dart';
+import 'features/todo/models/todo.dart';
 
 // Define actualApiService globally so it's accessible to Workmanager for initial config saving
 late final ApiService actualApiService;
@@ -220,14 +223,52 @@ void callbackDispatcher() {
         );
 
         // Update persistent notification
-        await notificationService.updatePersistentTimerNotification(
-          taskName: activeTaskText ?? 'Unknown Task',
-          timeRemaining: formatTime(
-            timeRemaining.clamp(0, double.infinity).toInt(),
-          ),
-          currentMode: currentMode,
+        final pseudoState = TimerState(
+          activeTaskId: activeTaskId,
+          activeTaskName: activeTaskText,
+          timeRemaining: timeRemaining.clamp(0, double.infinity).toInt(),
           isRunning: isRunning,
-          isFocusMode: currentMode == 'focus',
+          isTimerActive: true,
+          currentMode: currentMode,
+          focusDurationSeconds: focusDurationSeconds,
+          breakDurationSeconds: breakDurationSeconds,
+          currentCycle: currentCycle,
+          totalCycles: totalCycles,
+          completedSessions: completedSessions,
+          isProgressBarFull: isProgressBarFull,
+          allSessionsComplete: allSessionsComplete,
+          overdueSessionsComplete: overdueSessionsComplete,
+          overdueCrossedTaskId: overdueCrossedTaskId,
+          overduePromptShown: overduePromptShown,
+          overdueContinued: overdueContinued,
+          focusedTimeCache: focusedTimeCache,
+          suppressNextActivation: suppressNextActivation,
+          cycleOverflowBlocked: cycleOverflowBlocked,
+          isPermanentlyOverdue: isPermanentlyOverdue,
+          backgroundStartTime: backgroundStartTime,
+          pausedTimeTotal: pausedTimeTotal,
+        );
+        final model = PersistentTimerNotificationModel.fromState(
+          state: pseudoState,
+          activeTodo: activeTaskId != null
+              ? Todo(
+                  id: activeTaskId,
+                  userId: '',
+                  text: activeTaskText ?? 'Unknown Task',
+                  completed: false,
+                  durationHours: 0,
+                  durationMinutes: 0,
+                  focusedTime: focusedTimeCache[activeTaskId] ?? 0,
+                  wasOverdue: isPermanentlyOverdue ? 1 : 0,
+                  overdueTime: 0,
+                  createdAt: DateTime.now(),
+                )
+              : null,
+        );
+        await notificationService.showOrUpdatePersistent(
+          title: model.title,
+          body: model.body,
+          actionIds: model.actionIds,
         );
 
         if (timeRemaining <= 0) {

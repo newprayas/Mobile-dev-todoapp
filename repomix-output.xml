@@ -12131,139 +12131,6 @@ class _DurationInputBox extends StatelessWidget {
 }
 </file>
 
-<file path="flutter_app/lib/core/services/auth_service.dart">
-import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'dart:convert'; // For json encoding/decoding
-import 'api_service.dart';
-
-class AuthService extends ChangeNotifier {
-  final FlutterSecureStorage _secure = const FlutterSecureStorage();
-  final ApiService api; // Strongly typed instead of dynamic
-
-  Map<String, dynamic>? _currentUser;
-  bool _isAuthenticated = false;
-
-  AuthService(this.api);
-
-  Map<String, dynamic>? get currentUser => _currentUser;
-  bool get isAuthenticated => _isAuthenticated;
-  String? get userEmail => _currentUser?['email'];
-  String? get userName => _currentUser?['name'] ?? _currentUser?['email'];
-
-  Future<bool> signInWithGoogle() async {
-    try {
-      // Always use mock Google Sign-In for tester APKs (no real plugin calls).
-      debugPrint('AUTH: Initiating mock Google Sign-In...');
-
-      // Generate a mock ID token and proceed with server authentication.
-      final String mockIdToken =
-          'mock_id_token_${DateTime.now().millisecondsSinceEpoch}';
-      debugPrint(
-        'AUTH: Generated mock token: ${mockIdToken.substring(0, 20)}...',
-      );
-
-      final bool result = await signInWithIdToken(mockIdToken);
-      debugPrint('AUTH: signInWithIdToken returned: $result');
-      return result;
-    } catch (error, stackTrace) {
-      debugPrint("AUTH: Mock sign-in error: $error");
-      debugPrint("AUTH: Stack trace: $stackTrace");
-      return false;
-    }
-  }
-
-  Future<bool> signInWithIdToken(String idToken) async {
-    try {
-      if (kDebugMode) debugPrint('AUTH: Sending ID token to backend...');
-      debugPrint('AUTH: API instance type: ${api.runtimeType}');
-
-      final Map<String, dynamic> resp = await api.authWithIdToken(idToken);
-      debugPrint('AUTH: Backend response received: $resp');
-
-      final dynamic token = resp['token'];
-      final dynamic user = resp['user'];
-
-      if (token != null && user != null) {
-        debugPrint(
-          'AUTH: Valid token and user received, storing credentials...',
-        );
-        await _secure.write(key: 'server_token', value: token as String);
-        // Store user data as a JSON string for better structure
-        await _secure.write(key: 'user_data', value: json.encode(user));
-
-        api.setAuthToken(token as String?);
-        _currentUser = user as Map<String, dynamic>;
-        _isAuthenticated = true;
-
-        if (kDebugMode) {
-          debugPrint(
-            'AUTH: Authentication successful for user: ${user['email']}',
-          );
-        }
-        debugPrint('AUTH: Calling notifyListeners...');
-        notifyListeners();
-        return true;
-      }
-
-      if (kDebugMode) debugPrint('AUTH: No token received from backend');
-      return false;
-    } catch (error, stackTrace) {
-      if (kDebugMode) debugPrint('AUTH: Backend authentication error: $error');
-      if (kDebugMode) debugPrint('AUTH: Stack trace: $stackTrace');
-      return false;
-    }
-  }
-
-  Future<void> signOut() async {
-    try {
-      if (kDebugMode) debugPrint('AUTH: Signing out...');
-
-      await _secure.delete(key: 'server_token');
-      await _secure.delete(key: 'user_data');
-
-      api.setAuthToken(null);
-      _currentUser = null;
-      _isAuthenticated = false;
-
-      if (kDebugMode) debugPrint('AUTH: Sign out complete');
-      notifyListeners();
-    } catch (error) {
-      if (kDebugMode) debugPrint('AUTH: Sign out error: $error');
-    }
-  }
-
-  Future<void> loadSavedToken() async {
-    try {
-      final String? token = await _secure.read(key: 'server_token');
-      final String? userDataString = await _secure.read(key: 'user_data');
-
-      if (token != null) {
-        api.setAuthToken(token);
-        _isAuthenticated = true;
-
-        if (userDataString != null) {
-          // Decode the user data from JSON
-            _currentUser = json.decode(userDataString) as Map<String, dynamic>;
-        }
-
-        if (kDebugMode) debugPrint('AUTH: Loaded saved authentication');
-        notifyListeners();
-      }
-    } catch (error) {
-      if (kDebugMode) debugPrint('AUTH: Error loading saved token: $error');
-    }
-  }
-
-  Future<bool> checkAuthStatus() async {
-    final String? token = await _secure.read(key: 'server_token');
-    _isAuthenticated = token != null;
-    notifyListeners();
-    return _isAuthenticated;
-  }
-}
-</file>
-
 <file path="flutter_app/lib/features/pomodoro/widgets/pomodoro_action_buttons.dart">
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
@@ -14234,6 +14101,143 @@ class ApiService {
         await Future.delayed(_retryDelay);
       }
     }
+  }
+}
+</file>
+
+<file path="flutter_app/lib/core/services/auth_service.dart">
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:convert'; // For json encoding/decoding
+import 'api_service.dart';
+import '../utils/debug_logger.dart';
+
+class AuthService extends ChangeNotifier {
+  final FlutterSecureStorage _secure = const FlutterSecureStorage();
+  final ApiService api; // Strongly typed instead of dynamic
+
+  Map<String, dynamic>? _currentUser;
+  bool _isAuthenticated = false;
+
+  AuthService(this.api);
+
+  Map<String, dynamic>? get currentUser => _currentUser;
+  bool get isAuthenticated => _isAuthenticated;
+  String? get userEmail => _currentUser?['email'];
+  String? get userName => _currentUser?['name'] ?? _currentUser?['email'];
+
+  Future<bool> signInWithGoogle() async {
+    try {
+      // Always use mock Google Sign-In for tester APKs (no real plugin calls).
+  debugLog('AuthService', 'Initiating mock Google Sign-In...');
+
+      // Generate a mock ID token and proceed with server authentication.
+      final String mockIdToken =
+          'mock_id_token_${DateTime.now().millisecondsSinceEpoch}';
+      debugLog(
+        'AuthService',
+        'Generated mock token: ${mockIdToken.substring(0, 20)}...',
+      );
+
+  final bool result = await signInWithIdToken(mockIdToken);
+  debugLog('AuthService', 'signInWithIdToken returned: $result');
+      return result;
+    } catch (error, stackTrace) {
+      debugLog('AuthService', 'Mock sign-in error: $error');
+      debugLog('AuthService', 'Stack trace: $stackTrace');
+      return false;
+    }
+  }
+
+  Future<bool> signInWithIdToken(String idToken) async {
+    try {
+  if (kDebugMode) debugLog('AuthService', 'Sending ID token to backend...');
+  debugLog('AuthService', 'API instance type: ${api.runtimeType}');
+
+  final Map<String, dynamic> resp = await api.authWithIdToken(idToken);
+  debugLog('AuthService', 'Backend response received: $resp');
+
+      final dynamic token = resp['token'];
+      final dynamic user = resp['user'];
+
+      if (token != null && user != null) {
+        debugLog(
+          'AuthService',
+          'Valid token and user received, storing credentials...',
+        );
+        await _secure.write(key: 'server_token', value: token as String);
+        // Store user data as a JSON string for better structure
+        await _secure.write(key: 'user_data', value: json.encode(user));
+
+        api.setAuthToken(token as String?);
+        _currentUser = user as Map<String, dynamic>;
+        _isAuthenticated = true;
+
+        if (kDebugMode) {
+          debugLog(
+            'AuthService',
+            'Authentication successful for user: ${user['email']}',
+          );
+        }
+        debugLog('AuthService', 'Calling notifyListeners...');
+        notifyListeners();
+        return true;
+      }
+
+      if (kDebugMode) debugLog('AuthService', 'No token received from backend');
+      return false;
+    } catch (error, stackTrace) {
+      if (kDebugMode) debugLog('AuthService', 'Backend authentication error: $error');
+      if (kDebugMode) debugLog('AuthService', 'Stack trace: $stackTrace');
+      return false;
+    }
+  }
+
+  Future<void> signOut() async {
+    try {
+  if (kDebugMode) debugLog('AuthService', 'Signing out...');
+
+      await _secure.delete(key: 'server_token');
+      await _secure.delete(key: 'user_data');
+
+      api.setAuthToken(null);
+      _currentUser = null;
+      _isAuthenticated = false;
+
+      if (kDebugMode) debugLog('AuthService', 'Sign out complete');
+      notifyListeners();
+    } catch (error) {
+      if (kDebugMode) debugLog('AuthService', 'Sign out error: $error');
+    }
+  }
+
+  Future<void> loadSavedToken() async {
+    try {
+      final String? token = await _secure.read(key: 'server_token');
+      final String? userDataString = await _secure.read(key: 'user_data');
+
+      if (token != null) {
+        api.setAuthToken(token);
+        _isAuthenticated = true;
+
+        if (userDataString != null) {
+          // Decode the user data from JSON
+            _currentUser = json.decode(userDataString) as Map<String, dynamic>;
+        }
+
+        if (kDebugMode) debugLog('AuthService', 'Loaded saved authentication');
+        notifyListeners();
+      }
+    } catch (error) {
+      if (kDebugMode) debugLog('AuthService', 'Error loading saved token: $error');
+    }
+  }
+
+  Future<bool> checkAuthStatus() async {
+    final String? token = await _secure.read(key: 'server_token');
+    _isAuthenticated = token != null;
+    notifyListeners();
+    return _isAuthenticated;
   }
 }
 </file>
@@ -16899,426 +16903,6 @@ final timerProvider = NotifierProvider<TimerNotifier, TimerState>(
 );
 </file>
 
-<file path="flutter_app/lib/features/todo/screens/todo_list_screen.dart">
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:math';
-
-import '../../../core/services/mock_api_service.dart';
-import '../../../core/providers/notification_provider.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/app_dialogs.dart';
-import '../../../core/utils/debug_logger.dart';
-import '../../../core/utils/error_handler.dart';
-import '../../auth/providers/auth_provider.dart';
-import '../../pomodoro/providers/timer_provider.dart';
-import '../../pomodoro/models/timer_state.dart';
-import '../../pomodoro/widgets/mini_timer_bar.dart';
-import '../models/todo.dart';
-import '../providers/todos_provider.dart';
-import '../widgets/inline_task_input.dart';
-import '../widgets/task_list.dart';
-
-class TodoListScreen extends ConsumerStatefulWidget {
-  const TodoListScreen({super.key});
-
-  @override
-  ConsumerState<TodoListScreen> createState() => _TodoListScreenState();
-}
-
-class _TodoListScreenState extends ConsumerState<TodoListScreen> {
-  bool _isCompletedExpanded = false;
-
-  Future<void> _addTodo(String taskName, int hours, int minutes) async {
-    debugLog(
-      'TodoListScreen',
-      'Received add task request: "$taskName" (${hours}h ${minutes}m)',
-    );
-    if (!mounted) {
-      debugLog('TodoListScreen', '_addTodo: Widget not mounted, aborting.');
-      return;
-    }
-    try {
-      debugLog('TodoListScreen', 'Calling todosProvider.notifier.addTodo...');
-      await ref.read(todosProvider.notifier).addTodo(taskName, hours, minutes);
-      ErrorHandler.showSuccess(context, 'Task added successfully!');
-      debugLog(
-        'TodoListScreen',
-        'Task added successfully and success message shown.',
-      );
-    } catch (e, st) {
-      debugLog('TodoListScreen', 'Error adding task: $e\n$st');
-      if (mounted) {
-        ErrorHandler.showError(context, e);
-        debugLog('TodoListScreen', 'Error message shown for adding task.');
-      }
-    }
-  }
-
-  void _showOverduePrompt(BuildContext context, Todo todo) async {
-    final timerNotifier = ref.read(timerProvider.notifier);
-    timerNotifier.markOverduePromptShown(todo.id);
-    final wasRunning = ref.read(timerProvider).isRunning;
-    if (wasRunning) timerNotifier.pauseTask();
-    final result = await AppDialogs.showOverdueDialog(
-      context: context,
-      taskName: todo.text,
-    );
-    if (!mounted) return;
-    final liveFocusedTime = timerNotifier.getFocusedTime(todo.id);
-    if (result == true) {
-      await ref
-          .read(todosProvider.notifier)
-          .toggleTodo(todo.id, liveFocusedTime: liveFocusedTime);
-      timerNotifier.clear();
-    } else if (result == false) {
-      await timerNotifier.stopAndSaveProgress(todo.id);
-      final plannedTime =
-          (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-      final overdueTime = (liveFocusedTime - plannedTime)
-          .clamp(0, double.infinity)
-          .toInt();
-      await ref
-          .read(todosProvider.notifier)
-          .markTaskPermanentlyOverdue(
-            todo.id,
-            overdueTime: overdueTime,
-          ); // CORRECTED
-    } else {
-      if (wasRunning) timerNotifier.resumeTask();
-    }
-  }
-
-  Future<void> _handleTaskCompletion(int id, {bool wasOverdue = false}) async {
-    if (!mounted) return;
-    final timerState = ref.read(timerProvider);
-    final currentTodo = ref
-        .read(todosProvider)
-        .value
-        ?.firstWhere((t) => t.id == id);
-
-    if (currentTodo != null &&
-        timerState.activeTaskId == currentTodo.id &&
-        timerState.isTimerActive) {
-      await ref.read(timerProvider.notifier).stopAndSaveProgress(id);
-    }
-    try {
-      await ref.read(todosProvider.notifier).toggleTodo(id);
-    } catch (e) {
-      if (mounted) {
-        ErrorHandler.showError(context, e);
-      }
-    }
-  }
-
-  Future<void> _handleTaskDeletion(int id) async {
-    if (!mounted) return;
-    final timerState = ref.read(timerProvider);
-    final currentTodo = ref
-        .read(todosProvider)
-        .value
-        ?.firstWhere((t) => t.id == id);
-    if (currentTodo == null) return;
-    final shouldDelete = await AppDialogs.showDeleteTaskDialog(
-      context: context,
-      taskName: currentTodo.text,
-    );
-    if (shouldDelete != true) return;
-    if (timerState.activeTaskId == currentTodo.id && timerState.isTimerActive) {
-      ref.read(timerProvider.notifier).clear();
-    }
-    try {
-      await ref.read(todosProvider.notifier).deleteTodo(id);
-      ErrorHandler.showSuccess(context, 'Task deleted successfully!');
-    } catch (e) {
-      if (mounted) {
-        ErrorHandler.showError(context, e);
-      }
-    }
-  }
-
-  Future<void> _handleTaskToggle(int id) async {
-    if (!mounted) return;
-
-    final todos = ref.read(todosProvider).value ?? [];
-    Todo? currentTodo;
-    try {
-      currentTodo = todos.firstWhere((t) => t.id == id);
-    } catch (e) {
-      return; // Todo not found
-    }
-
-    // --- NEW LOGIC START ---
-    // If the task is overdue AND we are about to complete it, show confirmation.
-    if (currentTodo.wasOverdue == 1 && !currentTodo.completed) {
-      final confirm = await AppDialogs.showConfirmCompleteOverdueTaskDialog(
-        context: context,
-        taskName: currentTodo.text,
-      );
-      // If user cancels, abort the operation.
-      if (confirm != true) {
-        return;
-      }
-    }
-    // --- NEW LOGIC END ---
-
-    final timerState = ref.read(timerProvider);
-    if (timerState.activeTaskId == currentTodo.id &&
-        timerState.isTimerActive &&
-        !currentTodo.completed) {
-      await ref.read(timerProvider.notifier).stopAndSaveProgress(id);
-    }
-
-    final liveFocusedTime =
-        timerState.focusedTimeCache[id] ?? currentTodo.focusedTime;
-
-    try {
-      await ref
-          .read(todosProvider.notifier)
-          .toggleTodo(id, liveFocusedTime: liveFocusedTime);
-    } catch (e) {
-      if (mounted) {
-        ErrorHandler.showError(context, e);
-      }
-    }
-  }
-
-  Future<void> _handleSignOut() async {
-    final shouldLogout = await AppDialogs.showSignOutDialog(context: context);
-    if (shouldLogout == true && mounted) {
-      try {
-        await ref.read(authProvider.notifier).signOut();
-      } catch (e) {
-        if (mounted) {
-          ErrorHandler.showError(context, e);
-        }
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final maxCardWidth = min(screenWidth * 0.95, 520.0);
-    final api = ref.watch(apiServiceProvider);
-    final notificationService = ref.watch(notificationServiceProvider);
-    final todosAsync = ref.watch(todosProvider);
-    final authState = ref.watch(authProvider);
-    final timerState = ref.watch(timerProvider);
-    final userName = authState.hasValue && authState.value!.isAuthenticated
-        ? authState.value!.userName
-        : 'User';
-    final activeTaskId = timerState.activeTaskId;
-
-    Todo? activeTodo;
-    if (activeTaskId != null && todosAsync.hasValue) {
-      try {
-        activeTodo = todosAsync.value!.firstWhere(
-          (todo) => todo.id == activeTaskId,
-        );
-      } catch (e) {
-        activeTodo = null;
-      }
-    }
-
-    ref.listen<TimerState>(timerProvider, (previous, next) {
-      final overdueTaskId = next.overdueCrossedTaskId;
-      if (overdueTaskId == null || next.overduePromptShown.contains(overdueTaskId)) return;
-      final todoList = todosAsync.value;
-      if (todoList == null) return;
-      Todo? overdue;
-      try {
-        overdue = todoList.firstWhere((t) => t.id == overdueTaskId);
-      } catch (_) {
-        return;
-      }
-      if (overdue == null) return;
-      // Schedule prompt safely after frame with mounted check
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _showOverduePrompt(context, overdue!);
-      });
-    });
-
-    final isTimerBarVisible =
-        timerState.isTimerActive && timerState.activeTaskId != null;
-    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
-    final showSignOutButton =
-        !isTimerBarVisible && !isKeyboardVisible && !_isCompletedExpanded;
-    final showCreditTag =
-        !isTimerBarVisible && !isKeyboardVisible && !_isCompletedExpanded;
-
-    return Scaffold(
-      backgroundColor: AppColors.scaffoldBg,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxCardWidth),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.cardBg,
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 18,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 20),
-                        Text(
-                          'BETAFLOW', // Changed app name
-                          style: TextStyle(
-                            color: AppColors.brightYellow,
-                            fontSize: 48,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.4,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(
-                          height: 32,
-                        ), // Increased the height for more gap
-                        Text(
-                          'Welcome, $userName!',
-                          style: const TextStyle(
-                            color: AppColors.lightGray,
-                            fontSize: 16,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 22),
-                        InlineTaskInput(onAddTask: _addTodo),
-                        const Divider(
-                          color: AppColors.brightYellow,
-                          thickness: 1.5,
-                          height: 48, // Increased from 36
-                          indent: 20,
-                          endIndent: 20,
-                        ),
-                        Expanded(
-                          child: todosAsync.when(
-                            loading: () => const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                            error: (err, stack) => Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text('Error: $err'),
-                                  ElevatedButton(
-                                    onPressed: () =>
-                                        ref.invalidate(todosProvider),
-                                    child: const Text('Retry'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            data: (todos) => TaskList(
-                              todos: todos,
-                              api: api,
-                              notificationService: notificationService,
-                              onPlay: (id) => _handleTaskCompletion(
-                                int.parse(id),
-                                wasOverdue: false,
-                              ),
-                              onDelete: (id) =>
-                                  _handleTaskDeletion(int.parse(id)),
-                              onToggle: (id) =>
-                                  _handleTaskToggle(int.parse(id)),
-                              onExpansionChanged: (isExpanded) {
-                                setState(() {
-                                  _isCompletedExpanded = isExpanded;
-                                });
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            if (isTimerBarVisible)
-              Positioned(
-                left: 20,
-                right: 20,
-                bottom: 10,
-                child: MiniTimerBar(
-                  api: api,
-                  notificationService: notificationService,
-                  activeTodo: activeTodo,
-                  onComplete: (id) => _handleTaskCompletion(id),
-                ),
-              ),
-            if (showCreditTag)
-              Positioned(
-                bottom: 12,
-                left: 16,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  child: RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'Made with ',
-                          style: TextStyle(
-                            color: AppColors.mediumGray.withValues(alpha: 0.6),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                        TextSpan(
-                          text: '❤️',
-                          style: TextStyle(
-                            color: Colors.red,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        TextSpan(
-                          text: ' by Prayas',
-                          style: TextStyle(
-                            color: AppColors.mediumGray.withValues(alpha: 0.6),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            if (showSignOutButton)
-              Positioned(
-                bottom: 16,
-                right: 24,
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.logout,
-                    color: AppColors.mediumGray,
-                    size: 28,
-                  ),
-                  tooltip: 'Sign Out',
-                  onPressed: _handleSignOut,
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-</file>
-
 <file path="flutter_app/lib/features/todo/widgets/task_list.dart">
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17881,6 +17465,427 @@ class _TaskStatusIndicator extends ConsumerWidget {
         ),
       );
     }
+  }
+}
+</file>
+
+<file path="flutter_app/lib/features/todo/screens/todo_list_screen.dart">
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:math';
+
+import '../../../core/services/mock_api_service.dart';
+import '../../../core/providers/notification_provider.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/app_dialogs.dart';
+import '../../../core/utils/debug_logger.dart';
+import '../../../core/utils/error_handler.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../pomodoro/providers/timer_provider.dart';
+import '../../pomodoro/models/timer_state.dart';
+import '../../pomodoro/widgets/mini_timer_bar.dart';
+import '../models/todo.dart';
+import '../providers/todos_provider.dart';
+import '../widgets/inline_task_input.dart';
+import '../widgets/task_list.dart';
+
+class TodoListScreen extends ConsumerStatefulWidget {
+  const TodoListScreen({super.key});
+
+  @override
+  ConsumerState<TodoListScreen> createState() => _TodoListScreenState();
+}
+
+class _TodoListScreenState extends ConsumerState<TodoListScreen> {
+  bool _isCompletedExpanded = false;
+
+  Future<void> _addTodo(String taskName, int hours, int minutes) async {
+    debugLog(
+      'TodoListScreen',
+      'Received add task request: "$taskName" (${hours}h ${minutes}m)',
+    );
+    if (!mounted) {
+      debugLog('TodoListScreen', '_addTodo: Widget not mounted, aborting.');
+      return;
+    }
+    try {
+      debugLog('TodoListScreen', 'Calling todosProvider.notifier.addTodo...');
+      await ref.read(todosProvider.notifier).addTodo(taskName, hours, minutes);
+      ErrorHandler.showSuccess(context, 'Task added successfully!');
+      debugLog(
+        'TodoListScreen',
+        'Task added successfully and success message shown.',
+      );
+    } catch (e, st) {
+      debugLog('TodoListScreen', 'Error adding task: $e\n$st');
+      if (mounted) {
+        ErrorHandler.showError(context, e);
+        debugLog('TodoListScreen', 'Error message shown for adding task.');
+      }
+    }
+  }
+
+  void _showOverduePrompt(BuildContext context, Todo todo) async {
+    final timerNotifier = ref.read(timerProvider.notifier);
+    timerNotifier.markOverduePromptShown(todo.id);
+    final wasRunning = ref.read(timerProvider).isRunning;
+    if (wasRunning) timerNotifier.pauseTask();
+    final result = await AppDialogs.showOverdueDialog(
+      context: context,
+      taskName: todo.text,
+    );
+    if (!mounted) return;
+    final liveFocusedTime = timerNotifier.getFocusedTime(todo.id);
+    if (result == true) {
+      await ref
+          .read(todosProvider.notifier)
+          .toggleTodo(todo.id, liveFocusedTime: liveFocusedTime);
+      timerNotifier.clear();
+    } else if (result == false) {
+      await timerNotifier.stopAndSaveProgress(todo.id);
+      final plannedTime =
+          (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+      final overdueTime = (liveFocusedTime - plannedTime)
+          .clamp(0, double.infinity)
+          .toInt();
+      await ref
+          .read(todosProvider.notifier)
+          .markTaskPermanentlyOverdue(
+            todo.id,
+            overdueTime: overdueTime,
+          ); // CORRECTED
+    } else {
+      if (wasRunning) timerNotifier.resumeTask();
+    }
+  }
+
+  Future<void> _handleTaskCompletion(int id, {bool wasOverdue = false}) async {
+    if (!mounted) return;
+    final timerState = ref.read(timerProvider);
+    final currentTodo = ref
+        .read(todosProvider)
+        .value
+        ?.firstWhere((t) => t.id == id);
+
+    if (currentTodo != null &&
+        timerState.activeTaskId == currentTodo.id &&
+        timerState.isTimerActive) {
+      await ref.read(timerProvider.notifier).stopAndSaveProgress(id);
+    }
+    try {
+      await ref.read(todosProvider.notifier).toggleTodo(id);
+    } catch (e) {
+      if (mounted) {
+        ErrorHandler.showError(context, e);
+      }
+    }
+  }
+
+  Future<void> _handleTaskDeletion(int id) async {
+    if (!mounted) return;
+    final timerState = ref.read(timerProvider);
+    final currentTodo = ref
+        .read(todosProvider)
+        .value
+        ?.firstWhere((t) => t.id == id);
+    if (currentTodo == null) return;
+    final shouldDelete = await AppDialogs.showDeleteTaskDialog(
+      context: context,
+      taskName: currentTodo.text,
+    );
+    if (shouldDelete != true) return;
+    if (timerState.activeTaskId == currentTodo.id && timerState.isTimerActive) {
+      ref.read(timerProvider.notifier).clear();
+    }
+    try {
+      await ref.read(todosProvider.notifier).deleteTodo(id);
+      ErrorHandler.showSuccess(context, 'Task deleted successfully!');
+    } catch (e) {
+      if (mounted) {
+        ErrorHandler.showError(context, e);
+      }
+    }
+  }
+
+  Future<void> _handleTaskToggle(int id) async {
+    if (!mounted) return;
+
+    final todos = ref.read(todosProvider).value ?? [];
+    Todo? currentTodo;
+    try {
+      currentTodo = todos.firstWhere((t) => t.id == id);
+    } catch (e) {
+      return; // Todo not found
+    }
+
+    // --- NEW LOGIC START ---
+    // If the task is overdue AND we are about to complete it, show confirmation.
+    if (currentTodo.wasOverdue == 1 && !currentTodo.completed) {
+      final confirm = await AppDialogs.showConfirmCompleteOverdueTaskDialog(
+        context: context,
+        taskName: currentTodo.text,
+      );
+      // If user cancels, abort the operation.
+      if (confirm != true) {
+        return;
+      }
+    }
+    // --- NEW LOGIC END ---
+
+    final timerState = ref.read(timerProvider);
+    if (timerState.activeTaskId == currentTodo.id &&
+        timerState.isTimerActive &&
+        !currentTodo.completed) {
+      await ref.read(timerProvider.notifier).stopAndSaveProgress(id);
+    }
+
+    final liveFocusedTime =
+        timerState.focusedTimeCache[id] ?? currentTodo.focusedTime;
+
+    try {
+      await ref
+          .read(todosProvider.notifier)
+          .toggleTodo(id, liveFocusedTime: liveFocusedTime);
+    } catch (e) {
+      if (mounted) {
+        ErrorHandler.showError(context, e);
+      }
+    }
+  }
+
+  Future<void> _handleSignOut() async {
+    final shouldLogout = await AppDialogs.showSignOutDialog(context: context);
+    if (shouldLogout == true && mounted) {
+      try {
+        await ref.read(authProvider.notifier).signOut();
+      } catch (e) {
+        if (mounted) {
+          ErrorHandler.showError(context, e);
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!mounted) {
+      // Guard against build being invoked after dispose (rare but defensive)
+      return const SizedBox.shrink();
+    }
+    final screenWidth = MediaQuery.of(context).size.width;
+    final maxCardWidth = min(screenWidth * 0.95, 520.0);
+    final api = ref.watch(apiServiceProvider);
+    final notificationService = ref.watch(notificationServiceProvider);
+    final todosAsync = ref.watch(todosProvider);
+    final authState = ref.watch(authProvider);
+    final timerState = ref.watch(timerProvider);
+    final userName = authState.hasValue && authState.value!.isAuthenticated
+        ? authState.value!.userName
+        : 'User';
+    final activeTaskId = timerState.activeTaskId;
+
+    Todo? activeTodo;
+    if (activeTaskId != null && todosAsync.hasValue && todosAsync.value != null) {
+      try {
+        activeTodo = todosAsync.value!.firstWhere((todo) => todo.id == activeTaskId);
+      } catch (_) {
+        activeTodo = null;
+      }
+    }
+
+    ref.listen<TimerState>(timerProvider, (previous, next) {
+      final overdueTaskId = next.overdueCrossedTaskId;
+      if (overdueTaskId == null || next.overduePromptShown.contains(overdueTaskId)) return;
+      final todoList = todosAsync.value;
+      if (todoList == null) return;
+      Todo? overdue;
+      try {
+        overdue = todoList.firstWhere((t) => t.id == overdueTaskId);
+      } catch (_) {
+        return;
+      }
+  // overdue will never be null here because firstWhere either returns or throws
+      // Schedule prompt safely after frame with mounted check
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _showOverduePrompt(context, overdue!);
+      });
+    });
+
+  final isTimerBarVisible = timerState.isTimerActive && timerState.activeTaskId != null;
+    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    final showSignOutButton =
+        !isTimerBarVisible && !isKeyboardVisible && !_isCompletedExpanded;
+    final showCreditTag =
+        !isTimerBarVisible && !isKeyboardVisible && !_isCompletedExpanded;
+
+    return Scaffold(
+      backgroundColor: AppColors.scaffoldBg,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxCardWidth),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.cardBg,
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 18,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 20),
+                        Text(
+                          'BETAFLOW', // Changed app name
+                          style: TextStyle(
+                            color: AppColors.brightYellow,
+                            fontSize: 48,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.4,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(
+                          height: 32,
+                        ), // Increased the height for more gap
+                        Text(
+                          'Welcome, $userName!',
+                          style: const TextStyle(
+                            color: AppColors.lightGray,
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 22),
+                        InlineTaskInput(onAddTask: _addTodo),
+                        const Divider(
+                          color: AppColors.brightYellow,
+                          thickness: 1.5,
+                          height: 48, // Increased from 36
+                          indent: 20,
+                          endIndent: 20,
+                        ),
+                        Expanded(
+                          child: todosAsync.when(
+                            loading: () => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                            error: (err, stack) => Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text('Error: $err'),
+                                  ElevatedButton(
+                                    onPressed: () =>
+                                        ref.invalidate(todosProvider),
+                                    child: const Text('Retry'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            data: (todos) => TaskList(
+                              todos: todos,
+                              api: api,
+                              notificationService: notificationService,
+                              onPlay: (id) => _handleTaskCompletion(
+                                int.parse(id),
+                                wasOverdue: false,
+                              ),
+                              onDelete: (id) =>
+                                  _handleTaskDeletion(int.parse(id)),
+                              onToggle: (id) =>
+                                  _handleTaskToggle(int.parse(id)),
+                              onExpansionChanged: (isExpanded) {
+                                setState(() {
+                                  _isCompletedExpanded = isExpanded;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (isTimerBarVisible)
+              Positioned(
+                left: 20,
+                right: 20,
+                bottom: 10,
+                child: MiniTimerBar(
+                  api: api,
+                  notificationService: notificationService,
+                  activeTodo: activeTodo,
+                  onComplete: (id) => _handleTaskCompletion(id),
+                ),
+              ),
+            if (showCreditTag)
+              Positioned(
+                bottom: 12,
+                left: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  child: RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Made with ',
+                          style: TextStyle(
+                            color: AppColors.mediumGray.withValues(alpha: 0.6),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        TextSpan(
+                          text: '❤️',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        TextSpan(
+                          text: ' by Prayas',
+                          style: TextStyle(
+                            color: AppColors.mediumGray.withValues(alpha: 0.6),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            if (showSignOutButton)
+              Positioned(
+                bottom: 16,
+                right: 24,
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.logout,
+                    color: AppColors.mediumGray,
+                    size: 28,
+                  ),
+                  tooltip: 'Sign Out',
+                  onPressed: _handleSignOut,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 </file>

@@ -15,8 +15,11 @@ abstract class INotificationService {
   Function(String? payload)? onNotificationTap;
   Future<void> init();
   Future<void> showNotification({required String title, required String body, String? payload, String? soundFileName});
-  Future<void> showPersistentTimerNotification({required String taskName, required String timeRemaining, required String currentMode, required bool isRunning, required bool isFocusMode});
-  Future<void> updatePersistentTimerNotification({required String taskName, required String timeRemaining, required String currentMode, required bool isRunning, required bool isFocusMode});
+  Future<void> showOrUpdatePersistent({
+    required String title,
+    required String body,
+    required List<String> actionIds,
+  });
   Future<void> cancelPersistentTimerNotification();
   Future<void> playSound(String soundFileName);
   Future<void> playSoundWithNotification({required String soundFileName, required String title, required String body});
@@ -130,77 +133,49 @@ class NotificationService implements INotificationService {
     );
   }
 
-  /// Shows a persistent notification for the active timer.
   @override
-  Future<void> showPersistentTimerNotification({
-    required String taskName,
-    required String timeRemaining,
-    required String currentMode,
-    required bool isRunning,
-    required bool isFocusMode,
+  Future<void> showOrUpdatePersistent({
+    required String title,
+    required String body,
+    required List<String> actionIds,
   }) async {
-    final String title = isFocusMode ? '🎯 FOCUS TIME' : '☕ BREAK TIME';
-    final String body = '$taskName • $timeRemaining';
-    final String subText = isRunning
-        ? (isFocusMode ? '🔥 Focusing now...' : '✨ Take a break')
-        : (isFocusMode ? '⏸️ Focus paused' : '⏸️ Break paused');
-
-    // Create media-style action buttons with icons
-    final List<AndroidNotificationAction> actions = [
-      AndroidNotificationAction(
-        _kNotificationActionPauseResume,
-        isRunning ? '⏸️ Pause' : '▶️ Resume',
+    // Map simple string action IDs to AndroidNotificationAction
+    final List<AndroidNotificationAction> actions = actionIds.map(
+      (String id) => AndroidNotificationAction(
+        id,
+        _mapActionLabel(id),
         showsUserInterface: false,
         cancelNotification: false,
         contextual: false,
       ),
-    ];
+    ).toList();
 
-    // Use MediaStyleInformation for a bigger, Spotify-like notification
     final MediaStyleInformation mediaStyleInformation = MediaStyleInformation(
       htmlFormatContent: true,
       htmlFormatTitle: true,
     );
 
-    final AndroidNotificationDetails
-    androidPlatformChannelSpecifics = AndroidNotificationDetails(
-      'pomodoro_persistent_channel', // New channel for persistent notifications
+    final AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'pomodoro_persistent_channel',
       'Persistent Pomodoro Timer',
-      channelDescription:
-          'Ongoing notifications for your active Pomodoro timer.',
-      importance:
-          Importance.max, // Maximum importance for better background visibility
-      priority: Priority.max, // Maximum priority for media-style notifications
-      ongoing: true, // Make it persistent
-      autoCancel: false, // Don't auto-cancel when tapped
+      channelDescription: 'Ongoing notifications for your active Pomodoro timer.',
+      importance: Importance.max,
+      priority: Priority.max,
+      ongoing: true,
+      autoCancel: false,
       showWhen: false,
-      onlyAlertOnce: true, // Prevent repeated sound/vibration
-      color: isFocusMode ? AppColors.focusRed : AppColors.breakGreen,
-      // Use a larger, more prominent icon
+      onlyAlertOnce: true,
       largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-      // Use MediaStyleInformation for Spotify-like appearance
       styleInformation: mediaStyleInformation,
       actions: actions,
-      // Enhanced flags for background operation
-      additionalFlags: Int32List.fromList([
-        4, // FLAG_NO_CLEAR
-        16, // FLAG_ONGOING_EVENT
-        64, // FLAG_FOREGROUND_SERVICE
-      ]),
-      category:
-          AndroidNotificationCategory.service, // Mark as service notification
-      visibility:
-          NotificationVisibility.public, // Ensure visibility in all modes
-      enableLights: false, // Disable lights for persistent notifications
-      enableVibration: false, // Disable vibration for persistent notifications
-      playSound:
-          false, // Disable sound for persistent notifications (they're updates)
-      // Enhanced appearance properties
-      ticker: '$title - $taskName',
-      subText: subText,
-      // Ensure it shows on lock screen
-      fullScreenIntent: false, // Don't take over the screen
-      timeoutAfter: null, // Never timeout
+      additionalFlags: Int32List.fromList([4, 16, 64]),
+      category: AndroidNotificationCategory.service,
+      visibility: NotificationVisibility.public,
+      enableLights: false,
+      enableVibration: false,
+      playSound: false,
+      ticker: title,
     );
 
     final NotificationDetails platformChannelSpecifics = NotificationDetails(
@@ -212,30 +187,25 @@ class NotificationService implements INotificationService {
       title,
       body,
       platformChannelSpecifics,
-      payload: _kNotificationPayloadOpenApp, // Payload for opening the app
+      payload: _kNotificationPayloadOpenApp,
     );
 
-  debugLog('NotificationService', 'Persistent shown title="$title" task="$taskName" running=$isRunning mode=$currentMode remaining=$timeRemaining');
+    debugLog('NotificationService', 'Persistent update title="$title" body="$body" actions=$actionIds');
   }
 
-  /// Updates an existing persistent timer notification.
-  @override
-  Future<void> updatePersistentTimerNotification({
-    required String taskName,
-    required String timeRemaining,
-    required String currentMode,
-    required bool isRunning,
-    required bool isFocusMode,
-  }) async {
-    // The implementation is largely the same as showing, but Flutter handles the update
-    // if the ID is the same.
-    await showPersistentTimerNotification(
-      taskName: taskName,
-      timeRemaining: timeRemaining,
-      currentMode: currentMode,
-      isRunning: isRunning,
-      isFocusMode: isFocusMode,
-    );
+  String _mapActionLabel(String id) {
+    switch (id) {
+      case 'pause_resume':
+        return 'Pause/Resume';
+      case 'stop_timer':
+        return 'Stop';
+      case 'mark_complete':
+        return 'Mark Complete';
+      case 'continue_working':
+        return 'Continue';
+      default:
+        return id;
+    }
   }
 
   /// Cancels the persistent timer notification.

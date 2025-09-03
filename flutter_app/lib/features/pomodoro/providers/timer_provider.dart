@@ -12,6 +12,7 @@ import '../../../core/utils/app_constants.dart'; // Import AppConstants
 import '../../../core/utils/helpers.dart'; // Import formatTime
 import '../../todo/providers/todos_provider.dart';
 import '../../todo/models/todo.dart';
+import '../notifications/persistent_timer_notification_model.dart';
 import '../../../core/data/todo_repository.dart';
 import '../models/timer_state.dart';
 import '../services/timer_persistence_manager.dart';
@@ -373,12 +374,19 @@ class TimerNotifier extends Notifier<TimerState> {
   // Helper to show/update the persistent notification
   Future<void> _showPersistentNotification() async {
     final notificationService = ref.read(notificationServiceProvider);
-    await notificationService.updatePersistentTimerNotification(
-      taskName: state.activeTaskName ?? 'Unknown Task',
-      timeRemaining: formatTime(state.timeRemaining),
-      currentMode: state.currentMode,
-      isRunning: state.isRunning,
-      isFocusMode: state.currentMode == 'focus',
+    final todos = ref.read(todosProvider).value;
+    final active = todos?.firstWhere(
+      (t) => t.id == state.activeTaskId,
+      orElse: () => null as dynamic,
+    );
+    final model = PersistentTimerNotificationModel.fromState(
+      state: state,
+      activeTodo: active is Todo ? active : null,
+    );
+    await notificationService.showOrUpdatePersistent(
+      title: model.title,
+      body: model.body,
+      actionIds: model.actionIds,
     );
   }
 
@@ -733,15 +741,7 @@ class TimerNotifier extends Notifier<TimerState> {
     stopTicker();
     _triggerDeferredAutoSave();
     _cancelWorkmanagerTask();
-    ref
-        .read(notificationServiceProvider)
-        .updatePersistentTimerNotification(
-          taskName: state.activeTaskName ?? 'Unknown Task',
-          timeRemaining: formatTime(state.timeRemaining),
-          currentMode: state.currentMode,
-          isRunning: false,
-          isFocusMode: state.currentMode == 'focus',
-        );
+  _showPersistentNotification();
   }
 
   void resumeTask() {
@@ -975,6 +975,45 @@ class TimerNotifier extends Notifier<TimerState> {
 
     // If a persistent notification was shown by Workmanager, cancel it.
     ref.read(notificationServiceProvider).cancelPersistentTimerNotification();
+  }
+
+  /// Handle action button taps from the persistent notification.
+  Future<void> handleNotificationAction(String actionId) async {
+    switch (actionId) {
+      case 'pause_timer':
+        if (state.isRunning) pauseTask();
+        break;
+      case 'resume_timer':
+        if (!state.isRunning) resumeTask();
+        break;
+      case 'stop_timer':
+        if (state.activeTaskId != null) {
+          await stopAndSaveProgress(state.activeTaskId!);
+        } else {
+          clear();
+        }
+        break;
+      case 'mark_complete':
+        if (state.activeTaskId != null) {
+          // Toggle completion; focused time already cached & persisted by autosave.
+          await ref.read(todosProvider.notifier).toggleTodo(state.activeTaskId!);
+          await stopAndSaveProgress(state.activeTaskId!);
+        }
+        break;
+      case 'continue_working':
+        if (state.activeTaskId != null) {
+          state = state.copyWith(
+            overdueContinued: Set<int>.from(state.overdueContinued)
+              ..add(state.activeTaskId!),
+            isPermanentlyOverdue: true,
+            isProgressBarFull: false,
+            plannedDurationSeconds: null,
+            focusDurationSeconds: null,
+          );
+          _showPersistentNotification();
+        }
+        break;
+    }
   }
 }
 
