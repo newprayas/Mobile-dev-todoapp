@@ -6,9 +6,10 @@ import '../../../core/services/notification_service.dart';
 import '../../todo/models/todo.dart';
 import '../pomodoro_router.dart';
 import '../../../core/utils/app_dialogs.dart';
+import '../../../core/services/api_service.dart';
 
 class MiniTimerBar extends ConsumerWidget {
-  final dynamic api;
+  final ApiService api; // Strongly typed
   final NotificationService notificationService;
   final Todo? activeTodo;
   final Future<void> Function(int) onComplete;
@@ -22,8 +23,8 @@ class MiniTimerBar extends ConsumerWidget {
   });
 
   String _format(int seconds) {
-    final m = (seconds ~/ 60).toString().padLeft(2, '0');
-    final s = (seconds % 60).toString().padLeft(2, '0');
+    final String m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final String s = (seconds % 60).toString().padLeft(2, '0');
     return '$m:$s';
   }
 
@@ -36,12 +37,12 @@ class MiniTimerBar extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    final bool keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
     if (keyboardVisible) {
       return const SizedBox.shrink();
     }
 
-    final borderColor = timer.currentMode == 'focus'
+    final Color borderColor = timer.currentMode == 'focus'
         ? Colors.redAccent
         : Colors.greenAccent;
 
@@ -124,16 +125,16 @@ class MiniTimerBar extends ConsumerWidget {
                       return;
                     }
 
-                    final wasRunning = timer.isRunning;
+                    final bool wasRunning = timer.isRunning;
                     if (wasRunning) notifier.pauseTask();
 
-                    final totalFocusDuration =
+                    final int totalFocusDuration =
                         timer.focusDurationSeconds ?? 1500;
-                    final timeRemaining = timer.timeRemaining;
-                    final minutesWorked =
+                    final int timeRemaining = timer.timeRemaining;
+                    final int minutesWorked =
                         ((totalFocusDuration - timeRemaining) / 60).round();
 
-                    final shouldStop = await AppDialogs.showStopSessionDialog(
+                    final bool? shouldStop = await AppDialogs.showStopSessionDialog(
                       context: context,
                       taskName: activeTodo!.text,
                       minutesWorked: minutesWorked,
@@ -145,23 +146,6 @@ class MiniTimerBar extends ConsumerWidget {
                     }
 
                     await notifier.stopAndSaveProgress(activeTodo!.id);
-                    /*
-                    if (context.mounted) {
-                      showDialog(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Session Stopped'),
-                          content: const Text('Your progress has been saved.'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(ctx).pop(),
-                              child: const Text('OK'),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    */
                   },
                   icon: const Icon(
                     Icons.close_rounded,

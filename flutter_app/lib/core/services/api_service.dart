@@ -2,11 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../utils/debug_logger.dart';
 
-// For local development the Dart backend accepts a simple header 'x-user-id'
-// to simulate a logged-in user (the original Flask app used OAuth). When the
-// ApiService is constructed with a local baseUrl we add that header so the
-// client can talk to the Dart server without an OAuth flow.
-
 /// HTTP API client for todo management with automatic retry logic.
 ///
 /// Provides a complete REST API interface for todo CRUD operations,
@@ -40,15 +35,11 @@ class ApiService {
     }
   }
 
+  /// Development user id automatically injected for local backends.
   String get devUserId => _devUserId; // Add this getter
 
-  /// Sets the authentication token for API requests.
-  ///
-  /// Configures the Authorization header for authenticated requests.
-  /// Pass null to remove authentication.
-  ///
-  /// Parameters:
-  /// - [token]: JWT token or null to remove authentication
+  /// Sets or clears the Authorization bearer token.
+  /// Passing null removes the header.
   void setAuthToken(String? token) {
     if (token != null) {
       _dio.options.headers['Authorization'] = 'Bearer $token';
@@ -57,26 +48,27 @@ class ApiService {
     }
   }
 
-  /// Authenticates with Google ID token and returns user data.
+  /// Authenticate using a Google ID token.
+  /// Returns a map containing auth token and user data.
   ///
   /// Parameters:
   /// - [idToken]: Google OAuth ID token
   ///
   /// Returns: Map containing user authentication data
   Future<Map<String, dynamic>> authWithIdToken(String idToken) async {
-    final resp = await _dio.post('/api/auth', data: {'id_token': idToken});
+    final Response<dynamic> resp = await _dio.post('/api/auth', data: {'id_token': idToken});
     return resp.data as Map<String, dynamic>;
   }
 
-  /// Fetches all todos for the authenticated user.
+  /// Fetch all todos for the current user.
   ///
   /// Returns: List of todo objects as dynamic maps
   Future<List<dynamic>> fetchTodos() async {
-    final resp = await _withRetry(() => _dio.get('/api/todos'));
+    final Response<dynamic> resp = await _withRetry(() => _dio.get('/api/todos'));
     return resp.data as List<dynamic>;
   }
 
-  /// Creates a new todo with specified duration.
+  /// Create a new todo with provided duration components.
   ///
   /// Parameters:
   /// - [text]: Todo description text
@@ -85,10 +77,10 @@ class ApiService {
   ///
   /// Returns: Server response containing the created todo data
   Future<dynamic> addTodo(String text, int hours, int minutes) async {
-    final resp = await _withRetry(
+    final Response<dynamic> resp = await _withRetry(
       () => _dio.post(
         '/add',
-        data: {
+        data: <String, dynamic>{
           'text': text,
           'duration_hours': hours,
           'duration_minutes': minutes,
@@ -102,18 +94,18 @@ class ApiService {
     return resp.data;
   }
 
-  /// Deletes a todo by ID.
+  /// Delete todo by id.
   ///
   /// Parameters:
   /// - [id]: Database ID of the todo to delete
   ///
   /// Returns: Server response confirming deletion
   Future<dynamic> deleteTodo(int id) async {
-    final resp = await _withRetry(() => _dio.post('/delete', data: {'id': id}));
+    final Response<dynamic> resp = await _withRetry(() => _dio.post('/delete', data: {'id': id}));
     return resp.data;
   }
 
-  /// Updates todo properties.
+  /// Partially update fields on a todo.
   ///
   /// Allows partial updates of todo text and/or duration.
   ///
@@ -130,36 +122,48 @@ class ApiService {
     int? hours,
     int? minutes,
   }) async {
-    final Map<String, dynamic> data = {'id': id};
+    final Map<String, dynamic> data = <String, dynamic>{'id': id};
     if (text != null) data['text'] = text;
     if (hours != null) data['duration_hours'] = hours;
     if (minutes != null) data['duration_minutes'] = minutes;
-    final resp = await _dio.post('/update', data: data);
+    final Response<dynamic> resp = await _dio.post('/update', data: data);
     return resp.data;
   }
 
+  /// Toggle completion state of a todo.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to toggle
+  ///
+  /// Returns: Server response containing the toggled todo data
   Future<dynamic> toggleTodo(int id) async {
-    final resp = await _withRetry(() => _dio.post('/toggle', data: {'id': id}));
+    final Response<dynamic> resp = await _withRetry(() => _dio.post('/toggle', data: {'id': id}));
     return resp.data;
   }
 
+  /// Toggle completion with overdue metadata.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to toggle
+  /// - [wasOverdue]: Previous overdue state (optional)
+  /// - [overdueTime]: Overdue time in seconds (optional)
+  ///
+  /// Returns: Server response containing the toggled todo data
   Future<dynamic> toggleTodoWithOverdue(
     int id, {
     bool wasOverdue = false,
     int overdueTime = 0,
   }) async {
-    final payload = {
+    final Map<String, dynamic> payload = <String, dynamic>{
       'id': id,
       'was_overdue': wasOverdue ? 1 : 0,
       'overdue_time': overdueTime,
     };
-    final resp = await _withRetry(() => _dio.post('/toggle', data: payload));
+    final Response<dynamic> resp = await _withRetry(() => _dio.post('/toggle', data: payload));
     return resp.data;
   }
 
-  /// Updates the focused time for a specific todo.
-  ///
-  /// Critical for progress tracking and Pomodoro timer integration.
+  /// Persist focused time progress for a todo in seconds.
   ///
   /// Parameters:
   /// - [id]: Database ID of the todo to update
@@ -167,19 +171,21 @@ class ApiService {
   ///
   /// Returns: Server response confirming the update
   Future<dynamic> updateFocusTime(int id, int focusedTime) async {
-    final resp = await _withRetry(
+    final Response<dynamic> resp = await _withRetry(
       () => _dio.post(
         '/update_focus_time',
-        data: {'id': id, 'focused_time': focusedTime},
+        data: <String, dynamic>{'id': id, 'focused_time': focusedTime},
       ),
     );
     return resp.data;
   }
 
-  // Generic retry wrapper to soften initial startup race where the backend
-  // server process might not yet be listening and Dio throws a connection
-  // error (SocketException: Connection refused). Only retries for connection
-  // level errors, not for HTTP status codes.
+  /// Retry wrapper for transient connection failures.
+  ///
+  /// Parameters:
+  /// - [fn]: A function that returns a Future<Response<dynamic>> to execute with retries
+  ///
+  /// Returns: The response from the successful function execution
   Future<Response<dynamic>> _withRetry(
     Future<Response<dynamic>> Function() fn,
   ) async {
@@ -188,7 +194,7 @@ class ApiService {
       try {
         return await fn();
       } on DioException catch (e) {
-        final isConnError =
+        final bool isConnError =
             e.type == DioExceptionType.connectionError ||
             e.error is Error ||
             (e.message?.toLowerCase().contains('connection refused') ?? false);

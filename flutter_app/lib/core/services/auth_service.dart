@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert'; // For json encoding/decoding
+import 'api_service.dart';
 
 class AuthService extends ChangeNotifier {
   final FlutterSecureStorage _secure = const FlutterSecureStorage();
-  final dynamic api;
+  final ApiService api; // Strongly typed instead of dynamic
 
   Map<String, dynamic>? _currentUser;
   bool _isAuthenticated = false;
@@ -22,13 +23,13 @@ class AuthService extends ChangeNotifier {
       debugPrint('AUTH: Initiating mock Google Sign-In...');
 
       // Generate a mock ID token and proceed with server authentication.
-      final mockIdToken =
+      final String mockIdToken =
           'mock_id_token_${DateTime.now().millisecondsSinceEpoch}';
       debugPrint(
         'AUTH: Generated mock token: ${mockIdToken.substring(0, 20)}...',
       );
 
-      final result = await signInWithIdToken(mockIdToken);
+      final bool result = await signInWithIdToken(mockIdToken);
       debugPrint('AUTH: signInWithIdToken returned: $result');
       return result;
     } catch (error, stackTrace) {
@@ -43,22 +44,22 @@ class AuthService extends ChangeNotifier {
       if (kDebugMode) debugPrint('AUTH: Sending ID token to backend...');
       debugPrint('AUTH: API instance type: ${api.runtimeType}');
 
-      final resp = await api.authWithIdToken(idToken);
+      final Map<String, dynamic> resp = await api.authWithIdToken(idToken);
       debugPrint('AUTH: Backend response received: $resp');
 
-      final token = resp['token'];
-      final user = resp['user'];
+      final dynamic token = resp['token'];
+      final dynamic user = resp['user'];
 
       if (token != null && user != null) {
         debugPrint(
           'AUTH: Valid token and user received, storing credentials...',
         );
-        await _secure.write(key: 'server_token', value: token);
+        await _secure.write(key: 'server_token', value: token as String);
         // Store user data as a JSON string for better structure
         await _secure.write(key: 'user_data', value: json.encode(user));
 
-        api.setAuthToken(token);
-        _currentUser = user;
+        api.setAuthToken(token as String?);
+        _currentUser = user as Map<String, dynamic>;
         _isAuthenticated = true;
 
         if (kDebugMode) {
@@ -100,8 +101,8 @@ class AuthService extends ChangeNotifier {
 
   Future<void> loadSavedToken() async {
     try {
-      final token = await _secure.read(key: 'server_token');
-      final userDataString = await _secure.read(key: 'user_data');
+      final String? token = await _secure.read(key: 'server_token');
+      final String? userDataString = await _secure.read(key: 'user_data');
 
       if (token != null) {
         api.setAuthToken(token);
@@ -109,7 +110,7 @@ class AuthService extends ChangeNotifier {
 
         if (userDataString != null) {
           // Decode the user data from JSON
-          _currentUser = json.decode(userDataString);
+            _currentUser = json.decode(userDataString) as Map<String, dynamic>;
         }
 
         if (kDebugMode) debugPrint('AUTH: Loaded saved authentication');
@@ -121,7 +122,7 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<bool> checkAuthStatus() async {
-    final token = await _secure.read(key: 'server_token');
+    final String? token = await _secure.read(key: 'server_token');
     _isAuthenticated = token != null;
     notifyListeners();
     return _isAuthenticated;

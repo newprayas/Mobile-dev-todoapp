@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../providers/timer_provider.dart';
 import '../models/timer_state.dart';
 
 /// Widget responsible for displaying the actively running timer, cycle count, and mode.

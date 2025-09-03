@@ -95,7 +95,8 @@ class TaskCard extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
-        color: AppColors.cardBg.withOpacity(0.5),
+  // Replaced deprecated withOpacity with withValues for modern color API.
+  color: AppColors.cardBg.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -122,7 +123,8 @@ class TaskCard extends ConsumerWidget {
                     Text(
                       '${todo.durationHours}h ${todo.durationMinutes}m',
                       style: TextStyle(
-                        color: AppColors.mediumGray.withOpacity(0.7),
+                        // Replaced deprecated withOpacity with withValues.
+                        color: AppColors.mediumGray.withValues(alpha: 0.7),
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),

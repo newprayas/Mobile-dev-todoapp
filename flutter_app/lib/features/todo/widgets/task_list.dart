@@ -10,13 +10,14 @@ import '../../pomodoro/providers/timer_provider.dart';
 import '../../pomodoro/models/timer_state.dart';
 import '../../pomodoro/pomodoro_router.dart';
 import '../../../core/widgets/progress_bar.dart';
+import '../../../core/services/api_service.dart';
 
 // Enum to represent the available filter states for completed tasks.
 enum CompletedFilter { none, onTime, overdue, underdue }
 
 class TaskList extends ConsumerStatefulWidget {
   final List<Todo> todos;
-  final dynamic api;
+  final ApiService api; // Strongly typed
   final NotificationService notificationService;
   final Function(String id) onPlay;
   final Function(String id) onDelete;
@@ -65,8 +66,8 @@ class _TaskListState extends ConsumerState<TaskList> {
   Widget build(BuildContext context) {
     // Principle 3: Listen to provider state changes to trigger UI events
     ref.listen<TimerState>(timerProvider, (previous, next) {
-      final wasComplete = previous?.overdueSessionsComplete ?? false;
-      final isComplete = next.overdueSessionsComplete;
+      final bool wasComplete = previous?.overdueSessionsComplete ?? false;
+      final bool isComplete = next.overdueSessionsComplete;
 
       // When the specific flag becomes true, prepare to show the dialog
       if (isComplete && !wasComplete && next.activeTaskId != null) {
@@ -105,19 +106,19 @@ class _TaskListState extends ConsumerState<TaskList> {
         }
       });
     }
-    final incompleteTodos = widget.todos.where((t) => !t.completed).toList();
-    final completedTodos = widget.todos.where((t) => t.completed).toList();
+    final List<Todo> incompleteTodos = widget.todos.where((t) => !t.completed).toList();
+    final List<Todo> completedTodos = widget.todos.where((t) => t.completed).toList();
 
     // Apply the active filter to the list of completed todos.
-    final filteredCompletedTodos = completedTodos.where((todo) {
+    final List<Todo> filteredCompletedTodos = completedTodos.where((todo) {
       if (_activeFilter == CompletedFilter.none) {
         return true;
       }
 
-      final plannedSeconds =
+      final int plannedSeconds =
           (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-      final isOverdue = todo.wasOverdue == 1;
-      final isUnderdue =
+      final bool isOverdue = todo.wasOverdue == 1;
+      final bool isUnderdue =
           plannedSeconds > 0 && todo.focusedTime < plannedSeconds;
 
       switch (_activeFilter) {
@@ -143,7 +144,7 @@ class _TaskListState extends ConsumerState<TaskList> {
               itemCount: incompleteTodos.length,
               separatorBuilder: (context, index) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
-                final todo = incompleteTodos[index];
+                final Todo todo = incompleteTodos[index];
                 return Column(
                   children: [
                     _buildTaskCard(todo),
@@ -179,7 +180,7 @@ class _TaskListState extends ConsumerState<TaskList> {
               ).copyWith(dividerColor: Colors.transparent),
               child: ExpansionTile(
                 initiallyExpanded: _completedExpanded,
-                onExpansionChanged: (expanded) {
+                onExpansionChanged: (bool expanded) {
                   setState(() {
                     _completedExpanded = expanded;
                   });
@@ -189,9 +190,9 @@ class _TaskListState extends ConsumerState<TaskList> {
                 tilePadding: const EdgeInsets.symmetric(horizontal: 16),
                 title: Row(
                   children: [
-                    Text(
+                    const Text(
                       'Completed',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.lightGray,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
