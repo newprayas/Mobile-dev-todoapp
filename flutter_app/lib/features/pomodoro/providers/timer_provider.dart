@@ -979,6 +979,7 @@ class TimerNotifier extends Notifier<TimerState> {
 
   /// Handle action button taps from the persistent notification.
   Future<void> handleNotificationAction(String actionId) async {
+  debugLog('TimerNotifier', 'handleNotificationAction received actionId=$actionId isRunning=${state.isRunning} isTimerActive=${state.isTimerActive}');
     switch (actionId) {
   case 'pause_timer':
         if (state.isRunning) pauseTask();
@@ -1014,6 +1015,7 @@ class TimerNotifier extends Notifier<TimerState> {
         }
         break;
     }
+  debugLog('TimerNotifier', 'handleNotificationAction completed actionId=$actionId -> isRunning=${state.isRunning} isTimerActive=${state.isTimerActive}');
   }
 }
 

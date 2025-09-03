@@ -1,5 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import '../utils/debug_logger.dart';
 import 'dart:io' show Platform; // For platform checks
@@ -18,6 +19,7 @@ const String _kNotificationPayloadOpenApp = 'open_app';
 abstract class INotificationService {
   Function(String? payload)? onNotificationTap;
   Future<void> init();
+  Future<void> ensurePermissions();
   Future<void> showNotification({required String title, required String body, String? payload, String? soundFileName});
   Future<void> showOrUpdatePersistent({
     required String title,
@@ -92,18 +94,58 @@ class NotificationService implements INotificationService {
     if (kDebugMode) debugLog('NotificationService', 'Initialized & channels created');
   }
 
+  /// Ensures the application has notification permissions (platform specific).
+  /// On Android 13+ this requests the POST_NOTIFICATIONS runtime permission.
+  /// On iOS/macOS it requests alert/badge/sound permissions.
+  @override
+  Future<void> ensurePermissions() async {
+    try {
+      if (Platform.isAndroid) {
+        final AndroidFlutterLocalNotificationsPlugin? androidImpl =
+            _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        if (androidImpl != null) {
+          final bool? areEnabled = await androidImpl.areNotificationsEnabled();
+          if (areEnabled == false) {
+            final bool? granted = await androidImpl.requestNotificationsPermission();
+            debugLog('NotificationService', 'Android notifications permission requested granted=$granted');
+          } else {
+            debugLog('NotificationService', 'Android notifications already enabled');
+          }
+        }
+      } else if (Platform.isIOS) {
+        final IOSFlutterLocalNotificationsPlugin? iosImpl =
+            _notificationsPlugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+        if (iosImpl != null) {
+          final bool? granted = await iosImpl.requestPermissions(alert: true, badge: true, sound: true);
+          debugLog('NotificationService', 'iOS notification permissions requested granted=$granted');
+        }
+      } else if (Platform.isMacOS) {
+        final MacOSFlutterLocalNotificationsPlugin? macImpl =
+            _notificationsPlugin.resolvePlatformSpecificImplementation<MacOSFlutterLocalNotificationsPlugin>();
+        if (macImpl != null) {
+          final bool? granted = await macImpl.requestPermissions(alert: true, badge: true, sound: true);
+          debugLog('NotificationService', 'macOS notification permissions requested granted=$granted');
+        }
+      }
+    } catch (e) {
+      debugLog('NotificationService', 'Error ensuring permissions err=$e');
+    }
+  }
+
   // A method for triggering the background tap handler.
   // This needs to be a top-level function or a static method.
   @pragma('vm:entry-point')
   static void _notificationTapBackground(
     NotificationResponse notificationResponse,
   ) {
-  debugLog('NotificationService', 'Background tap payload=${notificationResponse.payload} action=${notificationResponse.actionId}');
-
-    // This is where background actions would be handled.
-    // For the pause/resume action, we would need to trigger the Workmanager
-    // task again to toggle the timer. This requires careful state management.
-    // We'll address this in main.dart callbackDispatcher.
+    debugLog('NotificationService', 'Background tap payload=${notificationResponse.payload} action=${notificationResponse.actionId}');
+    final String? action = notificationResponse.actionId ?? notificationResponse.payload;
+    if (action == null) return;
+    // Persist for foreground polling (cannot access Provider scope here)
+    SharedPreferences.getInstance().then((prefs) async {
+      await prefs.setString('last_notification_action', action);
+      debugLog('NotificationService', 'Background action persisted action=$action');
+    });
   }
 
   @override

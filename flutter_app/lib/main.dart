@@ -22,6 +22,7 @@ import 'features/pomodoro/notifications/persistent_timer_notification_model.dart
 import 'features/pomodoro/models/timer_state.dart';
 import 'features/todo/models/todo.dart';
 import 'core/providers/notification_action_provider.dart';
+import 'core/bridge/notification_action_dispatcher.dart';
 
 // Define actualApiService globally so it's accessible to Workmanager for initial config saving
 late final ApiService actualApiService;
@@ -34,16 +35,23 @@ void main() async {
 
   final notificationService = NotificationService();
   await notificationService.init();
+  await notificationService.ensurePermissions();
 
   // Assign the foreground notification tap handler
   notificationService.onNotificationTap = (String? payload) {
     if (payload == null) return;
     debugLog('MAIN', 'Notification action received payload=$payload');
-    // Persist last action for background -> foreground handoff
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setString('last_notification_action', payload);
-    });
-    _PendingNotificationActionHolder.latest = payload;
+    // Try immediate in-memory dispatch first (ProviderScope already built case)
+    final bool dispatched = dispatchNotificationActionIfPossible(payload);
+    if (!dispatched) {
+      debugLog('MAIN', 'Dispatcher not ready, persisting action for later flush');
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString('last_notification_action', payload);
+      });
+      _PendingNotificationActionHolder.latest = payload;
+    } else {
+      debugLog('MAIN', 'Action forwarded synchronously via dispatcher');
+    }
   };
 
   // Test break timer sound on app startup (debug only)

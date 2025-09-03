@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:async'; // For Timer
 import 'core/theme/app_colors.dart';
 import 'core/widgets/auth_wrapper.dart';
 import 'features/pomodoro/providers/timer_provider.dart';
 import 'core/providers/notification_action_provider.dart';
+import 'core/bridge/notification_action_dispatcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class App extends ConsumerStatefulWidget {
@@ -15,15 +17,40 @@ class App extends ConsumerStatefulWidget {
 }
 
 class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
+  bool _initialActionFlushed = false;
+  Timer? _actionPoller;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    // Register dispatcher so main.dart callback can deliver actions immediately.
+    registerNotificationActionDispatcher((String actionId) {
+      debugPrint('APP_DISPATCHER: delivering action=$actionId to provider');
+      ref.read(notificationActionProvider.notifier).state = actionId;
+      return true; // Indicate handled
+    });
+    // Poll for background-isolate persisted actions (fallback path).
+    _actionPoller = Timer.periodic(const Duration(seconds: 1), (_) async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final String? last = prefs.getString('last_notification_action');
+        if (last != null) {
+          debugPrint('APP_POLLER: detected pending action=$last');
+          ref.read(notificationActionProvider.notifier).state = last;
+          await prefs.remove('last_notification_action');
+        }
+      } catch (_) {
+        // Silent catch; polling continues.
+      }
+    });
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+  WidgetsBinding.instance.removeObserver(this);
+  clearNotificationActionDispatcher();
+  _actionPoller?.cancel();
     super.dispose();
   }
 
@@ -43,21 +70,27 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    // On first build, flush any pending notification action captured pre-ProviderScope.
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final prefs = await SharedPreferences.getInstance();
-      final last = prefs.getString('last_notification_action');
-      if (last != null) {
-        ref.read(notificationActionProvider.notifier).state = last;
-        await prefs.remove('last_notification_action');
-      }
-    });
+    // One-time flush of any pending action captured before dispatcher registration.
+    if (!_initialActionFlushed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (_initialActionFlushed) return; // Guard
+        final prefs = await SharedPreferences.getInstance();
+        final String? last = prefs.getString('last_notification_action');
+        if (last != null) {
+          debugPrint('APP_INIT: flushing persisted notification action=$last');
+          ref.read(notificationActionProvider.notifier).state = last;
+          await prefs.remove('last_notification_action');
+        }
+        _initialActionFlushed = true;
+      });
+    }
 
     // Listen to action provider changes and route to TimerNotifier
     ref.listen<String?>(notificationActionProvider, (prev, next) {
       if (next != null) {
+        debugPrint('APP_LISTENER: handling notification action=$next');
         ref.read(timerProvider.notifier).handleNotificationAction(next);
-        // Clear after handling
+        // Clear to avoid replay
         ref.read(notificationActionProvider.notifier).state = null;
       }
     });
