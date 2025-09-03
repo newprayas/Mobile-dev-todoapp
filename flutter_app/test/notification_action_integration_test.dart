@@ -25,6 +25,8 @@ class _FakeNotificationService implements NotificationService {
   Future<void> showOrUpdatePersistent({required String title, required String body, required List<String> actionIds}) async {}
   @override
   Future<void> debugDumpActiveNotifications() async {}
+  @override
+  Future<void> ensurePermissions() async {}
 }
 
 // Fake lightweight TimerNotifier that only reacts to actions; avoids persistence & Workmanager.

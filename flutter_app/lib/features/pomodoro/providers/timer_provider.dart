@@ -9,7 +9,6 @@ import '../../../core/services/timer_session_controller.dart';
 import '../../../core/providers/notification_provider.dart';
 import '../../../core/utils/debug_logger.dart';
 import '../../../core/utils/app_constants.dart'; // Import AppConstants
-import '../../../core/utils/helpers.dart'; // Import formatTime
 import '../../todo/providers/todos_provider.dart';
 import '../../todo/models/todo.dart';
 import '../notifications/persistent_timer_notification_model.dart';
@@ -18,6 +17,13 @@ import '../models/timer_state.dart';
 import '../services/timer_persistence_manager.dart';
 import '../../../core/constants/sound_assets.dart'; // added
 import '../../../core/services/workmanager_timer_service.dart'; // added
+import '../services/timer_autosave_service.dart';
+import '../services/timer_background_scheduler.dart';
+import '../services/timer_overdue_service.dart';
+import '../services/phase_transition_service.dart';
+import '../services/foreground_ticker.dart';
+import '../services/notification_action_handler.dart';
+import '../../../core/constants/timer_defaults.dart';
 
 /// Business logic + orchestration layer for the Pomodoro timer feature.
 ///
@@ -40,6 +46,12 @@ class TimerNotifier extends Notifier<TimerState> {
   late String _apiBaseUrl; // Store API base URL from main app
   late bool _isDebugMode; // Store debug mode from main app
   final WorkmanagerTimerService _wmService = WorkmanagerTimerService(); // new service
+  TimerAutoSaveService? _autoSaveService; // extracted
+  TimerBackgroundScheduler? _backgroundScheduler; // extracted
+  TimerOverdueService? _overdueService; // extracted
+  PhaseTransitionService? _phaseService;
+  ForegroundTicker? _foregroundTicker;
+  NotificationActionHandler? _actionHandler;
 
   @override
   TimerState build() {
@@ -56,7 +68,13 @@ class TimerNotifier extends Notifier<TimerState> {
           'http://127.0.0.1:5000';
       _isDebugMode = _prefs.getBool(AppConstants.prefIsDebugMode) ?? kDebugMode;
 
-      await _restoreTimerState(); // Restore state during build
+  await _restoreTimerState(); // Restore state during build
+  _autoSaveService ??= TimerAutoSaveService(this, ref);
+  _backgroundScheduler ??= TimerBackgroundScheduler(_persistenceManager);
+  _overdueService ??= TimerOverdueService(notifier: this, ref: ref);
+  _phaseService ??= PhaseTransitionService(notifier: this, ref: ref);
+  _foregroundTicker ??= ForegroundTicker();
+  _actionHandler ??= NotificationActionHandler(notifier: this, ref: ref);
     });
 
     ref.listen<AsyncValue<List<Todo>>>(todosProvider, (_, next) {
@@ -83,8 +101,9 @@ class TimerNotifier extends Notifier<TimerState> {
     });
 
     ref.onDispose(() {
-      _ticker?.cancel();
-      _autoSaveTimer?.cancel();
+    _ticker?.cancel();
+    _autoSaveTimer?.cancel();
+    _autoSaveService?.stop();
       // Ensure state is saved on dispose, marking as not running
       _persistenceManager.saveTimerState(
         state.copyWith(
@@ -106,6 +125,11 @@ class TimerNotifier extends Notifier<TimerState> {
     });
 
     return const TimerState();
+  }
+
+  /// Public helper for services to persist current state safely.
+  Future<void> persistState() async {
+    await _persistenceManager.saveTimerState(state);
   }
 
   /// Restores the timer state from SharedPreferences when the notifier is built.
@@ -412,51 +436,47 @@ class TimerNotifier extends Notifier<TimerState> {
   }
 
   void startTicker() {
-    _ticker?.cancel();
+    _ticker?.cancel(); // legacy timer
     _startAutoSaveTimer();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!state.isRunning) return;
-
-      if (state.currentMode == 'focus' && state.activeTaskId != null) {
-        final taskId = state.activeTaskId!;
-        final currentFocused = state.focusedTimeCache[taskId] ?? 0;
-        final newCache = Map<int, int>.from(state.focusedTimeCache);
-        newCache[taskId] = currentFocused + 1;
-        update(focusedTimeCache: newCache);
-      }
-
-      if (state.timeRemaining > 0) {
-        update(timeRemaining: state.timeRemaining - 1);
-      } else {
-        _handlePhaseCompletion();
-      }
-
-      final focused = state.focusedTimeCache[state.activeTaskId] ?? 0;
-      final planned = state.plannedDurationSeconds;
-      if (!state.isPermanentlyOverdue &&
-          !_processingOverdue &&
-          state.currentMode == 'focus' &&
-          state.activeTaskId != null &&
-          planned != null &&
-          planned > 0) {
-        if (focused >= planned &&
-            state.overdueCrossedTaskId != state.activeTaskId) {
-          _processingOverdue = true;
-          _markOverdueAndFreeze(state.activeTaskId!);
-          _processingOverdue = false;
+    _autoSaveService?.start();
+    _foregroundTicker?.start(
+      onTick: () {
+        if (state.currentMode == 'focus' && state.activeTaskId != null) {
+          final int taskId = state.activeTaskId!;
+          final int currentFocused = state.focusedTimeCache[taskId] ?? 0;
+          final newCache = Map<int, int>.from(state.focusedTimeCache);
+            newCache[taskId] = currentFocused + 1;
+          update(focusedTimeCache: newCache);
         }
-      }
-    });
+        if (state.timeRemaining > 0) {
+          update(timeRemaining: state.timeRemaining - 1);
+        }
+      },
+      onPhaseComplete: () {
+        _handlePhaseCompletion();
+      },
+      onOverdueCheck: () {
+        final int focused = state.focusedTimeCache[state.activeTaskId] ?? 0;
+        final int? planned = state.plannedDurationSeconds;
+        if (!state.isPermanentlyOverdue &&
+            !_processingOverdue &&
+            state.currentMode == 'focus' &&
+            state.activeTaskId != null &&
+            planned != null && planned > 0) {
+          if (focused >= planned &&
+              state.overdueCrossedTaskId != state.activeTaskId) {
+            _processingOverdue = true;
+            _markOverdueAndFreeze(state.activeTaskId!);
+            _processingOverdue = false;
+          }
+        }
+      },
+      stateProvider: () => state,
+    );
   }
 
   void _handlePhaseCompletion() {
-    if (state.currentMode == 'focus') {
-      _handleFocusPhaseCompletion();
-    } else if (state.currentMode == 'break') {
-      _handleBreakPhaseCompletion();
-    } else {
-      stop();
-    }
+  _phaseService?.handlePhaseCompletion(state);
 
     // Reschedule or cancel background task depending on new state
     if (state.isRunning && state.activeTaskId != null && state.activeTaskName != null) {
@@ -470,76 +490,20 @@ class TimerNotifier extends Notifier<TimerState> {
     }
   }
 
-  void _handleFocusPhaseCompletion() {
-    final int completed = state.completedSessions + 1;
-    if (completed >= state.totalCycles) {
-      if (state.isPermanentlyOverdue && !state.overdueSessionsComplete) {
-        debugLog('TimerNotifier', 'Overdue task session complete taskId=${state.activeTaskId}');
-        ref.read(notificationServiceProvider).playSoundWithNotification(
-          soundFileName: SoundAsset.sessionComplete.fileName,
-          title: 'Session Complete!',
-          body: 'Overdue task session completed for "${state.activeTaskName}".',
-        );
-        update(overdueSessionsComplete: true, isRunning: false, completedSessions: completed);
-        stopTicker();
-      } else if (!state.allSessionsComplete) {
-        debugLog('TimerNotifier', 'All focus sessions complete taskId=${state.activeTaskId}');
-        ref.read(notificationServiceProvider).playSoundWithNotification(
-          soundFileName: SoundAsset.sessionComplete.fileName,
-          title: 'All Sessions Complete!',
-          body: 'All planned sessions completed for "${state.activeTaskName}".',
-        );
-        update(allSessionsComplete: true, isRunning: false, completedSessions: completed);
-        stopTicker();
-      }
-      if (!state.isRunning && state.timeRemaining == 0) {
-        stopTicker();
-        return;
-      }
-    } else {
-      final notificationService = ref.read(notificationServiceProvider);
-      notificationService.playSoundWithNotification(
-        soundFileName: SoundAsset.breakStart.fileName,
-        title: 'Focus Session Complete!',
-        body: 'Time for a break for "${state.activeTaskName}".',
-      );
-      final nextCycle = (state.currentCycle + 1) <= state.totalCycles
-          ? state.currentCycle + 1
-          : state.totalCycles;
-      update(
-        currentMode: 'break',
-        timeRemaining: state.breakDurationSeconds,
-        currentCycle: nextCycle,
-        completedSessions: completed,
-      );
-    }
-  }
-
-  void _handleBreakPhaseCompletion() {
-    if (state.focusDurationSeconds != null) {
-      final notificationService = ref.read(notificationServiceProvider);
-      notificationService.playSound(SoundAsset.focusStart.fileName);
-      notificationService.showNotification(
-        title: 'Break Complete!',
-        body: 'Time to focus on "${state.activeTaskName}" again!',
-      );
-      update(currentMode: 'focus', timeRemaining: state.focusDurationSeconds);
-    } else {
-      stop();
-    }
-  }
+  // Focus/break completion logic now resides in PhaseTransitionService
 
   void stopTicker() {
-    _ticker?.cancel();
-    _ticker = null;
-    _autoSaveTimer?.cancel();
-    _autoSaveTimer = null;
+  _ticker?.cancel();
+  _ticker = null;
+  _autoSaveTimer?.cancel();
+  _autoSaveTimer = null;
+  _autoSaveService?.stop();
     _cancelWorkmanagerTask();
     _saveTimerStateToPrefs();
   }
 
   void _markOverdueAndFreeze(int taskId) {
-    _sessionController?.handleEvent(TimerSessionEvent.overdueReached);
+  _sessionController?.handleEvent(TimerSessionEvent.overdueReached);
 
     try {
       final notificationService = ref.read(notificationServiceProvider);
@@ -560,19 +524,10 @@ class TimerNotifier extends Notifier<TimerState> {
       debugLog('TimerNotifier', 'SOUND/NOTIFICATION ERROR: $e');
     }
 
-    _ticker?.cancel();
-    _ticker = null;
-    update(
-      isRunning: false,
-      timeRemaining: 0,
-      isProgressBarFull: true,
-      overdueCrossedTaskId: taskId,
-      plannedDurationSeconds: null,
-      focusDurationSeconds: null,
-      breakDurationSeconds: null,
-      currentCycle: 1,
-      totalCycles: 1,
-    );
+  _ticker?.cancel();
+  _ticker = null;
+  // Delegate to service
+  _overdueService?.markOverdueAndFreeze(taskId);
     _cancelWorkmanagerTask();
   }
 
@@ -593,9 +548,9 @@ class TimerNotifier extends Notifier<TimerState> {
   void resetCurrentPhase() {
     if (state.activeTaskId == null) return;
 
-    final currentPhaseDuration = state.currentMode == 'focus'
-        ? (state.focusDurationSeconds ?? 25 * 60)
-        : (state.breakDurationSeconds ?? 5 * 60);
+  final currentPhaseDuration = state.currentMode == 'focus'
+    ? (state.focusDurationSeconds ?? TimerDefaults.focusSeconds)
+    : (state.breakDurationSeconds ?? TimerDefaults.breakSeconds);
     final elapsedTime = currentPhaseDuration - state.timeRemaining;
 
     if (state.currentMode == 'focus' && elapsedTime > 0) {
@@ -822,18 +777,17 @@ class TimerNotifier extends Notifier<TimerState> {
 
   void _startAutoSaveTimer() {
     _autoSaveTimer?.cancel();
-    _autoSaveTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    _autoSaveTimer = Timer.periodic(const Duration(seconds: TimerDefaults.autoSaveIntervalSeconds), (_) {
       _triggerDeferredAutoSave();
     });
   }
 
   void _triggerDeferredAutoSave() {
     final taskId = state.activeTaskId;
-    if (taskId == null) return;
-    final currentFocused = state.focusedTimeCache[taskId] ?? 0;
-    if (currentFocused - _lastAutoSavedSeconds < 30) return;
-
-    _autoSaveFocusedTime(todoId: taskId);
+  if (taskId == null) return;
+  final currentFocused = state.focusedTimeCache[taskId] ?? 0;
+  if (currentFocused - _lastAutoSavedSeconds < TimerDefaults.autoSaveIntervalSeconds) return;
+  _autoSaveService?.triggerDeferredAutoSave();
   }
 
   Future<void> _autoSaveFocusedTime({
@@ -859,34 +813,7 @@ class TimerNotifier extends Notifier<TimerState> {
   }
 
   void skipPhase() {
-    final notificationService = ref.read(notificationServiceProvider);
-    if (state.currentMode == 'focus') {
-      if (state.currentCycle >= state.totalCycles) {
-        update(cycleOverflowBlocked: true);
-        return;
-      }
-      // Play sound with notification for better background operation
-      notificationService.playSoundWithNotification(
-        soundFileName: SoundAsset.breakStart.fileName,
-        title: 'Focus Phase Skipped',
-        body: 'Moving to break time for "${state.activeTaskName}".',
-      );
-      final completed = state.completedSessions + 1;
-      final nextCycle = state.currentCycle + 1;
-      update(
-        currentMode: 'break',
-        timeRemaining: state.breakDurationSeconds ?? state.timeRemaining,
-        completedSessions: completed,
-        currentCycle: nextCycle,
-      );
-    } else if (state.currentMode == 'break') {
-      // Play sound immediately for better user feedback
-  notificationService.playSound(SoundAsset.focusStart.fileName);
-      update(
-        currentMode: 'focus',
-        timeRemaining: state.focusDurationSeconds ?? state.timeRemaining,
-      );
-    }
+  _phaseService?.skipPhase(state);
     if (state.activeTaskId != null && state.activeTaskName != null) {
       _scheduleWorkmanagerTask(
         state.activeTaskId!,
@@ -979,43 +906,9 @@ class TimerNotifier extends Notifier<TimerState> {
 
   /// Handle action button taps from the persistent notification.
   Future<void> handleNotificationAction(String actionId) async {
-  debugLog('TimerNotifier', 'handleNotificationAction received actionId=$actionId isRunning=${state.isRunning} isTimerActive=${state.isTimerActive}');
-    switch (actionId) {
-  case 'pause_timer':
-        if (state.isRunning) pauseTask();
-        break;
-  case 'resume_timer':
-        if (!state.isRunning) resumeTask();
-        break;
-      case 'stop_timer':
-        if (state.activeTaskId != null) {
-          await stopAndSaveProgress(state.activeTaskId!);
-        } else {
-          clear();
-        }
-        break;
-      case 'mark_complete':
-        if (state.activeTaskId != null) {
-          // Toggle completion; focused time already cached & persisted by autosave.
-          await ref.read(todosProvider.notifier).toggleTodo(state.activeTaskId!);
-          await stopAndSaveProgress(state.activeTaskId!);
-        }
-        break;
-      case 'continue_working':
-        if (state.activeTaskId != null) {
-          state = state.copyWith(
-            overdueContinued: Set<int>.from(state.overdueContinued)
-              ..add(state.activeTaskId!),
-            isPermanentlyOverdue: true,
-            isProgressBarFull: false,
-            plannedDurationSeconds: null,
-            focusDurationSeconds: null,
-          );
-          _showPersistentNotification();
-        }
-        break;
-    }
-  debugLog('TimerNotifier', 'handleNotificationAction completed actionId=$actionId -> isRunning=${state.isRunning} isTimerActive=${state.isTimerActive}');
+  debugLog('TimerNotifier', 'handleNotificationAction received actionId=$actionId');
+  await _actionHandler?.handle(actionId);
+  debugLog('TimerNotifier', 'handleNotificationAction completed actionId=$actionId');
   }
 }
 

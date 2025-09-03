@@ -11,6 +11,7 @@ import '../../pomodoro/models/timer_state.dart';
 import '../../pomodoro/pomodoro_router.dart';
 import '../../../core/widgets/progress_bar.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/constants/timer_defaults.dart';
 
 // Enum to represent the available filter states for completed tasks.
 enum CompletedFilter { none, onTime, overdue, underdue }
@@ -473,8 +474,8 @@ class _TaskListState extends ConsumerState<TaskList> {
 
     final plannedSeconds =
         (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-    final defaultFocus = 25 * 60;
-    final defaultBreak = 5 * 60;
+  final int defaultFocus = TimerDefaults.focusSeconds;
+  final int defaultBreak = TimerDefaults.breakSeconds;
     final cycles = plannedSeconds > 0
         ? (plannedSeconds / defaultFocus).ceil().clamp(1, 1000)
         : 4;

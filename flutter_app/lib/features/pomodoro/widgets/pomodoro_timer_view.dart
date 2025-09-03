@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/constants/timer_defaults.dart';
 import '../models/timer_state.dart';
 
 /// Widget responsible for displaying the actively running timer, cycle count, and mode.
@@ -14,7 +15,7 @@ class PomodoroTimerView extends StatelessWidget {
     return Column(
       children: [
         Text(
-          '${(timerState.focusDurationSeconds ?? 1500) ~/ 60} / ${(timerState.breakDurationSeconds ?? 300) ~/ 60} / ${timerState.totalCycles}',
+          '${(timerState.focusDurationSeconds ?? TimerDefaults.focusSeconds) ~/ 60} / ${(timerState.breakDurationSeconds ?? TimerDefaults.breakSeconds) ~/ 60} / ${timerState.totalCycles}',
           style: const TextStyle(
             fontSize: 16.0,
             fontWeight: FontWeight.w600,

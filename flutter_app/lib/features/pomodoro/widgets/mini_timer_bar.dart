@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/timer_defaults.dart';
 import '../providers/timer_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/notification_service.dart';
@@ -129,7 +130,7 @@ class MiniTimerBar extends ConsumerWidget {
                     if (wasRunning) notifier.pauseTask();
 
                     final int totalFocusDuration =
-                        timer.focusDurationSeconds ?? 1500;
+                        timer.focusDurationSeconds ?? TimerDefaults.focusSeconds;
                     final int timeRemaining = timer.timeRemaining;
                     final int minutesWorked =
                         ((totalFocusDuration - timeRemaining) / 60).round();

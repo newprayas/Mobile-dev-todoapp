@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/widgets/progress_bar.dart';
 import '../../core/utils/app_dialogs.dart';
 import '../todo/models/todo.dart';
+import '../../core/constants/timer_defaults.dart';
 import 'providers/timer_provider.dart';
 import 'models/timer_state.dart';
 import 'widgets/pomodoro_action_buttons.dart';
@@ -45,10 +46,10 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
     super.initState();
     final timerState = ref.read(timerProvider);
     _focusController = TextEditingController(
-      text: ((timerState.focusDurationSeconds ?? 1500) ~/ 60).toString(),
+  text: ((timerState.focusDurationSeconds ?? TimerDefaults.focusSeconds) ~/ 60).toString(),
     );
     _breakController = TextEditingController(
-      text: ((timerState.breakDurationSeconds ?? 300) ~/ 60).toString(),
+  text: ((timerState.breakDurationSeconds ?? TimerDefaults.breakSeconds) ~/ 60).toString(),
     );
     _cyclesController = TextEditingController(
       text: timerState.totalCycles.toString(),
