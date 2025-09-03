@@ -7,6 +7,7 @@ import '../../core/widgets/progress_bar.dart';
 import '../../core/utils/app_dialogs.dart';
 import '../todo/models/todo.dart';
 import 'providers/timer_provider.dart';
+import 'models/timer_state.dart';
 import 'widgets/pomodoro_action_buttons.dart';
 import 'widgets/pomodoro_setup_view.dart';
 import 'widgets/pomodoro_timer_view.dart';
@@ -251,10 +252,11 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<TimerState>(timerProvider, (previous, next) {
+  ref.listen<TimerState>(timerProvider, (previous, next) {
       if (next.allSessionsComplete &&
           !(previous?.allSessionsComplete ?? false)) {
-        _showAllSessionsCompleteDialog(context, next.totalCycles);
+    if (!mounted) return;
+    _showAllSessionsCompleteDialog(context, next.totalCycles);
       }
 
       // ADD THIS BLOCK
@@ -263,17 +265,21 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
         debugPrint(
           "POMODORO_SCREEN: Detected overdueSessionsComplete. Popping.",
         );
-        if (mounted && Navigator.of(context).canPop()) {
-          Navigator.of(context).pop(); // CHANGE: No return value needed
+        if (!mounted) return;
+        final navigator = Navigator.of(context);
+        if (navigator.canPop()) {
+          navigator.pop();
         }
       }
       // END OF ADDED BLOCK
 
       if (next.cycleOverflowBlocked &&
           !(previous?.cycleOverflowBlocked ?? false)) {
+        if (!mounted) return;
+        final navigator = Navigator.of(context);
         showDialog(
           context: context,
-          builder: (context) => AlertDialog(
+          builder: (dialogCtx) => AlertDialog(
             title: const Text('Action Not Allowed'),
             content: Text(
               'Cannot set more than ${next.totalCycles} cycles for this task duration.',
@@ -281,10 +287,8 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.of(context).pop();
-                  ref
-                      .read(timerProvider.notifier)
-                      .clearCycleOverflowBlockedFlag();
+                  navigator.pop();
+                  ref.read(timerProvider.notifier).clearCycleOverflowBlockedFlag();
                 },
                 child: const Text('Dismiss'),
               ),

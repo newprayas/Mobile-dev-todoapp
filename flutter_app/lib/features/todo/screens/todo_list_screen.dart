@@ -10,6 +10,7 @@ import '../../../core/utils/debug_logger.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../pomodoro/providers/timer_provider.dart';
+import '../../pomodoro/models/timer_state.dart';
 import '../../pomodoro/widgets/mini_timer_bar.dart';
 import '../models/todo.dart';
 import '../providers/todos_provider.dart';

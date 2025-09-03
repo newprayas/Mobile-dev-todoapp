@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../providers/timer_provider.dart';
+import '../models/timer_state.dart';
 
 /// Widget responsible for displaying the action buttons: "Reset", "Start/Pause/Resume", and "Skip".
 class PomodoroActionButtons extends StatelessWidget {

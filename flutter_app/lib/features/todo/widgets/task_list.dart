@@ -7,6 +7,7 @@ import '../models/todo.dart';
 import './task_card.dart';
 import '../providers/todos_provider.dart';
 import '../../pomodoro/providers/timer_provider.dart';
+import '../../pomodoro/models/timer_state.dart';
 import '../../pomodoro/pomodoro_router.dart';
 import '../../../core/widgets/progress_bar.dart';
 

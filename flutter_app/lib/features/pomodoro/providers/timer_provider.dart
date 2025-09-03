@@ -13,390 +13,19 @@ import '../../../core/utils/helpers.dart'; // Import formatTime
 import '../../todo/providers/todos_provider.dart';
 import '../../todo/models/todo.dart';
 import '../../../core/data/todo_repository.dart';
+import '../models/timer_state.dart';
+import '../services/timer_persistence_manager.dart';
+import '../../../core/constants/sound_assets.dart'; // added
+import '../../../core/services/workmanager_timer_service.dart'; // added
 
-class TimerState {
-  final int? activeTaskId;
-  final String? activeTaskName;
-  final int timeRemaining; // seconds
-  final bool isRunning;
-  final bool isTimerActive; // whether mini-bar should show
-  final String currentMode;
-  final int? plannedDurationSeconds;
-  final int? focusDurationSeconds;
-  final int? breakDurationSeconds;
-  final int currentCycle;
-  final int totalCycles;
-  final int completedSessions;
-  final bool isProgressBarFull;
-  final bool allSessionsComplete;
-  final bool overdueSessionsComplete;
-  final int? overdueCrossedTaskId;
-  final String? overdueCrossedTaskName;
-  final Set<int> overduePromptShown;
-  final Set<int> overdueContinued;
-  final Map<int, int> focusedTimeCache;
-  final bool suppressNextActivation;
-  final bool cycleOverflowBlocked;
-  final bool isPermanentlyOverdue;
-
-  // New fields for background timer management
-  final int? backgroundStartTime; // Timestamp when app went to background
-  final int pausedTimeTotal; // Total time spent paused (in seconds)
-  final bool
-  wasInBackground; // Flag if timer was active when app went to background
-
-  const TimerState({
-    this.activeTaskId,
-    this.activeTaskName,
-    this.timeRemaining = 0,
-    this.isRunning = false,
-    this.isTimerActive = false,
-    this.currentMode = 'focus',
-    this.plannedDurationSeconds,
-    this.focusDurationSeconds,
-    this.breakDurationSeconds,
-    this.currentCycle = 1,
-    this.totalCycles = 1,
-    this.completedSessions = 0,
-    this.isProgressBarFull = false,
-    this.allSessionsComplete = false,
-    this.overdueSessionsComplete = false,
-    this.overdueCrossedTaskId,
-    this.overdueCrossedTaskName,
-    this.overduePromptShown = const {},
-    this.overdueContinued = const {},
-    this.focusedTimeCache = const {},
-    this.suppressNextActivation = false,
-    this.cycleOverflowBlocked = false,
-    this.isPermanentlyOverdue = false,
-    this.backgroundStartTime,
-    this.pausedTimeTotal = 0,
-    this.wasInBackground = false,
-  });
-
-  @override
-  String toString() {
-    return '''
-TimerState(
-  activeTaskId: $activeTaskId,
-  timeRemaining: $timeRemaining,
-  isRunning: $isRunning,
-  isTimerActive: $isTimerActive,
-  currentMode: $currentMode,
-  currentCycle: $currentCycle / $totalCycles,
-  completedSessions: $completedSessions,
-  isPermanentlyOverdue: $isPermanentlyOverdue,
-  overdueSessionsComplete: $overdueSessionsComplete,
-  allSessionsComplete: $allSessionsComplete,
-  backgroundStartTime: $backgroundStartTime,
-  pausedTimeTotal: $pausedTimeTotal,
-  wasInBackground: $wasInBackground
-)''';
-  }
-
-  TimerState copyWith({
-    int? activeTaskId,
-    String? activeTaskName,
-    int? timeRemaining,
-    bool? isRunning,
-    bool? isTimerActive,
-    String? currentMode,
-    int? plannedDurationSeconds,
-    int? focusDurationSeconds,
-    int? breakDurationSeconds,
-    int? currentCycle,
-    int? totalCycles,
-    int? completedSessions,
-    bool? isProgressBarFull,
-    bool? allSessionsComplete,
-    bool? overdueSessionsComplete,
-    int? overdueCrossedTaskId,
-    String? overdueCrossedTaskName,
-    Set<int>? overduePromptShown,
-    Set<int>? overdueContinued,
-    Map<int, int>? focusedTimeCache,
-    bool? suppressNextActivation,
-    bool? cycleOverflowBlocked,
-    bool? isPermanentlyOverdue,
-    // New fields for copyWith
-    int? backgroundStartTime,
-    int? pausedTimeTotal,
-    bool? wasInBackground,
-  }) {
-    return TimerState(
-      activeTaskId: activeTaskId ?? this.activeTaskId,
-      activeTaskName: activeTaskName ?? this.activeTaskName,
-      timeRemaining: timeRemaining ?? this.timeRemaining,
-      isRunning: isRunning ?? this.isRunning,
-      isTimerActive: isTimerActive ?? this.isTimerActive,
-      currentMode: currentMode ?? this.currentMode,
-      plannedDurationSeconds:
-          plannedDurationSeconds ?? this.plannedDurationSeconds,
-      focusDurationSeconds: focusDurationSeconds ?? this.focusDurationSeconds,
-      breakDurationSeconds: breakDurationSeconds ?? this.breakDurationSeconds,
-      currentCycle: currentCycle ?? this.currentCycle,
-      totalCycles: totalCycles ?? this.totalCycles,
-      completedSessions: completedSessions ?? this.completedSessions,
-      isProgressBarFull: isProgressBarFull ?? this.isProgressBarFull,
-      allSessionsComplete: allSessionsComplete ?? this.allSessionsComplete,
-      overdueSessionsComplete:
-          overdueSessionsComplete ?? this.overdueSessionsComplete,
-      overdueCrossedTaskId: overdueCrossedTaskId ?? this.overdueCrossedTaskId,
-      overdueCrossedTaskName:
-          overdueCrossedTaskName ?? this.overdueCrossedTaskName,
-      overduePromptShown: overduePromptShown ?? this.overduePromptShown,
-      overdueContinued: overdueContinued ?? this.overdueContinued,
-      focusedTimeCache: focusedTimeCache ?? this.focusedTimeCache,
-      suppressNextActivation:
-          suppressNextActivation ?? this.suppressNextActivation,
-      cycleOverflowBlocked: cycleOverflowBlocked ?? this.cycleOverflowBlocked,
-      isPermanentlyOverdue: isPermanentlyOverdue ?? this.isPermanentlyOverdue,
-      // Pass new fields
-      backgroundStartTime: backgroundStartTime ?? this.backgroundStartTime,
-      pausedTimeTotal: pausedTimeTotal ?? this.pausedTimeTotal,
-      wasInBackground: wasInBackground ?? this.wasInBackground,
-    );
-  }
-}
-
-/// A utility class for persisting and restoring TimerState using SharedPreferences.
-class TimerPersistenceManager {
-  final SharedPreferences _prefs;
-
-  TimerPersistenceManager(this._prefs);
-
-  Future<void> saveTimerState(TimerState state) async {
-    await _prefs.setInt(
-      AppConstants.prefActiveTaskId,
-      state.activeTaskId ?? -1,
-    );
-    await _prefs.setString(
-      AppConstants.prefActiveTaskText,
-      state.activeTaskName ?? '',
-    );
-    await _prefs.setInt(AppConstants.prefTimeRemaining, state.timeRemaining);
-    await _prefs.setBool(AppConstants.prefIsRunning, state.isRunning);
-    await _prefs.setBool(AppConstants.prefIsTimerActive, state.isTimerActive);
-    await _prefs.setString(AppConstants.prefCurrentMode, state.currentMode);
-    await _prefs.setInt(
-      AppConstants.prefPlannedDurationSeconds,
-      state.plannedDurationSeconds ?? 0,
-    );
-    await _prefs.setInt(
-      AppConstants.prefFocusDurationSeconds,
-      state.focusDurationSeconds ?? 0,
-    );
-    await _prefs.setInt(
-      AppConstants.prefBreakDurationSeconds,
-      state.breakDurationSeconds ?? 0,
-    );
-    await _prefs.setInt(AppConstants.prefCurrentCycle, state.currentCycle);
-    await _prefs.setInt(AppConstants.prefTotalCycles, state.totalCycles);
-    await _prefs.setInt(
-      AppConstants.prefCompletedSessions,
-      state.completedSessions,
-    );
-    await _prefs.setBool(
-      AppConstants.prefIsProgressBarFull,
-      state.isProgressBarFull,
-    );
-    await _prefs.setBool(
-      AppConstants.prefAllSessionsComplete,
-      state.allSessionsComplete,
-    );
-    await _prefs.setBool(
-      AppConstants.prefOverdueSessionsComplete,
-      state.overdueSessionsComplete,
-    );
-    await _prefs.setInt(
-      AppConstants.prefOverdueCrossedTaskId,
-      state.overdueCrossedTaskId ?? -1,
-    );
-    await _prefs.setString(
-      AppConstants.prefOverdueCrossedTaskName,
-      state.overdueCrossedTaskName ?? '',
-    );
-    await _prefs.setStringList(
-      AppConstants.prefOverduePromptShown,
-      state.overduePromptShown.map((e) => e.toString()).toList(),
-    );
-    await _prefs.setStringList(
-      AppConstants.prefOverdueContinued,
-      state.overdueContinued.map((e) => e.toString()).toList(),
-    );
-
-    final Map<String, int> focusedTimeCacheStringKeys = state.focusedTimeCache
-        .map((k, v) => MapEntry(k.toString(), v));
-    await _prefs.setString(
-      AppConstants.prefFocusedTimeCache,
-      json.encode(focusedTimeCacheStringKeys),
-    );
-
-    await _prefs.setBool(
-      AppConstants.prefSuppressNextActivation,
-      state.suppressNextActivation,
-    );
-    await _prefs.setBool(
-      AppConstants.prefCycleOverflowBlocked,
-      state.cycleOverflowBlocked,
-    );
-    await _prefs.setBool(
-      AppConstants.prefIsPermanentlyOverdue,
-      state.isPermanentlyOverdue,
-    );
-    await _prefs.setInt(
-      AppConstants.prefBackgroundStartTime,
-      state.backgroundStartTime ?? 0,
-    );
-    await _prefs.setInt(
-      AppConstants.prefPausedTimeTotal,
-      state.pausedTimeTotal,
-    );
-    await _prefs.setBool(
-      AppConstants.prefWasInBackground,
-      state.wasInBackground,
-    );
-
-    debugLog(
-      'TimerPersistenceManager',
-      'TimerState saved: ${state.toString()}',
-    );
-  }
-
-  TimerState? loadTimerState() {
-    final int? activeTaskIdRaw = _prefs.getInt(AppConstants.prefActiveTaskId);
-    if (activeTaskIdRaw == null || activeTaskIdRaw == -1) {
-      return null; // No active timer saved
-    }
-
-    final String? focusedTimeCacheJson = _prefs.getString(
-      AppConstants.prefFocusedTimeCache,
-    );
-    final Map<int, int> focusedTimeCache = focusedTimeCacheJson != null
-        ? Map<String, int>.from(
-            json.decode(focusedTimeCacheJson),
-          ).map((k, v) => MapEntry(int.parse(k), v))
-        : {};
-
-    final loadedState = TimerState(
-      activeTaskId: activeTaskIdRaw,
-      activeTaskName: _prefs.getString(AppConstants.prefActiveTaskText),
-      timeRemaining: _prefs.getInt(AppConstants.prefTimeRemaining) ?? 0,
-      isRunning: _prefs.getBool(AppConstants.prefIsRunning) ?? false,
-      isTimerActive: _prefs.getBool(AppConstants.prefIsTimerActive) ?? false,
-      currentMode: _prefs.getString(AppConstants.prefCurrentMode) ?? 'focus',
-      plannedDurationSeconds:
-          _prefs.getInt(AppConstants.prefPlannedDurationSeconds) ?? 0,
-      focusDurationSeconds:
-          _prefs.getInt(AppConstants.prefFocusDurationSeconds) ?? 0,
-      breakDurationSeconds:
-          _prefs.getInt(AppConstants.prefBreakDurationSeconds) ?? 0,
-      currentCycle: _prefs.getInt(AppConstants.prefCurrentCycle) ?? 1,
-      totalCycles: _prefs.getInt(AppConstants.prefTotalCycles) ?? 1,
-      completedSessions: _prefs.getInt(AppConstants.prefCompletedSessions) ?? 0,
-      isProgressBarFull:
-          _prefs.getBool(AppConstants.prefIsProgressBarFull) ?? false,
-      allSessionsComplete:
-          _prefs.getBool(AppConstants.prefAllSessionsComplete) ?? false,
-      overdueSessionsComplete:
-          _prefs.getBool(AppConstants.prefOverdueSessionsComplete) ?? false,
-      overdueCrossedTaskId:
-          _prefs.getInt(AppConstants.prefOverdueCrossedTaskId) == -1
-          ? null
-          : _prefs.getInt(AppConstants.prefOverdueCrossedTaskId),
-      overdueCrossedTaskName: _prefs.getString(
-        AppConstants.prefOverdueCrossedTaskName,
-      ),
-      overduePromptShown: Set<int>.from(
-        _prefs
-                .getStringList(AppConstants.prefOverduePromptShown)
-                ?.map(int.parse) ??
-            [],
-      ),
-      overdueContinued: Set<int>.from(
-        _prefs
-                .getStringList(AppConstants.prefOverdueContinued)
-                ?.map(int.parse) ??
-            [],
-      ),
-      focusedTimeCache: focusedTimeCache,
-      suppressNextActivation:
-          _prefs.getBool(AppConstants.prefSuppressNextActivation) ?? false,
-      cycleOverflowBlocked:
-          _prefs.getBool(AppConstants.prefCycleOverflowBlocked) ?? false,
-      isPermanentlyOverdue:
-          _prefs.getBool(AppConstants.prefIsPermanentlyOverdue) ?? false,
-      backgroundStartTime: _prefs.getInt(AppConstants.prefBackgroundStartTime),
-      pausedTimeTotal: _prefs.getInt(AppConstants.prefPausedTimeTotal) ?? 0,
-      wasInBackground:
-          _prefs.getBool(AppConstants.prefWasInBackground) ?? false,
-    );
-    debugLog(
-      'TimerPersistenceManager',
-      'TimerState loaded: ${loadedState.toString()}',
-    );
-    return loadedState;
-  }
-
-  Future<void> clearTimerState() async {
-    await _prefs.remove(AppConstants.prefActiveTaskId);
-    await _prefs.remove(AppConstants.prefActiveTaskText);
-    await _prefs.remove(AppConstants.prefTimeRemaining);
-    await _prefs.remove(AppConstants.prefIsRunning);
-    await _prefs.remove(AppConstants.prefIsTimerActive);
-    await _prefs.remove(AppConstants.prefCurrentMode);
-    await _prefs.remove(AppConstants.prefPlannedDurationSeconds);
-    await _prefs.remove(AppConstants.prefFocusDurationSeconds);
-    await _prefs.remove(AppConstants.prefBreakDurationSeconds);
-    await _prefs.remove(AppConstants.prefCurrentCycle);
-    await _prefs.remove(AppConstants.prefTotalCycles);
-    await _prefs.remove(AppConstants.prefCompletedSessions);
-    await _prefs.remove(AppConstants.prefIsProgressBarFull);
-    await _prefs.remove(AppConstants.prefAllSessionsComplete);
-    await _prefs.remove(AppConstants.prefOverdueSessionsComplete);
-    await _prefs.remove(AppConstants.prefOverdueCrossedTaskId);
-    await _prefs.remove(AppConstants.prefOverdueCrossedTaskName);
-    await _prefs.remove(AppConstants.prefOverduePromptShown);
-    await _prefs.remove(AppConstants.prefOverdueContinued);
-    await _prefs.remove(AppConstants.prefFocusedTimeCache);
-    await _prefs.remove(AppConstants.prefSuppressNextActivation);
-    await _prefs.remove(AppConstants.prefCycleOverflowBlocked);
-    await _prefs.remove(AppConstants.prefIsPermanentlyOverdue);
-    await _prefs.remove(AppConstants.prefBackgroundStartTime);
-    await _prefs.remove(AppConstants.prefPausedTimeTotal);
-    await _prefs.remove(AppConstants.prefWasInBackground);
-    await _prefs.remove(
-      AppConstants.prefSessionScheduled,
-    ); // Track if a WM task is active
-    await _prefs.remove(AppConstants.prefApiBaseUrl); // Clear API URL
-    await _prefs.remove(AppConstants.prefIsDebugMode); // Clear debug mode flag
-    debugLog('TimerPersistenceManager', 'TimerState cleared from preferences.');
-  }
-
-  Future<void> setSessionScheduled(bool scheduled) async {
-    await _prefs.setBool(AppConstants.prefSessionScheduled, scheduled);
-  }
-
-  bool isSessionScheduled() {
-    return _prefs.getBool(AppConstants.prefSessionScheduled) ?? false;
-  }
-
-  // New methods to save/load API config for background
-  Future<void> saveApiConfig(String baseUrl, bool isDebug) async {
-    await _prefs.setString(AppConstants.prefApiBaseUrl, baseUrl);
-    await _prefs.setBool(AppConstants.prefIsDebugMode, isDebug);
-  }
-
-  (String, bool)? loadApiConfig() {
-    final String? baseUrl = _prefs.getString(AppConstants.prefApiBaseUrl);
-    final bool? isDebug = _prefs.getBool(AppConstants.prefIsDebugMode);
-    if (baseUrl != null && isDebug != null) {
-      return (baseUrl, isDebug);
-    }
-    return null;
-  }
-}
-
+/// Business logic + orchestration layer for the Pomodoro timer feature.
+///
+/// Responsibilities:
+/// - Drive countdown / phase transitions
+/// - Persist & restore state via [TimerPersistenceManager]
+/// - Interact with Workmanager for background completion
+/// - Dispatch user notifications / sounds
+/// - Maintain focused time cache (optimistic updates ahead of DB writes)
 class TimerNotifier extends Notifier<TimerState> {
   Timer? _ticker;
   Timer? _autoSaveTimer;
@@ -409,6 +38,7 @@ class TimerNotifier extends Notifier<TimerState> {
   late SharedPreferences _prefs; // Hold SharedPreferences instance
   late String _apiBaseUrl; // Store API base URL from main app
   late bool _isDebugMode; // Store debug mode from main app
+  final WorkmanagerTimerService _wmService = WorkmanagerTimerService(); // new service
 
   @override
   TimerState build() {
@@ -465,7 +95,7 @@ class TimerNotifier extends Notifier<TimerState> {
       // Cancel Workmanager task if one exists and timer was running
       if (state.activeTaskId != null &&
           _persistenceManager.isSessionScheduled()) {
-        Workmanager().cancelByUniqueName(AppConstants.pomodoroTimerTask);
+        _wmService.cancelPomodoroTask();
         _persistenceManager.setSessionScheduled(false);
         ref
             .read(notificationServiceProvider)
@@ -804,7 +434,7 @@ class TimerNotifier extends Notifier<TimerState> {
               ref
                   .read(notificationServiceProvider)
                   .playSoundWithNotification(
-                    soundFileName: 'progress_bar_full.wav',
+                    soundFileName: SoundAsset.sessionComplete.fileName,
                     title: 'Session Complete!',
                     body:
                         'Overdue task session completed for "${state.activeTaskName}".',
@@ -823,7 +453,7 @@ class TimerNotifier extends Notifier<TimerState> {
               ref
                   .read(notificationServiceProvider)
                   .playSoundWithNotification(
-                    soundFileName: 'progress_bar_full.wav',
+                    soundFileName: SoundAsset.sessionComplete.fileName,
                     title: 'All Sessions Complete!',
                     body:
                         'All planned sessions completed for "${state.activeTaskName}".',
@@ -844,7 +474,7 @@ class TimerNotifier extends Notifier<TimerState> {
             final notificationService = ref.read(notificationServiceProvider);
             // Play sound with notification for better background operation
             notificationService.playSoundWithNotification(
-              soundFileName: 'break_timer_start.wav',
+              soundFileName: SoundAsset.breakStart.fileName,
               title: 'Focus Session Complete!',
               body: 'Time for a break for "${state.activeTaskName}".',
             );
@@ -863,7 +493,7 @@ class TimerNotifier extends Notifier<TimerState> {
           // Move to focus session
           final notificationService = ref.read(notificationServiceProvider);
           // Play sound immediately for better user feedback
-          notificationService.playSound('focus_timer_start.wav');
+          notificationService.playSound(SoundAsset.focusStart.fileName);
           notificationService.showNotification(
             title: 'Break Complete!',
             body: 'Time to focus on "${state.activeTaskName}" again!',
@@ -926,7 +556,7 @@ class TimerNotifier extends Notifier<TimerState> {
         final task = todos.firstWhere((t) => t.id == taskId);
         // Play sound with notification for better background operation
         notificationService.playSoundWithNotification(
-          soundFileName: 'progress_bar_full.wav',
+          soundFileName: SoundAsset.sessionComplete.fileName,
           title: 'Planned Time Complete!',
           body:
               'Time for "${task.text}" is up. Decide whether to continue or complete.',
@@ -1073,7 +703,7 @@ class TimerNotifier extends Notifier<TimerState> {
     try {
       final notificationService = ref.read(notificationServiceProvider);
       // Play sound immediately for better user feedback
-      notificationService.playSound('focus_timer_start.wav');
+  notificationService.playSound(SoundAsset.focusStart.fileName);
       notificationService.showNotification(
         title: 'Focus Session Started!',
         body: 'Focus time for "$taskName". You\'ve got this!',
@@ -1253,7 +883,7 @@ class TimerNotifier extends Notifier<TimerState> {
       }
       // Play sound with notification for better background operation
       notificationService.playSoundWithNotification(
-        soundFileName: 'break_timer_start.wav',
+        soundFileName: SoundAsset.breakStart.fileName,
         title: 'Focus Phase Skipped',
         body: 'Moving to break time for "${state.activeTaskName}".',
       );
@@ -1267,7 +897,7 @@ class TimerNotifier extends Notifier<TimerState> {
       );
     } else if (state.currentMode == 'break') {
       // Play sound immediately for better user feedback
-      notificationService.playSound('focus_timer_start.wav');
+  notificationService.playSound(SoundAsset.focusStart.fileName);
       update(
         currentMode: 'focus',
         timeRemaining: state.focusDurationSeconds ?? state.timeRemaining,
