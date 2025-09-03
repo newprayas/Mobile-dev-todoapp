@@ -42,6 +42,9 @@ class Todos extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
+  /// In-memory constructor for tests (does not hit file system or plugins).
+  AppDatabase.memory() : super(NativeDatabase.memory());
+
   @override
   int get schemaVersion => 1; // Increment this when making schema changes
 

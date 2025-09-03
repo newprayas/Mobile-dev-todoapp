@@ -1,20 +1,11 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/foundation.dart';
+import 'dart:io' show Platform;
 import '../utils/debug_logger.dart';
-import 'dart:io' show Platform; // For platform checks
-
-// A unique ID for the persistent timer notification.
-const int _kPersistentTimerNotificationId = 1;
-// Action ID for the pause/resume button within the notification.
-const String _kNotificationActionPause = 'pause_timer';
-const String _kNotificationActionResume = 'resume_timer';
-const String _kNotificationActionStop = 'stop_timer';
-const String _kNotificationActionMarkComplete = 'mark_complete';
-const String _kNotificationActionContinueWorking = 'continue_working';
-// Payload key to determine if the notification tap is to open the app.
-const String _kNotificationPayloadOpenApp = 'open_app';
+import 'notifications/notification_constants.dart';
+import 'notifications/notification_permission_manager.dart';
+import 'notifications/persistent_notification_manager.dart';
+import 'notifications/notification_sound_player.dart';
 
 abstract class INotificationService {
   Function(String? payload)? onNotificationTap;
@@ -32,9 +23,10 @@ abstract class INotificationService {
 }
 
 class NotificationService implements INotificationService {
-  final FlutterLocalNotificationsPlugin _notificationsPlugin =
-      FlutterLocalNotificationsPlugin();
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  late final NotificationPermissionManager _permissionManager = NotificationPermissionManager(_plugin);
+  late final PersistentNotificationManager _persistentManager = PersistentNotificationManager(_plugin);
+  late final NotificationSoundPlayer _soundPlayer = NotificationSoundPlayer();
 
   // Callback to handle notification tap, will be set in main.dart
   @override
@@ -42,95 +34,50 @@ class NotificationService implements INotificationService {
 
   @override
   Future<void> init() async {
-  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
-  const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
-
-    await _notificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse notificationResponse) async {
-        debugLog('NotificationService', 'Notification tapped payload=${notificationResponse.payload} action=${notificationResponse.actionId}');
-        final action = notificationResponse.actionId;
-        if (action == _kNotificationActionPause || action == _kNotificationActionResume) {
-          onNotificationTap?.call(action); // pass through
-        } else if (action == _kNotificationActionStop) {
+    const AndroidInitializationSettings initAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings settings = InitializationSettings(android: initAndroid);
+    await _plugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: (NotificationResponse resp) async {
+        debugLog('NotificationService', 'Tap payload=${resp.payload} action=${resp.actionId}');
+        final String? action = resp.actionId;
+        if (action != null) {
           onNotificationTap?.call(action);
-        } else if (action == _kNotificationActionMarkComplete) {
-          onNotificationTap?.call(action);
-        } else if (action == _kNotificationActionContinueWorking) {
-          onNotificationTap?.call(action);
-        } else if (notificationResponse.payload == _kNotificationPayloadOpenApp) {
-          onNotificationTap?.call(notificationResponse.payload);
+          return;
+        }
+        if (resp.payload == kPayloadOpenApp) {
+          onNotificationTap?.call(resp.payload);
         }
       },
-      onDidReceiveBackgroundNotificationResponse:
-          _notificationTapBackground, // For background actions
+      onDidReceiveBackgroundNotificationResponse: _notificationTapBackground,
     );
-
     if (Platform.isAndroid) {
-      // Explicitly create channels to avoid reliance on implicit creation.
-      final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
-          _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-      if (androidPlugin != null) {
-        await androidPlugin.createNotificationChannel(
-          const AndroidNotificationChannel(
-            'pomodoro_persistent_channel',
-            'Persistent Pomodoro Timer',
-            description: 'Ongoing notifications for your active Pomodoro timer.',
-            importance: Importance.max,
-            showBadge: false,
-          ),
-        );
-        await androidPlugin.createNotificationChannel(
-          const AndroidNotificationChannel(
-            'pomodoro_channel',
-            'Pomodoro Notifications',
-            description: 'Notifications for Pomodoro timer events',
-            importance: Importance.max,
-          ),
-        );
+      final AndroidFlutterLocalNotificationsPlugin? android =
+          _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        await android.createNotificationChannel(const AndroidNotificationChannel(
+          'pomodoro_persistent_channel',
+          'Persistent Pomodoro Timer',
+          description: 'Ongoing notifications for your active Pomodoro timer.',
+          importance: Importance.max,
+          showBadge: false,
+        ));
+        await android.createNotificationChannel(const AndroidNotificationChannel(
+          'pomodoro_channel',
+          'Pomodoro Notifications',
+          description: 'Notifications for Pomodoro timer events',
+          importance: Importance.max,
+        ));
       }
     }
-
-    if (kDebugMode) debugLog('NotificationService', 'Initialized & channels created');
+    debugLog('NotificationService', 'Initialized & channels created');
   }
 
   /// Ensures the application has notification permissions (platform specific).
   /// On Android 13+ this requests the POST_NOTIFICATIONS runtime permission.
   /// On iOS/macOS it requests alert/badge/sound permissions.
   @override
-  Future<void> ensurePermissions() async {
-    try {
-      if (Platform.isAndroid) {
-        final AndroidFlutterLocalNotificationsPlugin? androidImpl =
-            _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-        if (androidImpl != null) {
-          final bool? areEnabled = await androidImpl.areNotificationsEnabled();
-          if (areEnabled == false) {
-            final bool? granted = await androidImpl.requestNotificationsPermission();
-            debugLog('NotificationService', 'Android notifications permission requested granted=$granted');
-          } else {
-            debugLog('NotificationService', 'Android notifications already enabled');
-          }
-        }
-      } else if (Platform.isIOS) {
-        final IOSFlutterLocalNotificationsPlugin? iosImpl =
-            _notificationsPlugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
-        if (iosImpl != null) {
-          final bool? granted = await iosImpl.requestPermissions(alert: true, badge: true, sound: true);
-          debugLog('NotificationService', 'iOS notification permissions requested granted=$granted');
-        }
-      } else if (Platform.isMacOS) {
-        final MacOSFlutterLocalNotificationsPlugin? macImpl =
-            _notificationsPlugin.resolvePlatformSpecificImplementation<MacOSFlutterLocalNotificationsPlugin>();
-        if (macImpl != null) {
-          final bool? granted = await macImpl.requestPermissions(alert: true, badge: true, sound: true);
-          debugLog('NotificationService', 'macOS notification permissions requested granted=$granted');
-        }
-      }
-    } catch (e) {
-      debugLog('NotificationService', 'Error ensuring permissions err=$e');
-    }
-  }
+  Future<void> ensurePermissions() => _permissionManager.ensurePermissions();
 
   // A method for triggering the background tap handler.
   // This needs to be a top-level function or a static method.
@@ -155,7 +102,7 @@ class NotificationService implements INotificationService {
     String? payload, // Add payload for generic notifications
     String? soundFileName, // Add sound parameter for notifications
   }) async {
-    AndroidNotificationDetails androidPlatformChannelSpecifics;
+  AndroidNotificationDetails androidPlatformChannelSpecifics;
 
     if (soundFileName != null) {
       // Use custom sound for notification
@@ -191,7 +138,7 @@ class NotificationService implements INotificationService {
       android: androidPlatformChannelSpecifics,
     );
 
-    await _notificationsPlugin.show(
+  await _plugin.show(
       DateTime.now()
           .millisecondsSinceEpoch, // Unique ID for transient notifications
       title,
@@ -206,148 +153,17 @@ class NotificationService implements INotificationService {
     required String title,
     required String body,
     required List<String> actionIds,
-  }) async {
-    // Map simple string action IDs to AndroidNotificationAction
-    final List<AndroidNotificationAction> actions = actionIds.map((String id) {
-      return AndroidNotificationAction(
-        id,
-        _mapActionLabel(id),
-        showsUserInterface: false,
-        cancelNotification: false,
-        contextual: false,
-      );
-    }).toList();
+  }) => _persistentManager.showOrUpdate(title: title, body: body, actionIds: actionIds);
 
-    // Use BigTextStyle to keep layout simple and ensure actions are visible.
-    final BigTextStyleInformation bigText = BigTextStyleInformation(body);
-
-    final AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
-      'pomodoro_persistent_channel',
-      'Persistent Pomodoro Timer',
-      channelDescription: 'Ongoing notifications for your active Pomodoro timer.',
-      importance: Importance.max,
-      priority: Priority.max,
-      ongoing: true,
-      autoCancel: false,
-      showWhen: false,
-      onlyAlertOnce: true,
-      largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-      styleInformation: bigText,
-      actions: actions,
-      category: AndroidNotificationCategory.service,
-      visibility: NotificationVisibility.public,
-      enableLights: false,
-      enableVibration: false,
-      playSound: false,
-      ticker: title,
-    );
-
-    final NotificationDetails platformChannelSpecifics = NotificationDetails(
-      android: androidPlatformChannelSpecifics,
-    );
-
-    await _notificationsPlugin.show(
-      _kPersistentTimerNotificationId,
-      title,
-      body,
-      platformChannelSpecifics,
-      payload: _kNotificationPayloadOpenApp,
-    );
-
-    debugLog('NotificationService', 'Persistent update title="$title" body="$body" actions=$actionIds');
-    if (kDebugMode) {
-      await debugDumpActiveNotifications();
-    }
-  }
-
-  String _mapActionLabel(String id) {
-    switch (id) {
-      case _kNotificationActionPause:
-        return 'Pause';
-      case _kNotificationActionResume:
-        return 'Resume';
-      case _kNotificationActionStop:
-        return 'Stop';
-      case _kNotificationActionMarkComplete:
-        return 'Complete';
-      case _kNotificationActionContinueWorking:
-        return 'Continue';
-      default:
-        return id;
-    }
-  }
-
-  /// Debug helper: logs currently active notifications (Android only)
-  Future<void> debugDumpActiveNotifications() async {
-    if (!Platform.isAndroid) return;
-    final androidImpl = _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    if (androidImpl == null) return;
-    try {
-      final active = await androidImpl.getActiveNotifications();
-      for (final n in active) {
-        debugLog('NotificationService', 'ACTIVE notif id=${n.id} tag=${n.tag} title=${n.title} text=${n.body}');
-      }
-    } catch (e) {
-      debugLog('NotificationService', 'Error dumping active notifications: $e');
-    }
-  }
+  /// Debug dump delegated to persistent manager (kept for backward compatibility if used internally later).
+  Future<void> debugDumpActiveNotifications() => _persistentManager.debugDumpActiveNotifications();
 
   /// Cancels the persistent timer notification.
   @override
-  Future<void> cancelPersistentTimerNotification() async {
-    await _notificationsPlugin.cancel(_kPersistentTimerNotificationId);
-    debugLog('NotificationService', 'Persistent notification cancelled');
-  }
+  Future<void> cancelPersistentTimerNotification() => _persistentManager.cancel();
 
   @override
-  Future<void> playSound(String soundFileName) async {
-    try {
-      debugLog('NotificationService', 'playSound sound=$soundFileName');
-
-      // Stop any currently playing sound first
-      await _audioPlayer.stop();
-
-      String assetPath = soundFileName;
-      if (assetPath.startsWith('assets/sounds/')) {
-        assetPath = assetPath.substring(14);
-      } else if (assetPath.startsWith('assets/')) {
-        assetPath = assetPath.substring(7);
-      } else if (assetPath.startsWith('sounds/')) {
-        assetPath = assetPath.substring(7);
-      }
-
-  debugLog('NotificationService', 'Processed assetPath=$assetPath');
-
-      // Add a small delay to ensure the previous sound is fully stopped
-      await Future.delayed(const Duration(milliseconds: 50));
-
-      await _audioPlayer.play(AssetSource('sounds/$assetPath'));
-  debugLog('NotificationService', 'Sound played sound=$soundFileName');
-
-      // Add extra debugging for specific sounds
-      if (soundFileName.contains('break_timer_start')) {
-        debugLog('NotificationService', 'Break timer sound played');
-      } else if (soundFileName.contains('progress_bar_full')) {
-        debugLog('NotificationService', 'Progress bar full sound played');
-      }
-    } catch (e, stackTrace) {
-      debugLog('NotificationService', 'Error playing sound=$soundFileName err=$e');
-      debugLog('NotificationService', 'Stack trace: $stackTrace');
-
-      // Try alternative approach for problematic sounds
-      if (soundFileName.contains('break_timer_start') ||
-          soundFileName.contains('progress_bar_full')) {
-        debugLog('NotificationService', 'Attempt alternative playback sound=$soundFileName');
-        try {
-          await _audioPlayer.setSource(AssetSource('sounds/$soundFileName'));
-          await _audioPlayer.resume();
-          debugLog('NotificationService', 'Alternative playback success sound=$soundFileName');
-        } catch (alternativeError) {
-          debugLog('NotificationService', 'Alternative playback failed err=$alternativeError');
-        }
-      }
-    }
-  }
+  Future<void> playSound(String soundFileName) => _soundPlayer.playSound(soundFileName);
 
   /// Plays a sound AND shows a notification for critical events (like timer completion)
   /// This ensures sounds are heard even when the app is minimized
@@ -360,13 +176,13 @@ class NotificationService implements INotificationService {
     debugLog('NotificationService', 'playSoundWithNotification title="$title" body="$body" sound=$soundFileName');
 
     // First play the sound using the audio player
-    await playSound(soundFileName);
+  await playSound(soundFileName);
 
     // Then show a notification with the same sound for background playback
     await showNotification(
       title: title,
       body: body,
-      soundFileName: soundFileName,
+  soundFileName: soundFileName,
       payload: 'sound_notification',
     );
 
