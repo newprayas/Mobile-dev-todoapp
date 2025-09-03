@@ -11713,96 +11713,6 @@ class _Label extends StatelessWidget {
 }
 </file>
 
-<file path="flutter_app/lib/features/pomodoro/widgets/pomodoro_timer_view.dart">
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../providers/timer_provider.dart';
-import '../models/timer_state.dart';
-
-/// Widget responsible for displaying the actively running timer, cycle count, and mode.
-/// This shows the timer display, current cycle information, and focus/break mode indicators.
-class PomodoroTimerView extends StatelessWidget {
-  final TimerState timerState;
-
-  const PomodoroTimerView({required this.timerState, super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          '${(timerState.focusDurationSeconds ?? 1500) ~/ 60} / ${(timerState.breakDurationSeconds ?? 300) ~/ 60} / ${timerState.totalCycles}',
-          style: const TextStyle(
-            fontSize: 16.0,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '${timerState.currentCycle} / ${timerState.totalCycles}',
-              style: const TextStyle(
-                fontSize: 28.0,
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        const Divider(color: Color(0xFF262626)),
-        const SizedBox(height: 12),
-        Flexible(
-          flex: 5,
-          fit: FlexFit.loose,
-          child: Center(
-            child: IntrinsicWidth(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: timerState.currentMode == 'focus'
-                        ? Colors.redAccent
-                        : Colors.greenAccent,
-                    width: 6.0,
-                  ),
-                  borderRadius: BorderRadius.circular(14.0),
-                ),
-                child: Container(
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.all(20.0),
-                  child: Text(
-                    _formatTime(timerState.timeRemaining),
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.oswald(
-                      fontSize: 120.0,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -2.0,
-                      height: 1.05,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        const Divider(color: Color(0xFF262626)),
-      ],
-    );
-  }
-
-  String _formatTime(int seconds) {
-    final m = (seconds ~/ 60).toString().padLeft(2, '0');
-    final s = (seconds % 60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
-}
-</file>
-
 <file path="flutter_app/test/widget_test.dart">
 // This is a basic Flutter widget test.
 //
@@ -11938,260 +11848,91 @@ void main() {
 </manifest>
 </file>
 
-<file path="flutter_app/lib/core/services/auth_service.dart">
-import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'dart:convert'; // For json encoding/decoding
-
-class AuthService extends ChangeNotifier {
-  final FlutterSecureStorage _secure = const FlutterSecureStorage();
-  final dynamic api;
-
-  Map<String, dynamic>? _currentUser;
-  bool _isAuthenticated = false;
-
-  AuthService(this.api);
-
-  Map<String, dynamic>? get currentUser => _currentUser;
-  bool get isAuthenticated => _isAuthenticated;
-  String? get userEmail => _currentUser?['email'];
-  String? get userName => _currentUser?['name'] ?? _currentUser?['email'];
-
-  Future<bool> signInWithGoogle() async {
-    try {
-      // Always use mock Google Sign-In for tester APKs (no real plugin calls).
-      debugPrint('AUTH: Initiating mock Google Sign-In...');
-
-      // Generate a mock ID token and proceed with server authentication.
-      final mockIdToken =
-          'mock_id_token_${DateTime.now().millisecondsSinceEpoch}';
-      debugPrint(
-        'AUTH: Generated mock token: ${mockIdToken.substring(0, 20)}...',
-      );
-
-      final result = await signInWithIdToken(mockIdToken);
-      debugPrint('AUTH: signInWithIdToken returned: $result');
-      return result;
-    } catch (error, stackTrace) {
-      debugPrint("AUTH: Mock sign-in error: $error");
-      debugPrint("AUTH: Stack trace: $stackTrace");
-      return false;
-    }
-  }
-
-  Future<bool> signInWithIdToken(String idToken) async {
-    try {
-      if (kDebugMode) debugPrint('AUTH: Sending ID token to backend...');
-      debugPrint('AUTH: API instance type: ${api.runtimeType}');
-
-      final resp = await api.authWithIdToken(idToken);
-      debugPrint('AUTH: Backend response received: $resp');
-
-      final token = resp['token'];
-      final user = resp['user'];
-
-      if (token != null && user != null) {
-        debugPrint(
-          'AUTH: Valid token and user received, storing credentials...',
-        );
-        await _secure.write(key: 'server_token', value: token);
-        // Store user data as a JSON string for better structure
-        await _secure.write(key: 'user_data', value: json.encode(user));
-
-        api.setAuthToken(token);
-        _currentUser = user;
-        _isAuthenticated = true;
-
-        if (kDebugMode) {
-          debugPrint(
-            'AUTH: Authentication successful for user: ${user['email']}',
-          );
-        }
-        debugPrint('AUTH: Calling notifyListeners...');
-        notifyListeners();
-        return true;
-      }
-
-      if (kDebugMode) debugPrint('AUTH: No token received from backend');
-      return false;
-    } catch (error, stackTrace) {
-      if (kDebugMode) debugPrint('AUTH: Backend authentication error: $error');
-      if (kDebugMode) debugPrint('AUTH: Stack trace: $stackTrace');
-      return false;
-    }
-  }
-
-  Future<void> signOut() async {
-    try {
-      if (kDebugMode) debugPrint('AUTH: Signing out...');
-
-      await _secure.delete(key: 'server_token');
-      await _secure.delete(key: 'user_data');
-
-      api.setAuthToken(null);
-      _currentUser = null;
-      _isAuthenticated = false;
-
-      if (kDebugMode) debugPrint('AUTH: Sign out complete');
-      notifyListeners();
-    } catch (error) {
-      if (kDebugMode) debugPrint('AUTH: Sign out error: $error');
-    }
-  }
-
-  Future<void> loadSavedToken() async {
-    try {
-      final token = await _secure.read(key: 'server_token');
-      final userDataString = await _secure.read(key: 'user_data');
-
-      if (token != null) {
-        api.setAuthToken(token);
-        _isAuthenticated = true;
-
-        if (userDataString != null) {
-          // Decode the user data from JSON
-          _currentUser = json.decode(userDataString);
-        }
-
-        if (kDebugMode) debugPrint('AUTH: Loaded saved authentication');
-        notifyListeners();
-      }
-    } catch (error) {
-      if (kDebugMode) debugPrint('AUTH: Error loading saved token: $error');
-    }
-  }
-
-  Future<bool> checkAuthStatus() async {
-    final token = await _secure.read(key: 'server_token');
-    _isAuthenticated = token != null;
-    notifyListeners();
-    return _isAuthenticated;
-  }
-}
-</file>
-
-<file path="flutter_app/lib/features/pomodoro/widgets/pomodoro_action_buttons.dart">
+<file path="flutter_app/lib/features/pomodoro/widgets/pomodoro_timer_view.dart">
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_colors.dart';
-import '../providers/timer_provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/timer_state.dart';
 
-/// Widget responsible for displaying the action buttons: "Reset", "Start/Pause/Resume", and "Skip".
-class PomodoroActionButtons extends StatelessWidget {
+/// Widget responsible for displaying the actively running timer, cycle count, and mode.
+/// This shows the timer display, current cycle information, and focus/break mode indicators.
+class PomodoroTimerView extends StatelessWidget {
   final TimerState timerState;
-  final VoidCallback onReset;
-  final VoidCallback onPlayPause;
-  final VoidCallback onSkip;
 
-  const PomodoroActionButtons({
-    required this.timerState,
-    required this.onReset,
-    required this.onPlayPause,
-    required this.onSkip,
-    // The onStop callback is removed as it's now handled by the parent screen.
-    super.key,
-  });
+  const PomodoroTimerView({required this.timerState, super.key});
 
   @override
   Widget build(BuildContext context) {
-    final isRunning = timerState.isRunning;
-    final isSetupMode = !timerState.isRunning && timerState.currentCycle == 0;
-
     return Column(
-      mainAxisSize: MainAxisSize.min,
       children: [
+        Text(
+          '${(timerState.focusDurationSeconds ?? 1500) ~/ 60} / ${(timerState.breakDurationSeconds ?? 300) ~/ 60} / ${timerState.totalCycles}',
+          style: const TextStyle(
+            fontSize: 16.0,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 12),
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            _buildActionButton(
-              icon: Icons.replay_rounded,
-              label: 'Reset',
-              onPressed: onReset,
-              isSecondary: true,
-            ),
-            _buildMainActionButton(
-              icon: isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
-              label: isSetupMode ? 'Start' : (isRunning ? 'Pause' : 'Resume'),
-              onPressed: onPlayPause,
-            ),
-            _buildActionButton(
-              icon: Icons.fast_forward_rounded,
-              label: 'Skip',
-              onPressed: onSkip,
-              isSecondary: true,
+            Text(
+              '${timerState.currentCycle} / ${timerState.totalCycles}',
+              style: const TextStyle(
+                fontSize: 28.0,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 24),
-      ],
-    );
-  }
-
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onPressed,
-    bool isSecondary = false,
-  }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.brightYellow, width: 2.0),
-          ),
-          child: OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              shape: const CircleBorder(),
-              side: const BorderSide(color: Colors.transparent),
-              padding: const EdgeInsets.all(12),
+        const SizedBox(height: 12),
+        const Divider(color: Color(0xFF262626)),
+        const SizedBox(height: 12),
+        Flexible(
+          flex: 5,
+          fit: FlexFit.loose,
+          child: Center(
+            child: IntrinsicWidth(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: timerState.currentMode == 'focus'
+                        ? Colors.redAccent
+                        : Colors.greenAccent,
+                    width: 6.0,
+                  ),
+                  borderRadius: BorderRadius.circular(14.0),
+                ),
+                child: Container(
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.all(20.0),
+                  child: Text(
+                    _formatTime(timerState.timeRemaining),
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.oswald(
+                      fontSize: 120.0,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -2.0,
+                      height: 1.05,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
             ),
-            onPressed: onPressed,
-            child: Icon(icon, color: AppColors.brightYellow, size: 22),
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        const SizedBox(height: 12),
+        const Divider(color: Color(0xFF262626)),
       ],
     );
   }
 
-  Widget _buildMainActionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onPressed,
-  }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 72,
-          height: 72,
-          child: FloatingActionButton(
-            backgroundColor: AppColors.brightYellow,
-            onPressed: onPressed,
-            child: Icon(icon, color: Colors.black, size: 40),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
+  String _formatTime(int seconds) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
   }
 }
 </file>
@@ -12390,228 +12131,260 @@ class _DurationInputBox extends StatelessWidget {
 }
 </file>
 
-<file path="flutter_app/lib/core/services/api_service.dart">
-import 'package:dio/dio.dart';
+<file path="flutter_app/lib/core/services/auth_service.dart">
 import 'package:flutter/foundation.dart';
-import '../utils/debug_logger.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:convert'; // For json encoding/decoding
+import 'api_service.dart';
 
-// For local development the Dart backend accepts a simple header 'x-user-id'
-// to simulate a logged-in user (the original Flask app used OAuth). When the
-// ApiService is constructed with a local baseUrl we add that header so the
-// client can talk to the Dart server without an OAuth flow.
+class AuthService extends ChangeNotifier {
+  final FlutterSecureStorage _secure = const FlutterSecureStorage();
+  final ApiService api; // Strongly typed instead of dynamic
 
-/// HTTP API client for todo management with automatic retry logic.
-///
-/// Provides a complete REST API interface for todo CRUD operations,
-/// authentication, and focus time tracking. Includes automatic retry
-/// logic for connection errors and local development authentication.
-class ApiService {
-  final Dio _dio;
-  // configurable retry attempts for transient connection errors (e.g. server
-  // not up yet). Keep small to avoid long UI stalls.
-  final int _maxRetries = 3;
-  final Duration _retryDelay = const Duration(milliseconds: 500);
+  Map<String, dynamic>? _currentUser;
+  bool _isAuthenticated = false;
 
-  final String _devUserId = 'dev'; // Add this line to store the dev user ID
+  AuthService(this.api);
 
-  ApiService(String baseUrl)
-    : _dio = Dio(
-        BaseOptions(
-          baseUrl: baseUrl,
-          connectTimeout: const Duration(seconds: 5),
-        ),
-      ) {
-    // If the base URL points to a local development server, always add
-    // the dev user id header so mock authentication works even in release
-    // builds that use a local backend via adb reverse or emulator host.
-    final String lowerBaseUrl = baseUrl.toLowerCase();
-    if (lowerBaseUrl.contains('127.0.0.1') ||
-        lowerBaseUrl.contains('localhost') ||
-        lowerBaseUrl.contains('10.0.2.2')) {
-      _dio.options.headers['x-user-id'] = _devUserId;
-      debugLog('ApiService', 'Set x-user-id header for local dev: $_devUserId');
-    }
-  }
+  Map<String, dynamic>? get currentUser => _currentUser;
+  bool get isAuthenticated => _isAuthenticated;
+  String? get userEmail => _currentUser?['email'];
+  String? get userName => _currentUser?['name'] ?? _currentUser?['email'];
 
-  String get devUserId => _devUserId; // Add this getter
-
-  /// Sets the authentication token for API requests.
-  ///
-  /// Configures the Authorization header for authenticated requests.
-  /// Pass null to remove authentication.
-  ///
-  /// Parameters:
-  /// - [token]: JWT token or null to remove authentication
-  void setAuthToken(String? token) {
-    if (token != null) {
-      _dio.options.headers['Authorization'] = 'Bearer $token';
-    } else {
-      _dio.options.headers.remove('Authorization');
-    }
-  }
-
-  /// Authenticates with Google ID token and returns user data.
-  ///
-  /// Parameters:
-  /// - [idToken]: Google OAuth ID token
-  ///
-  /// Returns: Map containing user authentication data
-  Future<Map<String, dynamic>> authWithIdToken(String idToken) async {
-    final resp = await _dio.post('/api/auth', data: {'id_token': idToken});
-    return resp.data as Map<String, dynamic>;
-  }
-
-  /// Fetches all todos for the authenticated user.
-  ///
-  /// Returns: List of todo objects as dynamic maps
-  Future<List<dynamic>> fetchTodos() async {
-    final resp = await _withRetry(() => _dio.get('/api/todos'));
-    return resp.data as List<dynamic>;
-  }
-
-  /// Creates a new todo with specified duration.
-  ///
-  /// Parameters:
-  /// - [text]: Todo description text
-  /// - [hours]: Planned duration hours (0-23)
-  /// - [minutes]: Planned duration minutes (0-59)
-  ///
-  /// Returns: Server response containing the created todo data
-  Future<dynamic> addTodo(String text, int hours, int minutes) async {
-    final resp = await _withRetry(
-      () => _dio.post(
-        '/add',
-        data: {
-          'text': text,
-          'duration_hours': hours,
-          'duration_minutes': minutes,
-        },
-      ),
-    );
-    // log server response for debugging duplicate issues
+  Future<bool> signInWithGoogle() async {
     try {
-      if (kDebugMode) debugPrint('ApiService.addTodo response: ${resp.data}');
-    } catch (_) {}
-    return resp.data;
-  }
+      // Always use mock Google Sign-In for tester APKs (no real plugin calls).
+      debugPrint('AUTH: Initiating mock Google Sign-In...');
 
-  /// Deletes a todo by ID.
-  ///
-  /// Parameters:
-  /// - [id]: Database ID of the todo to delete
-  ///
-  /// Returns: Server response confirming deletion
-  Future<dynamic> deleteTodo(int id) async {
-    final resp = await _withRetry(() => _dio.post('/delete', data: {'id': id}));
-    return resp.data;
-  }
+      // Generate a mock ID token and proceed with server authentication.
+      final String mockIdToken =
+          'mock_id_token_${DateTime.now().millisecondsSinceEpoch}';
+      debugPrint(
+        'AUTH: Generated mock token: ${mockIdToken.substring(0, 20)}...',
+      );
 
-  /// Updates todo properties.
-  ///
-  /// Allows partial updates of todo text and/or duration.
-  ///
-  /// Parameters:
-  /// - [id]: Database ID of the todo to update
-  /// - [text]: New description text (optional)
-  /// - [hours]: New planned duration hours (optional)
-  /// - [minutes]: New planned duration minutes (optional)
-  ///
-  /// Returns: Server response containing updated todo data
-  Future<dynamic> updateTodo(
-    int id, {
-    String? text,
-    int? hours,
-    int? minutes,
-  }) async {
-    final Map<String, dynamic> data = {'id': id};
-    if (text != null) data['text'] = text;
-    if (hours != null) data['duration_hours'] = hours;
-    if (minutes != null) data['duration_minutes'] = minutes;
-    final resp = await _dio.post('/update', data: data);
-    return resp.data;
-  }
-
-  Future<dynamic> toggleTodo(int id) async {
-    final resp = await _withRetry(() => _dio.post('/toggle', data: {'id': id}));
-    return resp.data;
-  }
-
-  Future<dynamic> toggleTodoWithOverdue(
-    int id, {
-    bool wasOverdue = false,
-    int overdueTime = 0,
-  }) async {
-    final payload = {
-      'id': id,
-      'was_overdue': wasOverdue ? 1 : 0,
-      'overdue_time': overdueTime,
-    };
-    final resp = await _withRetry(() => _dio.post('/toggle', data: payload));
-    return resp.data;
-  }
-
-  /// Updates the focused time for a specific todo.
-  ///
-  /// Critical for progress tracking and Pomodoro timer integration.
-  ///
-  /// Parameters:
-  /// - [id]: Database ID of the todo to update
-  /// - [focusedTime]: Total focused time in seconds
-  ///
-  /// Returns: Server response confirming the update
-  Future<dynamic> updateFocusTime(int id, int focusedTime) async {
-    final resp = await _withRetry(
-      () => _dio.post(
-        '/update_focus_time',
-        data: {'id': id, 'focused_time': focusedTime},
-      ),
-    );
-    return resp.data;
-  }
-
-  // Generic retry wrapper to soften initial startup race where the backend
-  // server process might not yet be listening and Dio throws a connection
-  // error (SocketException: Connection refused). Only retries for connection
-  // level errors, not for HTTP status codes.
-  Future<Response<dynamic>> _withRetry(
-    Future<Response<dynamic>> Function() fn,
-  ) async {
-    int attempt = 0;
-    while (true) {
-      try {
-        return await fn();
-      } on DioException catch (e) {
-        final isConnError =
-            e.type == DioExceptionType.connectionError ||
-            e.error is Error ||
-            (e.message?.toLowerCase().contains('connection refused') ?? false);
-
-        // ALWAYS log detailed errors for tester APK debugging.
-        if (e.type == DioExceptionType.badResponse) {
-          debugLog(
-            'ApiService',
-            'API Error: Status ${e.response?.statusCode}, Data: ${e.response?.data}, Message: ${e.message}',
-          );
-        } else {
-          debugLog(
-            'ApiService',
-            'Network Error: Type ${e.type}, Message: ${e.message}, Error: ${e.error}, Stack: ${e.stackTrace}',
-          );
-        }
-
-        if (!isConnError || attempt >= _maxRetries - 1) {
-          // If not a transient connection error, or max retries reached, rethrow.
-          rethrow; // Re-throw the original exception to propagate.
-        }
-        attempt++;
-        // Log retry attempts with basic info, still useful for debugging.
-        debugLog(
-          'ApiService',
-          'Transient connection error, retrying ($attempt/$_maxRetries) in ${_retryDelay.inMilliseconds}ms ...',
-        );
-        await Future.delayed(_retryDelay);
-      }
+      final bool result = await signInWithIdToken(mockIdToken);
+      debugPrint('AUTH: signInWithIdToken returned: $result');
+      return result;
+    } catch (error, stackTrace) {
+      debugPrint("AUTH: Mock sign-in error: $error");
+      debugPrint("AUTH: Stack trace: $stackTrace");
+      return false;
     }
+  }
+
+  Future<bool> signInWithIdToken(String idToken) async {
+    try {
+      if (kDebugMode) debugPrint('AUTH: Sending ID token to backend...');
+      debugPrint('AUTH: API instance type: ${api.runtimeType}');
+
+      final Map<String, dynamic> resp = await api.authWithIdToken(idToken);
+      debugPrint('AUTH: Backend response received: $resp');
+
+      final dynamic token = resp['token'];
+      final dynamic user = resp['user'];
+
+      if (token != null && user != null) {
+        debugPrint(
+          'AUTH: Valid token and user received, storing credentials...',
+        );
+        await _secure.write(key: 'server_token', value: token as String);
+        // Store user data as a JSON string for better structure
+        await _secure.write(key: 'user_data', value: json.encode(user));
+
+        api.setAuthToken(token as String?);
+        _currentUser = user as Map<String, dynamic>;
+        _isAuthenticated = true;
+
+        if (kDebugMode) {
+          debugPrint(
+            'AUTH: Authentication successful for user: ${user['email']}',
+          );
+        }
+        debugPrint('AUTH: Calling notifyListeners...');
+        notifyListeners();
+        return true;
+      }
+
+      if (kDebugMode) debugPrint('AUTH: No token received from backend');
+      return false;
+    } catch (error, stackTrace) {
+      if (kDebugMode) debugPrint('AUTH: Backend authentication error: $error');
+      if (kDebugMode) debugPrint('AUTH: Stack trace: $stackTrace');
+      return false;
+    }
+  }
+
+  Future<void> signOut() async {
+    try {
+      if (kDebugMode) debugPrint('AUTH: Signing out...');
+
+      await _secure.delete(key: 'server_token');
+      await _secure.delete(key: 'user_data');
+
+      api.setAuthToken(null);
+      _currentUser = null;
+      _isAuthenticated = false;
+
+      if (kDebugMode) debugPrint('AUTH: Sign out complete');
+      notifyListeners();
+    } catch (error) {
+      if (kDebugMode) debugPrint('AUTH: Sign out error: $error');
+    }
+  }
+
+  Future<void> loadSavedToken() async {
+    try {
+      final String? token = await _secure.read(key: 'server_token');
+      final String? userDataString = await _secure.read(key: 'user_data');
+
+      if (token != null) {
+        api.setAuthToken(token);
+        _isAuthenticated = true;
+
+        if (userDataString != null) {
+          // Decode the user data from JSON
+            _currentUser = json.decode(userDataString) as Map<String, dynamic>;
+        }
+
+        if (kDebugMode) debugPrint('AUTH: Loaded saved authentication');
+        notifyListeners();
+      }
+    } catch (error) {
+      if (kDebugMode) debugPrint('AUTH: Error loading saved token: $error');
+    }
+  }
+
+  Future<bool> checkAuthStatus() async {
+    final String? token = await _secure.read(key: 'server_token');
+    _isAuthenticated = token != null;
+    notifyListeners();
+    return _isAuthenticated;
+  }
+}
+</file>
+
+<file path="flutter_app/lib/features/pomodoro/widgets/pomodoro_action_buttons.dart">
+import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
+import '../models/timer_state.dart';
+
+/// Widget responsible for displaying the action buttons: "Reset", "Start/Pause/Resume", and "Skip".
+class PomodoroActionButtons extends StatelessWidget {
+  final TimerState timerState;
+  final VoidCallback onReset;
+  final VoidCallback onPlayPause;
+  final VoidCallback onSkip;
+
+  const PomodoroActionButtons({
+    required this.timerState,
+    required this.onReset,
+    required this.onPlayPause,
+    required this.onSkip,
+    // The onStop callback is removed as it's now handled by the parent screen.
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isRunning = timerState.isRunning;
+    final isSetupMode = !timerState.isRunning && timerState.currentCycle == 0;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _buildActionButton(
+              icon: Icons.replay_rounded,
+              label: 'Reset',
+              onPressed: onReset,
+              isSecondary: true,
+            ),
+            _buildMainActionButton(
+              icon: isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
+              label: isSetupMode ? 'Start' : (isRunning ? 'Pause' : 'Resume'),
+              onPressed: onPlayPause,
+            ),
+            _buildActionButton(
+              icon: Icons.fast_forward_rounded,
+              label: 'Skip',
+              onPressed: onSkip,
+              isSecondary: true,
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+    bool isSecondary = false,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.brightYellow, width: 2.0),
+          ),
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              shape: const CircleBorder(),
+              side: const BorderSide(color: Colors.transparent),
+              padding: const EdgeInsets.all(12),
+            ),
+            onPressed: onPressed,
+            child: Icon(icon, color: AppColors.brightYellow, size: 22),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMainActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 72,
+          height: 72,
+          child: FloatingActionButton(
+            backgroundColor: AppColors.brightYellow,
+            onPressed: onPressed,
+            child: Icon(icon, color: Colors.black, size: 40),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
   }
 }
 </file>
@@ -14233,184 +14006,234 @@ void main(List<String> args) async {
 }
 </file>
 
-<file path="flutter_app/lib/features/pomodoro/widgets/mini_timer_bar.dart">
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/timer_provider.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/services/notification_service.dart';
-import '../../todo/models/todo.dart';
-import '../pomodoro_router.dart';
-import '../../../core/utils/app_dialogs.dart';
+<file path="flutter_app/lib/core/services/api_service.dart">
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import '../utils/debug_logger.dart';
 
-class MiniTimerBar extends ConsumerWidget {
-  final dynamic api;
-  final NotificationService notificationService;
-  final Todo? activeTodo;
-  final Future<void> Function(int) onComplete;
+/// HTTP API client for todo management with automatic retry logic.
+///
+/// Provides a complete REST API interface for todo CRUD operations,
+/// authentication, and focus time tracking. Includes automatic retry
+/// logic for connection errors and local development authentication.
+class ApiService {
+  final Dio _dio;
+  // configurable retry attempts for transient connection errors (e.g. server
+  // not up yet). Keep small to avoid long UI stalls.
+  final int _maxRetries = 3;
+  final Duration _retryDelay = const Duration(milliseconds: 500);
 
-  const MiniTimerBar({
-    required this.api,
-    required this.notificationService,
-    this.activeTodo,
-    required this.onComplete,
-    super.key,
-  });
+  final String _devUserId = 'dev'; // Add this line to store the dev user ID
 
-  String _format(int seconds) {
-    final m = (seconds ~/ 60).toString().padLeft(2, '0');
-    final s = (seconds % 60).toString().padLeft(2, '0');
-    return '$m:$s';
+  ApiService(String baseUrl)
+    : _dio = Dio(
+        BaseOptions(
+          baseUrl: baseUrl,
+          connectTimeout: const Duration(seconds: 5),
+        ),
+      ) {
+    // If the base URL points to a local development server, always add
+    // the dev user id header so mock authentication works even in release
+    // builds that use a local backend via adb reverse or emulator host.
+    final String lowerBaseUrl = baseUrl.toLowerCase();
+    if (lowerBaseUrl.contains('127.0.0.1') ||
+        lowerBaseUrl.contains('localhost') ||
+        lowerBaseUrl.contains('10.0.2.2')) {
+      _dio.options.headers['x-user-id'] = _devUserId;
+      debugLog('ApiService', 'Set x-user-id header for local dev: $_devUserId');
+    }
   }
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final timer = ref.watch(timerProvider);
-    final notifier = ref.read(timerProvider.notifier);
+  /// Development user id automatically injected for local backends.
+  String get devUserId => _devUserId; // Add this getter
 
-    if (!timer.isTimerActive || timer.activeTaskId == null) {
-      return const SizedBox.shrink();
+  /// Sets or clears the Authorization bearer token.
+  /// Passing null removes the header.
+  void setAuthToken(String? token) {
+    if (token != null) {
+      _dio.options.headers['Authorization'] = 'Bearer $token';
+    } else {
+      _dio.options.headers.remove('Authorization');
     }
+  }
 
-    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
-    if (keyboardVisible) {
-      return const SizedBox.shrink();
-    }
+  /// Authenticate using a Google ID token.
+  /// Returns a map containing auth token and user data.
+  ///
+  /// Parameters:
+  /// - [idToken]: Google OAuth ID token
+  ///
+  /// Returns: Map containing user authentication data
+  Future<Map<String, dynamic>> authWithIdToken(String idToken) async {
+    final Response<dynamic> resp = await _dio.post('/api/auth', data: {'id_token': idToken});
+    return resp.data as Map<String, dynamic>;
+  }
 
-    final borderColor = timer.currentMode == 'focus'
-        ? Colors.redAccent
-        : Colors.greenAccent;
+  /// Fetch all todos for the current user.
+  ///
+  /// Returns: List of todo objects as dynamic maps
+  Future<List<dynamic>> fetchTodos() async {
+    final Response<dynamic> resp = await _withRetry(() => _dio.get('/api/todos'));
+    return resp.data as List<dynamic>;
+  }
 
-    return GestureDetector(
-      onTap: () async {
-        await PomodoroRouter.showPomodoroSheet(
-          context,
-          api,
-          activeTodo ??
-              Todo(
-                id: timer.activeTaskId ?? 0,
-                userId: '',
-                text: 'Unknown Task',
-                completed: false,
-                durationHours: 0,
-                durationMinutes: 0,
-                focusedTime: 0,
-                wasOverdue: 0,
-                overdueTime: 0,
-                createdAt: DateTime.now(),
-              ),
-          notificationService,
-          ({bool wasOverdue = false, int overdueTime = 0}) async {
-            if (activeTodo != null) {
-              await onComplete(activeTodo!.id);
-            }
-          },
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.cardBg,
-          borderRadius: BorderRadius.circular(12.0),
-          border: Border.all(color: borderColor, width: 3),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _format(timer.timeRemaining),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    activeTodo?.text ?? 'Unknown Task',
-                    style: const TextStyle(
-                      color: Color(0xFFFFD54F),
-                      fontWeight: FontWeight.w700,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ],
-              ),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  onPressed: notifier.toggleRunning,
-                  icon: Icon(
-                    timer.isRunning
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                    color: AppColors.brightYellow,
-                  ),
-                ),
-                IconButton(
-                  onPressed: () async {
-                    if (activeTodo == null) {
-                      notifier.clear();
-                      return;
-                    }
-
-                    final wasRunning = timer.isRunning;
-                    if (wasRunning) notifier.pauseTask();
-
-                    final totalFocusDuration =
-                        timer.focusDurationSeconds ?? 1500;
-                    final timeRemaining = timer.timeRemaining;
-                    final minutesWorked =
-                        ((totalFocusDuration - timeRemaining) / 60).round();
-
-                    final shouldStop = await AppDialogs.showStopSessionDialog(
-                      context: context,
-                      taskName: activeTodo!.text,
-                      minutesWorked: minutesWorked,
-                    );
-
-                    if (shouldStop != true) {
-                      if (wasRunning) notifier.resumeTask();
-                      return;
-                    }
-
-                    await notifier.stopAndSaveProgress(activeTodo!.id);
-                    /*
-                    if (context.mounted) {
-                      showDialog(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Session Stopped'),
-                          content: const Text('Your progress has been saved.'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(ctx).pop(),
-                              child: const Text('OK'),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    */
-                  },
-                  icon: const Icon(
-                    Icons.close_rounded,
-                    color: Colors.red,
-                    size: 20,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+  /// Create a new todo with provided duration components.
+  ///
+  /// Parameters:
+  /// - [text]: Todo description text
+  /// - [hours]: Planned duration hours (0-23)
+  /// - [minutes]: Planned duration minutes (0-59)
+  ///
+  /// Returns: Server response containing the created todo data
+  Future<dynamic> addTodo(String text, int hours, int minutes) async {
+    final Response<dynamic> resp = await _withRetry(
+      () => _dio.post(
+        '/add',
+        data: <String, dynamic>{
+          'text': text,
+          'duration_hours': hours,
+          'duration_minutes': minutes,
+        },
       ),
     );
+    // log server response for debugging duplicate issues
+    try {
+      if (kDebugMode) debugPrint('ApiService.addTodo response: ${resp.data}');
+    } catch (_) {}
+    return resp.data;
+  }
+
+  /// Delete todo by id.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to delete
+  ///
+  /// Returns: Server response confirming deletion
+  Future<dynamic> deleteTodo(int id) async {
+    final Response<dynamic> resp = await _withRetry(() => _dio.post('/delete', data: {'id': id}));
+    return resp.data;
+  }
+
+  /// Partially update fields on a todo.
+  ///
+  /// Allows partial updates of todo text and/or duration.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to update
+  /// - [text]: New description text (optional)
+  /// - [hours]: New planned duration hours (optional)
+  /// - [minutes]: New planned duration minutes (optional)
+  ///
+  /// Returns: Server response containing updated todo data
+  Future<dynamic> updateTodo(
+    int id, {
+    String? text,
+    int? hours,
+    int? minutes,
+  }) async {
+    final Map<String, dynamic> data = <String, dynamic>{'id': id};
+    if (text != null) data['text'] = text;
+    if (hours != null) data['duration_hours'] = hours;
+    if (minutes != null) data['duration_minutes'] = minutes;
+    final Response<dynamic> resp = await _dio.post('/update', data: data);
+    return resp.data;
+  }
+
+  /// Toggle completion state of a todo.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to toggle
+  ///
+  /// Returns: Server response containing the toggled todo data
+  Future<dynamic> toggleTodo(int id) async {
+    final Response<dynamic> resp = await _withRetry(() => _dio.post('/toggle', data: {'id': id}));
+    return resp.data;
+  }
+
+  /// Toggle completion with overdue metadata.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to toggle
+  /// - [wasOverdue]: Previous overdue state (optional)
+  /// - [overdueTime]: Overdue time in seconds (optional)
+  ///
+  /// Returns: Server response containing the toggled todo data
+  Future<dynamic> toggleTodoWithOverdue(
+    int id, {
+    bool wasOverdue = false,
+    int overdueTime = 0,
+  }) async {
+    final Map<String, dynamic> payload = <String, dynamic>{
+      'id': id,
+      'was_overdue': wasOverdue ? 1 : 0,
+      'overdue_time': overdueTime,
+    };
+    final Response<dynamic> resp = await _withRetry(() => _dio.post('/toggle', data: payload));
+    return resp.data;
+  }
+
+  /// Persist focused time progress for a todo in seconds.
+  ///
+  /// Parameters:
+  /// - [id]: Database ID of the todo to update
+  /// - [focusedTime]: Total focused time in seconds
+  ///
+  /// Returns: Server response confirming the update
+  Future<dynamic> updateFocusTime(int id, int focusedTime) async {
+    final Response<dynamic> resp = await _withRetry(
+      () => _dio.post(
+        '/update_focus_time',
+        data: <String, dynamic>{'id': id, 'focused_time': focusedTime},
+      ),
+    );
+    return resp.data;
+  }
+
+  /// Retry wrapper for transient connection failures.
+  ///
+  /// Parameters:
+  /// - [fn]: A function that returns a Future<Response<dynamic>> to execute with retries
+  ///
+  /// Returns: The response from the successful function execution
+  Future<Response<dynamic>> _withRetry(
+    Future<Response<dynamic>> Function() fn,
+  ) async {
+    int attempt = 0;
+    while (true) {
+      try {
+        return await fn();
+      } on DioException catch (e) {
+        final bool isConnError =
+            e.type == DioExceptionType.connectionError ||
+            e.error is Error ||
+            (e.message?.toLowerCase().contains('connection refused') ?? false);
+
+        // ALWAYS log detailed errors for tester APK debugging.
+        if (e.type == DioExceptionType.badResponse) {
+          debugLog(
+            'ApiService',
+            'API Error: Status ${e.response?.statusCode}, Data: ${e.response?.data}, Message: ${e.message}',
+          );
+        } else {
+          debugLog(
+            'ApiService',
+            'Network Error: Type ${e.type}, Message: ${e.message}, Error: ${e.error}, Stack: ${e.stackTrace}',
+          );
+        }
+
+        if (!isConnError || attempt >= _maxRetries - 1) {
+          // If not a transient connection error, or max retries reached, rethrow.
+          rethrow; // Re-throw the original exception to propagate.
+        }
+        attempt++;
+        // Log retry attempts with basic info, still useful for debugging.
+        debugLog(
+          'ApiService',
+          'Transient connection error, retrying ($attempt/$_maxRetries) in ${_retryDelay.inMilliseconds}ms ...',
+        );
+        await Future.delayed(_retryDelay);
+      }
+    }
   }
 }
 </file>
@@ -14861,6 +14684,172 @@ flutter_native_splash:
   ios_content_mode: "center"
   android_gravity: "center"
   fullscreen: true
+</file>
+
+<file path="flutter_app/lib/features/pomodoro/widgets/mini_timer_bar.dart">
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/timer_provider.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/services/notification_service.dart';
+import '../../todo/models/todo.dart';
+import '../pomodoro_router.dart';
+import '../../../core/utils/app_dialogs.dart';
+import '../../../core/services/api_service.dart';
+
+class MiniTimerBar extends ConsumerWidget {
+  final ApiService api; // Strongly typed
+  final NotificationService notificationService;
+  final Todo? activeTodo;
+  final Future<void> Function(int) onComplete;
+
+  const MiniTimerBar({
+    required this.api,
+    required this.notificationService,
+    this.activeTodo,
+    required this.onComplete,
+    super.key,
+  });
+
+  String _format(int seconds) {
+    final String m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final String s = (seconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final timer = ref.watch(timerProvider);
+    final notifier = ref.read(timerProvider.notifier);
+
+    if (!timer.isTimerActive || timer.activeTaskId == null) {
+      return const SizedBox.shrink();
+    }
+
+    final bool keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    if (keyboardVisible) {
+      return const SizedBox.shrink();
+    }
+
+    final Color borderColor = timer.currentMode == 'focus'
+        ? Colors.redAccent
+        : Colors.greenAccent;
+
+    return GestureDetector(
+      onTap: () async {
+        await PomodoroRouter.showPomodoroSheet(
+          context,
+          api,
+          activeTodo ??
+              Todo(
+                id: timer.activeTaskId ?? 0,
+                userId: '',
+                text: 'Unknown Task',
+                completed: false,
+                durationHours: 0,
+                durationMinutes: 0,
+                focusedTime: 0,
+                wasOverdue: 0,
+                overdueTime: 0,
+                createdAt: DateTime.now(),
+              ),
+          notificationService,
+          ({bool wasOverdue = false, int overdueTime = 0}) async {
+            if (activeTodo != null) {
+              await onComplete(activeTodo!.id);
+            }
+          },
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.cardBg,
+          borderRadius: BorderRadius.circular(12.0),
+          border: Border.all(color: borderColor, width: 3),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _format(timer.timeRemaining),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    activeTodo?.text ?? 'Unknown Task',
+                    style: const TextStyle(
+                      color: Color(0xFFFFD54F),
+                      fontWeight: FontWeight.w700,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ],
+              ),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  onPressed: notifier.toggleRunning,
+                  icon: Icon(
+                    timer.isRunning
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
+                    color: AppColors.brightYellow,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () async {
+                    if (activeTodo == null) {
+                      notifier.clear();
+                      return;
+                    }
+
+                    final bool wasRunning = timer.isRunning;
+                    if (wasRunning) notifier.pauseTask();
+
+                    final int totalFocusDuration =
+                        timer.focusDurationSeconds ?? 1500;
+                    final int timeRemaining = timer.timeRemaining;
+                    final int minutesWorked =
+                        ((totalFocusDuration - timeRemaining) / 60).round();
+
+                    final bool? shouldStop = await AppDialogs.showStopSessionDialog(
+                      context: context,
+                      taskName: activeTodo!.text,
+                      minutesWorked: minutesWorked,
+                    );
+
+                    if (shouldStop != true) {
+                      if (wasRunning) notifier.resumeTask();
+                      return;
+                    }
+
+                    await notifier.stopAndSaveProgress(activeTodo!.id);
+                  },
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Colors.red,
+                    size: 20,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 </file>
 
 <file path="flutter_app/lib/features/pomodoro/pomodoro_screen.dart">
@@ -15725,7 +15714,8 @@ class TaskCard extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
-        color: AppColors.cardBg.withOpacity(0.5),
+  // Replaced deprecated withOpacity with withValues for modern color API.
+  color: AppColors.cardBg.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -15752,7 +15742,8 @@ class TaskCard extends ConsumerWidget {
                     Text(
                       '${todo.durationHours}h ${todo.durationMinutes}m',
                       style: TextStyle(
-                        color: AppColors.mediumGray.withOpacity(0.7),
+                        // Replaced deprecated withOpacity with withValues.
+                        color: AppColors.mediumGray.withValues(alpha: 0.7),
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),
@@ -16908,571 +16899,6 @@ final timerProvider = NotifierProvider<TimerNotifier, TimerState>(
 );
 </file>
 
-<file path="flutter_app/lib/features/todo/widgets/task_list.dart">
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/services/notification_service.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/app_dialogs.dart';
-import '../models/todo.dart';
-import './task_card.dart';
-import '../providers/todos_provider.dart';
-import '../../pomodoro/providers/timer_provider.dart';
-import '../../pomodoro/models/timer_state.dart';
-import '../../pomodoro/pomodoro_router.dart';
-import '../../../core/widgets/progress_bar.dart';
-
-// Enum to represent the available filter states for completed tasks.
-enum CompletedFilter { none, onTime, overdue, underdue }
-
-class TaskList extends ConsumerStatefulWidget {
-  final List<Todo> todos;
-  final dynamic api;
-  final NotificationService notificationService;
-  final Function(String id) onPlay;
-  final Function(String id) onDelete;
-  final Function(String id) onToggle;
-  final ValueChanged<bool>? onExpansionChanged;
-
-  const TaskList({
-    required this.todos,
-    required this.api,
-    required this.notificationService,
-    required this.onPlay,
-    required this.onDelete,
-    required this.onToggle,
-    this.onExpansionChanged,
-    super.key,
-  });
-
-  @override
-  ConsumerState<TaskList> createState() => _TaskListState();
-}
-
-class _TaskListState extends ConsumerState<TaskList> {
-  bool _completedExpanded = false;
-  // Local state to manage the active filter for the completed tasks list.
-  CompletedFilter _activeFilter = CompletedFilter.none;
-
-  // Principle 3: Use local state to declaratively trigger UI events
-  bool _shouldShowOverdueCompletionDialog = false;
-  Todo? _overdueTodoForDialog;
-
-  // Helper method to get the display name for a filter.
-  String _getFilterName(CompletedFilter filter) {
-    switch (filter) {
-      case CompletedFilter.onTime:
-        return 'Completed'; // CHANGED: "On Time" is now "Completed"
-      case CompletedFilter.overdue:
-        return 'Overdue';
-      case CompletedFilter.underdue:
-        return 'Underdue';
-      case CompletedFilter.none:
-        return '';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Principle 3: Listen to provider state changes to trigger UI events
-    ref.listen<TimerState>(timerProvider, (previous, next) {
-      final wasComplete = previous?.overdueSessionsComplete ?? false;
-      final isComplete = next.overdueSessionsComplete;
-
-      // When the specific flag becomes true, prepare to show the dialog
-      if (isComplete && !wasComplete && next.activeTaskId != null) {
-        debugPrint(
-          "TASK_LIST LISTENER: Detected overdueSessionsComplete for task ID ${next.activeTaskId}",
-        );
-        Todo? foundTodo;
-        try {
-          foundTodo = widget.todos.firstWhere((t) => t.id == next.activeTaskId);
-        } catch (e) {
-          debugPrint(
-            "TASK_LIST LISTENER: Todo with ID ${next.activeTaskId} not found in current list",
-          );
-          return;
-        }
-        if (mounted) {
-          setState(() {
-            _overdueTodoForDialog = foundTodo;
-            _shouldShowOverdueCompletionDialog = true;
-          });
-        }
-      }
-    });
-
-    // If the flag is set, schedule the dialog to show after the build is complete.
-    if (_shouldShowOverdueCompletionDialog && _overdueTodoForDialog != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        // Double-check flag and mounted status before showing
-        if (mounted && _shouldShowOverdueCompletionDialog) {
-          _showOverdueSessionCompletionPrompt(_overdueTodoForDialog!);
-          // Reset the flag immediately after scheduling
-          setState(() {
-            _shouldShowOverdueCompletionDialog = false;
-            _overdueTodoForDialog = null;
-          });
-        }
-      });
-    }
-    final incompleteTodos = widget.todos.where((t) => !t.completed).toList();
-    final completedTodos = widget.todos.where((t) => t.completed).toList();
-
-    // Apply the active filter to the list of completed todos.
-    final filteredCompletedTodos = completedTodos.where((todo) {
-      if (_activeFilter == CompletedFilter.none) {
-        return true;
-      }
-
-      final plannedSeconds =
-          (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-      final isOverdue = todo.wasOverdue == 1;
-      final isUnderdue =
-          plannedSeconds > 0 && todo.focusedTime < plannedSeconds;
-
-      switch (_activeFilter) {
-        case CompletedFilter.overdue:
-          return isOverdue;
-        case CompletedFilter.underdue:
-          return isUnderdue;
-        case CompletedFilter.onTime: // Logic for "Completed" only
-          return !isOverdue && !isUnderdue;
-        case CompletedFilter.none:
-          return true;
-      }
-    }).toList();
-
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (incompleteTodos.isNotEmpty)
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: incompleteTodos.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final todo = incompleteTodos[index];
-                return Column(
-                  children: [
-                    _buildTaskCard(todo),
-                    const SizedBox(height: 8),
-                    _TaskStatusIndicator(todo: todo),
-                  ],
-                );
-              },
-            )
-          else
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 40.0),
-                child: Text(
-                  'No active tasks.\nAdd one above to get started!',
-                  style: TextStyle(color: AppColors.lightGray, fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-          if (completedTodos.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            const Divider(
-              color: AppColors.brightYellow,
-              thickness: 1.5,
-              height: 48,
-              indent: 20,
-              endIndent: 20,
-            ),
-            Theme(
-              data: Theme.of(
-                context,
-              ).copyWith(dividerColor: Colors.transparent),
-              child: ExpansionTile(
-                initiallyExpanded: _completedExpanded,
-                onExpansionChanged: (expanded) {
-                  setState(() {
-                    _completedExpanded = expanded;
-                  });
-                  widget.onExpansionChanged?.call(expanded);
-                },
-                controlAffinity: ListTileControlAffinity.leading,
-                tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-                title: Row(
-                  children: [
-                    Text(
-                      'Completed',
-                      style: const TextStyle(
-                        color: AppColors.lightGray,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (_activeFilter != CompletedFilter.none)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8.0),
-                        child: Text(
-                          '(${_getFilterName(_activeFilter)})',
-                          style: const TextStyle(
-                            color: AppColors.brightYellow,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                trailing: const SizedBox.shrink(),
-                leading: Icon(
-                  _completedExpanded
-                      ? Icons.keyboard_arrow_down
-                      : Icons.keyboard_arrow_right,
-                  color: AppColors.lightGray,
-                ),
-                children: [
-                  // NEW: Row for filter/clear buttons, placed below the header.
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 4.0,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment
-                          .start, // CHANGED: Aligned to the left
-                      children: [
-                        const Text(
-                          'Filter:',
-                          style: TextStyle(
-                            color: AppColors.mediumGray,
-                            fontSize: 12,
-                          ),
-                        ),
-                        PopupMenuButton<CompletedFilter>(
-                          onSelected: (CompletedFilter result) {
-                            setState(() {
-                              _activeFilter = result;
-                            });
-                          },
-                          icon: Icon(
-                            Icons.filter_list,
-                            color: _activeFilter == CompletedFilter.none
-                                ? AppColors.mediumGray
-                                : AppColors.brightYellow,
-                          ),
-                          tooltip: 'Filter completed tasks',
-                          color: AppColors.cardBg,
-                          itemBuilder: (BuildContext context) =>
-                              <PopupMenuEntry<CompletedFilter>>[
-                                const PopupMenuItem<CompletedFilter>(
-                                  value: CompletedFilter.onTime,
-                                  child: Text(
-                                    'Completed', // CHANGED
-                                    style: TextStyle(
-                                      color: AppColors.lightGray,
-                                    ),
-                                  ),
-                                ),
-                                const PopupMenuItem<CompletedFilter>(
-                                  value: CompletedFilter.overdue,
-                                  child: Text(
-                                    'Overdue',
-                                    style: TextStyle(
-                                      color: AppColors.lightGray,
-                                    ),
-                                  ),
-                                ),
-                                const PopupMenuItem<CompletedFilter>(
-                                  value: CompletedFilter.underdue,
-                                  child: Text(
-                                    'Underdue',
-                                    style: TextStyle(
-                                      color: AppColors.lightGray,
-                                    ),
-                                  ),
-                                ),
-                                const PopupMenuDivider(),
-                                const PopupMenuItem<CompletedFilter>(
-                                  value: CompletedFilter.none,
-                                  child: Text(
-                                    'Clear Filter',
-                                    style: TextStyle(
-                                      color: AppColors.lightGray,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                        ),
-                        const SizedBox(width: 8),
-                        TextButton(
-                          onPressed: _handleClearCompleted,
-                          style: TextButton.styleFrom(
-                            backgroundColor: AppColors.midGray,
-                            foregroundColor: AppColors.lightGray,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: const Text(
-                            'Clear All',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (filteredCompletedTodos.isEmpty &&
-                      _activeFilter != CompletedFilter.none)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 20.0),
-                      child: Text(
-                        'No tasks match the "${_getFilterName(_activeFilter)}" filter.',
-                        style: TextStyle(color: AppColors.mediumGray),
-                      ),
-                    ),
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: filteredCompletedTodos.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 12),
-                    itemBuilder: (context, index) =>
-                        _buildTaskCard(filteredCompletedTodos[index]),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTaskCard(Todo todo) {
-    final timer = ref.watch(timerProvider);
-    final isActive = timer.activeTaskId == todo.id;
-
-    return TaskCard(
-      todo: todo,
-      isActive: isActive,
-      onPlay: (t) => _handlePlayTask(t),
-      onDelete: () => widget.onDelete(todo.id.toString()),
-      onToggle: () => widget.onToggle(todo.id.toString()),
-    );
-  }
-
-  Future<void> _showOverdueSessionCompletionPrompt(Todo todo) async {
-    debugPrint(
-      "SESSION_FLOW: Showing overdue session completion prompt for '${todo.text}'",
-    );
-
-    final timerNotifier = ref.read(timerProvider.notifier);
-    final timerState = ref.read(timerProvider);
-    final totalCycles = timerState.totalCycles;
-
-    final result = await AppDialogs.showOverdueSessionCompleteDialog(
-      context: context,
-      totalCycles: totalCycles,
-    );
-
-    if (!mounted) return;
-
-    timerNotifier.clearOverdueSessionsCompleteFlag();
-
-    final liveFocusedTime = timerNotifier.getFocusedTime(todo.id);
-    final plannedSeconds =
-        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-    final finalOverdueTime = (liveFocusedTime - plannedSeconds)
-        .clamp(0, double.infinity)
-        .toInt();
-
-    if (result == true) {
-      debugPrint("SESSION_FLOW: User chose 'Mark Complete'.");
-      await ref.read(todosProvider.notifier).toggleTodo(todo.id);
-      timerNotifier.clear();
-    } else {
-      debugPrint(
-        "SESSION_FLOW: User chose 'Continue Working' or dismissed dialog.",
-      );
-      await timerNotifier.stopAndSaveProgress(todo.id);
-      await ref
-          .read(todosProvider.notifier)
-          .updateFocusTime(todo.id, finalOverdueTime);
-    }
-  }
-
-  Future<void> _handleClearCompleted() async {
-    final shouldClear = await AppDialogs.showClearCompletedDialog(
-      context: context,
-    );
-    if (shouldClear == true && mounted) {
-      try {
-        await ref.read(todosProvider.notifier).clearCompleted();
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to clear completed tasks'),
-              backgroundColor: Colors.redAccent,
-            ),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _handlePlayTask(Todo todo) async {
-    final timerState = ref.read(timerProvider);
-    final isThisTaskActive = timerState.activeTaskId == todo.id;
-    final isAnyTimerActive = timerState.isTimerActive;
-
-    debugPrint(
-      'PLAY_BUTTON: Task=${todo.text}, isThisTaskActive=$isThisTaskActive, isAnyTimerActive=$isAnyTimerActive',
-    );
-
-    if (isThisTaskActive) {
-      await PomodoroRouter.showPomodoroSheet(
-        context,
-        widget.api,
-        todo,
-        widget.notificationService,
-        ({bool wasOverdue = false, int overdueTime = 0}) async {},
-      );
-      debugPrint(
-        "SESSION_FLOW: PomodoroSheet for '${todo.text}' has been closed.",
-      );
-      return;
-    }
-
-    if (isAnyTimerActive && timerState.activeTaskId != null) {
-      final notifier = ref.read(timerProvider.notifier);
-      final wasRunning = timerState.isRunning;
-      if (wasRunning) notifier.pauseTask();
-
-      final todosAsync = ref.read(todosProvider);
-      String? currentTaskName;
-      if (todosAsync.hasValue) {
-        try {
-          currentTaskName = todosAsync.value!
-              .firstWhere((t) => t.id == timerState.activeTaskId)
-              .text;
-        } catch (e) {
-          currentTaskName = null;
-        }
-      }
-
-      final shouldSwitch = await AppDialogs.showSwitchTaskDialog(
-        context: context,
-        currentTaskName: currentTaskName ?? 'Unknown Task',
-        newTaskName: todo.text,
-      );
-
-      if (shouldSwitch != true) {
-        if (wasRunning) notifier.resumeTask();
-        return;
-      }
-      if (!mounted) return;
-      await notifier.stopAndSaveProgress(timerState.activeTaskId!);
-    }
-
-    final plannedSeconds =
-        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-    final defaultFocus = 25 * 60;
-    final defaultBreak = 5 * 60;
-    final cycles = plannedSeconds > 0
-        ? (plannedSeconds / defaultFocus).ceil().clamp(1, 1000)
-        : 4;
-    final notifier = ref.read(timerProvider.notifier);
-    notifier.resetForSetupWithTask(
-      taskId: todo.id,
-      focusDuration: defaultFocus,
-      breakDuration: defaultBreak,
-      totalCycles: cycles,
-      plannedDuration: plannedSeconds,
-      isPermanentlyOverdue: todo.wasOverdue == 1,
-      taskName: todo.text,
-    );
-
-    await PomodoroRouter.showPomodoroSheet(
-      context,
-      widget.api,
-      todo,
-      widget.notificationService,
-      ({bool wasOverdue = false, int overdueTime = 0}) async {},
-    );
-    debugPrint(
-      "SESSION_FLOW: PomodoroSheet for '${todo.text}' has been closed.",
-    );
-  }
-}
-
-class _TaskStatusIndicator extends ConsumerWidget {
-  final Todo todo;
-  const _TaskStatusIndicator({required this.todo});
-
-  String _formatOverdueDuration(int totalSeconds) {
-    if (totalSeconds < 0) totalSeconds = 0;
-    final duration = Duration(seconds: totalSeconds);
-    final minutes = duration.inMinutes;
-    final seconds = totalSeconds % 60;
-    if (minutes > 0) {
-      return '${minutes}m ${seconds}s';
-    } else {
-      return '${seconds}s';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final timerState = ref.watch(timerProvider);
-    final focusedSeconds =
-        timerState.focusedTimeCache[todo.id] ?? todo.focusedTime;
-    final plannedSeconds =
-        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-
-    // This indicator should only be visible for incomplete tasks that are NOT permanently overdue
-    if (todo.completed || todo.wasOverdue == 1) {
-      return const SizedBox.shrink();
-    }
-
-    final isActivelyOverdue =
-        plannedSeconds > 0 && focusedSeconds > plannedSeconds;
-
-    if (isActivelyOverdue) {
-      final overdueSeconds = focusedSeconds - plannedSeconds;
-      return Container(
-        height: 16,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 4.0),
-        child: Text(
-          'Overdue: ${_formatOverdueDuration(overdueSeconds)}',
-          style: const TextStyle(
-            color: AppColors.priorityHigh,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-    } else {
-      return SizedBox(
-        height: 16,
-        child: ProgressBar(
-          focusedSeconds: focusedSeconds,
-          plannedSeconds: plannedSeconds,
-          barHeight: 16,
-        ),
-      );
-    }
-  }
-}
-</file>
-
 <file path="flutter_app/lib/features/todo/screens/todo_list_screen.dart">
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17889,6 +17315,572 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
         ),
       ),
     );
+  }
+}
+</file>
+
+<file path="flutter_app/lib/features/todo/widgets/task_list.dart">
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/services/notification_service.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/app_dialogs.dart';
+import '../models/todo.dart';
+import './task_card.dart';
+import '../providers/todos_provider.dart';
+import '../../pomodoro/providers/timer_provider.dart';
+import '../../pomodoro/models/timer_state.dart';
+import '../../pomodoro/pomodoro_router.dart';
+import '../../../core/widgets/progress_bar.dart';
+import '../../../core/services/api_service.dart';
+
+// Enum to represent the available filter states for completed tasks.
+enum CompletedFilter { none, onTime, overdue, underdue }
+
+class TaskList extends ConsumerStatefulWidget {
+  final List<Todo> todos;
+  final ApiService api; // Strongly typed
+  final NotificationService notificationService;
+  final Function(String id) onPlay;
+  final Function(String id) onDelete;
+  final Function(String id) onToggle;
+  final ValueChanged<bool>? onExpansionChanged;
+
+  const TaskList({
+    required this.todos,
+    required this.api,
+    required this.notificationService,
+    required this.onPlay,
+    required this.onDelete,
+    required this.onToggle,
+    this.onExpansionChanged,
+    super.key,
+  });
+
+  @override
+  ConsumerState<TaskList> createState() => _TaskListState();
+}
+
+class _TaskListState extends ConsumerState<TaskList> {
+  bool _completedExpanded = false;
+  // Local state to manage the active filter for the completed tasks list.
+  CompletedFilter _activeFilter = CompletedFilter.none;
+
+  // Principle 3: Use local state to declaratively trigger UI events
+  bool _shouldShowOverdueCompletionDialog = false;
+  Todo? _overdueTodoForDialog;
+
+  // Helper method to get the display name for a filter.
+  String _getFilterName(CompletedFilter filter) {
+    switch (filter) {
+      case CompletedFilter.onTime:
+        return 'Completed'; // CHANGED: "On Time" is now "Completed"
+      case CompletedFilter.overdue:
+        return 'Overdue';
+      case CompletedFilter.underdue:
+        return 'Underdue';
+      case CompletedFilter.none:
+        return '';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Principle 3: Listen to provider state changes to trigger UI events
+    ref.listen<TimerState>(timerProvider, (previous, next) {
+      final bool wasComplete = previous?.overdueSessionsComplete ?? false;
+      final bool isComplete = next.overdueSessionsComplete;
+
+      // When the specific flag becomes true, prepare to show the dialog
+      if (isComplete && !wasComplete && next.activeTaskId != null) {
+        debugPrint(
+          "TASK_LIST LISTENER: Detected overdueSessionsComplete for task ID ${next.activeTaskId}",
+        );
+        Todo? foundTodo;
+        try {
+          foundTodo = widget.todos.firstWhere((t) => t.id == next.activeTaskId);
+        } catch (e) {
+          debugPrint(
+            "TASK_LIST LISTENER: Todo with ID ${next.activeTaskId} not found in current list",
+          );
+          return;
+        }
+        if (mounted) {
+          setState(() {
+            _overdueTodoForDialog = foundTodo;
+            _shouldShowOverdueCompletionDialog = true;
+          });
+        }
+      }
+    });
+
+    // If the flag is set, schedule the dialog to show after the build is complete.
+    if (_shouldShowOverdueCompletionDialog && _overdueTodoForDialog != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Double-check flag and mounted status before showing
+        if (mounted && _shouldShowOverdueCompletionDialog) {
+          _showOverdueSessionCompletionPrompt(_overdueTodoForDialog!);
+          // Reset the flag immediately after scheduling
+          setState(() {
+            _shouldShowOverdueCompletionDialog = false;
+            _overdueTodoForDialog = null;
+          });
+        }
+      });
+    }
+    final List<Todo> incompleteTodos = widget.todos.where((t) => !t.completed).toList();
+    final List<Todo> completedTodos = widget.todos.where((t) => t.completed).toList();
+
+    // Apply the active filter to the list of completed todos.
+    final List<Todo> filteredCompletedTodos = completedTodos.where((todo) {
+      if (_activeFilter == CompletedFilter.none) {
+        return true;
+      }
+
+      final int plannedSeconds =
+          (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+      final bool isOverdue = todo.wasOverdue == 1;
+      final bool isUnderdue =
+          plannedSeconds > 0 && todo.focusedTime < plannedSeconds;
+
+      switch (_activeFilter) {
+        case CompletedFilter.overdue:
+          return isOverdue;
+        case CompletedFilter.underdue:
+          return isUnderdue;
+        case CompletedFilter.onTime: // Logic for "Completed" only
+          return !isOverdue && !isUnderdue;
+        case CompletedFilter.none:
+          return true;
+      }
+    }).toList();
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (incompleteTodos.isNotEmpty)
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: incompleteTodos.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final Todo todo = incompleteTodos[index];
+                return Column(
+                  children: [
+                    _buildTaskCard(todo),
+                    const SizedBox(height: 8),
+                    _TaskStatusIndicator(todo: todo),
+                  ],
+                );
+              },
+            )
+          else
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 40.0),
+                child: Text(
+                  'No active tasks.\nAdd one above to get started!',
+                  style: TextStyle(color: AppColors.lightGray, fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          if (completedTodos.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Divider(
+              color: AppColors.brightYellow,
+              thickness: 1.5,
+              height: 48,
+              indent: 20,
+              endIndent: 20,
+            ),
+            Theme(
+              data: Theme.of(
+                context,
+              ).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                initiallyExpanded: _completedExpanded,
+                onExpansionChanged: (bool expanded) {
+                  setState(() {
+                    _completedExpanded = expanded;
+                  });
+                  widget.onExpansionChanged?.call(expanded);
+                },
+                controlAffinity: ListTileControlAffinity.leading,
+                tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+                title: Row(
+                  children: [
+                    const Text(
+                      'Completed',
+                      style: TextStyle(
+                        color: AppColors.lightGray,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (_activeFilter != CompletedFilter.none)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: Text(
+                          '(${_getFilterName(_activeFilter)})',
+                          style: const TextStyle(
+                            color: AppColors.brightYellow,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                trailing: const SizedBox.shrink(),
+                leading: Icon(
+                  _completedExpanded
+                      ? Icons.keyboard_arrow_down
+                      : Icons.keyboard_arrow_right,
+                  color: AppColors.lightGray,
+                ),
+                children: [
+                  // NEW: Row for filter/clear buttons, placed below the header.
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 4.0,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment
+                          .start, // CHANGED: Aligned to the left
+                      children: [
+                        const Text(
+                          'Filter:',
+                          style: TextStyle(
+                            color: AppColors.mediumGray,
+                            fontSize: 12,
+                          ),
+                        ),
+                        PopupMenuButton<CompletedFilter>(
+                          onSelected: (CompletedFilter result) {
+                            setState(() {
+                              _activeFilter = result;
+                            });
+                          },
+                          icon: Icon(
+                            Icons.filter_list,
+                            color: _activeFilter == CompletedFilter.none
+                                ? AppColors.mediumGray
+                                : AppColors.brightYellow,
+                          ),
+                          tooltip: 'Filter completed tasks',
+                          color: AppColors.cardBg,
+                          itemBuilder: (BuildContext context) =>
+                              <PopupMenuEntry<CompletedFilter>>[
+                                const PopupMenuItem<CompletedFilter>(
+                                  value: CompletedFilter.onTime,
+                                  child: Text(
+                                    'Completed', // CHANGED
+                                    style: TextStyle(
+                                      color: AppColors.lightGray,
+                                    ),
+                                  ),
+                                ),
+                                const PopupMenuItem<CompletedFilter>(
+                                  value: CompletedFilter.overdue,
+                                  child: Text(
+                                    'Overdue',
+                                    style: TextStyle(
+                                      color: AppColors.lightGray,
+                                    ),
+                                  ),
+                                ),
+                                const PopupMenuItem<CompletedFilter>(
+                                  value: CompletedFilter.underdue,
+                                  child: Text(
+                                    'Underdue',
+                                    style: TextStyle(
+                                      color: AppColors.lightGray,
+                                    ),
+                                  ),
+                                ),
+                                const PopupMenuDivider(),
+                                const PopupMenuItem<CompletedFilter>(
+                                  value: CompletedFilter.none,
+                                  child: Text(
+                                    'Clear Filter',
+                                    style: TextStyle(
+                                      color: AppColors.lightGray,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                        ),
+                        const SizedBox(width: 8),
+                        TextButton(
+                          onPressed: _handleClearCompleted,
+                          style: TextButton.styleFrom(
+                            backgroundColor: AppColors.midGray,
+                            foregroundColor: AppColors.lightGray,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text(
+                            'Clear All',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (filteredCompletedTodos.isEmpty &&
+                      _activeFilter != CompletedFilter.none)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20.0),
+                      child: Text(
+                        'No tasks match the "${_getFilterName(_activeFilter)}" filter.',
+                        style: TextStyle(color: AppColors.mediumGray),
+                      ),
+                    ),
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: filteredCompletedTodos.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
+                    itemBuilder: (context, index) =>
+                        _buildTaskCard(filteredCompletedTodos[index]),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTaskCard(Todo todo) {
+    final timer = ref.watch(timerProvider);
+    final isActive = timer.activeTaskId == todo.id;
+
+    return TaskCard(
+      todo: todo,
+      isActive: isActive,
+      onPlay: (t) => _handlePlayTask(t),
+      onDelete: () => widget.onDelete(todo.id.toString()),
+      onToggle: () => widget.onToggle(todo.id.toString()),
+    );
+  }
+
+  Future<void> _showOverdueSessionCompletionPrompt(Todo todo) async {
+    debugPrint(
+      "SESSION_FLOW: Showing overdue session completion prompt for '${todo.text}'",
+    );
+
+    final timerNotifier = ref.read(timerProvider.notifier);
+    final timerState = ref.read(timerProvider);
+    final totalCycles = timerState.totalCycles;
+
+    final result = await AppDialogs.showOverdueSessionCompleteDialog(
+      context: context,
+      totalCycles: totalCycles,
+    );
+
+    if (!mounted) return;
+
+    timerNotifier.clearOverdueSessionsCompleteFlag();
+
+    final liveFocusedTime = timerNotifier.getFocusedTime(todo.id);
+    final plannedSeconds =
+        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+    final finalOverdueTime = (liveFocusedTime - plannedSeconds)
+        .clamp(0, double.infinity)
+        .toInt();
+
+    if (result == true) {
+      debugPrint("SESSION_FLOW: User chose 'Mark Complete'.");
+      await ref.read(todosProvider.notifier).toggleTodo(todo.id);
+      timerNotifier.clear();
+    } else {
+      debugPrint(
+        "SESSION_FLOW: User chose 'Continue Working' or dismissed dialog.",
+      );
+      await timerNotifier.stopAndSaveProgress(todo.id);
+      await ref
+          .read(todosProvider.notifier)
+          .updateFocusTime(todo.id, finalOverdueTime);
+    }
+  }
+
+  Future<void> _handleClearCompleted() async {
+    final shouldClear = await AppDialogs.showClearCompletedDialog(
+      context: context,
+    );
+    if (shouldClear == true && mounted) {
+      try {
+        await ref.read(todosProvider.notifier).clearCompleted();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to clear completed tasks'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _handlePlayTask(Todo todo) async {
+    final timerState = ref.read(timerProvider);
+    final isThisTaskActive = timerState.activeTaskId == todo.id;
+    final isAnyTimerActive = timerState.isTimerActive;
+
+    debugPrint(
+      'PLAY_BUTTON: Task=${todo.text}, isThisTaskActive=$isThisTaskActive, isAnyTimerActive=$isAnyTimerActive',
+    );
+
+    if (isThisTaskActive) {
+      await PomodoroRouter.showPomodoroSheet(
+        context,
+        widget.api,
+        todo,
+        widget.notificationService,
+        ({bool wasOverdue = false, int overdueTime = 0}) async {},
+      );
+      debugPrint(
+        "SESSION_FLOW: PomodoroSheet for '${todo.text}' has been closed.",
+      );
+      return;
+    }
+
+    if (isAnyTimerActive && timerState.activeTaskId != null) {
+      final notifier = ref.read(timerProvider.notifier);
+      final wasRunning = timerState.isRunning;
+      if (wasRunning) notifier.pauseTask();
+
+      final todosAsync = ref.read(todosProvider);
+      String? currentTaskName;
+      if (todosAsync.hasValue) {
+        try {
+          currentTaskName = todosAsync.value!
+              .firstWhere((t) => t.id == timerState.activeTaskId)
+              .text;
+        } catch (e) {
+          currentTaskName = null;
+        }
+      }
+
+      final shouldSwitch = await AppDialogs.showSwitchTaskDialog(
+        context: context,
+        currentTaskName: currentTaskName ?? 'Unknown Task',
+        newTaskName: todo.text,
+      );
+
+      if (shouldSwitch != true) {
+        if (wasRunning) notifier.resumeTask();
+        return;
+      }
+      if (!mounted) return;
+      await notifier.stopAndSaveProgress(timerState.activeTaskId!);
+    }
+
+    final plannedSeconds =
+        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+    final defaultFocus = 25 * 60;
+    final defaultBreak = 5 * 60;
+    final cycles = plannedSeconds > 0
+        ? (plannedSeconds / defaultFocus).ceil().clamp(1, 1000)
+        : 4;
+    final notifier = ref.read(timerProvider.notifier);
+    notifier.resetForSetupWithTask(
+      taskId: todo.id,
+      focusDuration: defaultFocus,
+      breakDuration: defaultBreak,
+      totalCycles: cycles,
+      plannedDuration: plannedSeconds,
+      isPermanentlyOverdue: todo.wasOverdue == 1,
+      taskName: todo.text,
+    );
+
+    await PomodoroRouter.showPomodoroSheet(
+      context,
+      widget.api,
+      todo,
+      widget.notificationService,
+      ({bool wasOverdue = false, int overdueTime = 0}) async {},
+    );
+    debugPrint(
+      "SESSION_FLOW: PomodoroSheet for '${todo.text}' has been closed.",
+    );
+  }
+}
+
+class _TaskStatusIndicator extends ConsumerWidget {
+  final Todo todo;
+  const _TaskStatusIndicator({required this.todo});
+
+  String _formatOverdueDuration(int totalSeconds) {
+    if (totalSeconds < 0) totalSeconds = 0;
+    final duration = Duration(seconds: totalSeconds);
+    final minutes = duration.inMinutes;
+    final seconds = totalSeconds % 60;
+    if (minutes > 0) {
+      return '${minutes}m ${seconds}s';
+    } else {
+      return '${seconds}s';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final timerState = ref.watch(timerProvider);
+    final focusedSeconds =
+        timerState.focusedTimeCache[todo.id] ?? todo.focusedTime;
+    final plannedSeconds =
+        (todo.durationHours * 3600) + (todo.durationMinutes * 60);
+
+    // This indicator should only be visible for incomplete tasks that are NOT permanently overdue
+    if (todo.completed || todo.wasOverdue == 1) {
+      return const SizedBox.shrink();
+    }
+
+    final isActivelyOverdue =
+        plannedSeconds > 0 && focusedSeconds > plannedSeconds;
+
+    if (isActivelyOverdue) {
+      final overdueSeconds = focusedSeconds - plannedSeconds;
+      return Container(
+        height: 16,
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        child: Text(
+          'Overdue: ${_formatOverdueDuration(overdueSeconds)}',
+          style: const TextStyle(
+            color: AppColors.priorityHigh,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    } else {
+      return SizedBox(
+        height: 16,
+        child: ProgressBar(
+          focusedSeconds: focusedSeconds,
+          plannedSeconds: plannedSeconds,
+          barHeight: 16,
+        ),
+      );
+    }
   }
 }
 </file>

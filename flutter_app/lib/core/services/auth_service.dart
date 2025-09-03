@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert'; // For json encoding/decoding
 import 'api_service.dart';
+import '../utils/debug_logger.dart';
 
 class AuthService extends ChangeNotifier {
   final FlutterSecureStorage _secure = const FlutterSecureStorage();
@@ -20,39 +21,41 @@ class AuthService extends ChangeNotifier {
   Future<bool> signInWithGoogle() async {
     try {
       // Always use mock Google Sign-In for tester APKs (no real plugin calls).
-      debugPrint('AUTH: Initiating mock Google Sign-In...');
+  debugLog('AuthService', 'Initiating mock Google Sign-In...');
 
       // Generate a mock ID token and proceed with server authentication.
       final String mockIdToken =
           'mock_id_token_${DateTime.now().millisecondsSinceEpoch}';
-      debugPrint(
-        'AUTH: Generated mock token: ${mockIdToken.substring(0, 20)}...',
+      debugLog(
+        'AuthService',
+        'Generated mock token: ${mockIdToken.substring(0, 20)}...',
       );
 
-      final bool result = await signInWithIdToken(mockIdToken);
-      debugPrint('AUTH: signInWithIdToken returned: $result');
+  final bool result = await signInWithIdToken(mockIdToken);
+  debugLog('AuthService', 'signInWithIdToken returned: $result');
       return result;
     } catch (error, stackTrace) {
-      debugPrint("AUTH: Mock sign-in error: $error");
-      debugPrint("AUTH: Stack trace: $stackTrace");
+      debugLog('AuthService', 'Mock sign-in error: $error');
+      debugLog('AuthService', 'Stack trace: $stackTrace');
       return false;
     }
   }
 
   Future<bool> signInWithIdToken(String idToken) async {
     try {
-      if (kDebugMode) debugPrint('AUTH: Sending ID token to backend...');
-      debugPrint('AUTH: API instance type: ${api.runtimeType}');
+  if (kDebugMode) debugLog('AuthService', 'Sending ID token to backend...');
+  debugLog('AuthService', 'API instance type: ${api.runtimeType}');
 
-      final Map<String, dynamic> resp = await api.authWithIdToken(idToken);
-      debugPrint('AUTH: Backend response received: $resp');
+  final Map<String, dynamic> resp = await api.authWithIdToken(idToken);
+  debugLog('AuthService', 'Backend response received: $resp');
 
       final dynamic token = resp['token'];
       final dynamic user = resp['user'];
 
       if (token != null && user != null) {
-        debugPrint(
-          'AUTH: Valid token and user received, storing credentials...',
+        debugLog(
+          'AuthService',
+          'Valid token and user received, storing credentials...',
         );
         await _secure.write(key: 'server_token', value: token as String);
         // Store user data as a JSON string for better structure
@@ -63,27 +66,28 @@ class AuthService extends ChangeNotifier {
         _isAuthenticated = true;
 
         if (kDebugMode) {
-          debugPrint(
-            'AUTH: Authentication successful for user: ${user['email']}',
+          debugLog(
+            'AuthService',
+            'Authentication successful for user: ${user['email']}',
           );
         }
-        debugPrint('AUTH: Calling notifyListeners...');
+        debugLog('AuthService', 'Calling notifyListeners...');
         notifyListeners();
         return true;
       }
 
-      if (kDebugMode) debugPrint('AUTH: No token received from backend');
+      if (kDebugMode) debugLog('AuthService', 'No token received from backend');
       return false;
     } catch (error, stackTrace) {
-      if (kDebugMode) debugPrint('AUTH: Backend authentication error: $error');
-      if (kDebugMode) debugPrint('AUTH: Stack trace: $stackTrace');
+      if (kDebugMode) debugLog('AuthService', 'Backend authentication error: $error');
+      if (kDebugMode) debugLog('AuthService', 'Stack trace: $stackTrace');
       return false;
     }
   }
 
   Future<void> signOut() async {
     try {
-      if (kDebugMode) debugPrint('AUTH: Signing out...');
+  if (kDebugMode) debugLog('AuthService', 'Signing out...');
 
       await _secure.delete(key: 'server_token');
       await _secure.delete(key: 'user_data');
@@ -92,10 +96,10 @@ class AuthService extends ChangeNotifier {
       _currentUser = null;
       _isAuthenticated = false;
 
-      if (kDebugMode) debugPrint('AUTH: Sign out complete');
+      if (kDebugMode) debugLog('AuthService', 'Sign out complete');
       notifyListeners();
     } catch (error) {
-      if (kDebugMode) debugPrint('AUTH: Sign out error: $error');
+      if (kDebugMode) debugLog('AuthService', 'Sign out error: $error');
     }
   }
 
@@ -113,11 +117,11 @@ class AuthService extends ChangeNotifier {
             _currentUser = json.decode(userDataString) as Map<String, dynamic>;
         }
 
-        if (kDebugMode) debugPrint('AUTH: Loaded saved authentication');
+        if (kDebugMode) debugLog('AuthService', 'Loaded saved authentication');
         notifyListeners();
       }
     } catch (error) {
-      if (kDebugMode) debugPrint('AUTH: Error loading saved token: $error');
+      if (kDebugMode) debugLog('AuthService', 'Error loading saved token: $error');
     }
   }
 

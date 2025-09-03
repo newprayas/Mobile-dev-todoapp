@@ -196,6 +196,10 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!mounted) {
+      // Guard against build being invoked after dispose (rare but defensive)
+      return const SizedBox.shrink();
+    }
     final screenWidth = MediaQuery.of(context).size.width;
     final maxCardWidth = min(screenWidth * 0.95, 520.0);
     final api = ref.watch(apiServiceProvider);
@@ -209,12 +213,10 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
     final activeTaskId = timerState.activeTaskId;
 
     Todo? activeTodo;
-    if (activeTaskId != null && todosAsync.hasValue) {
+    if (activeTaskId != null && todosAsync.hasValue && todosAsync.value != null) {
       try {
-        activeTodo = todosAsync.value!.firstWhere(
-          (todo) => todo.id == activeTaskId,
-        );
-      } catch (e) {
+        activeTodo = todosAsync.value!.firstWhere((todo) => todo.id == activeTaskId);
+      } catch (_) {
         activeTodo = null;
       }
     }
@@ -230,7 +232,7 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
       } catch (_) {
         return;
       }
-      if (overdue == null) return;
+  // overdue will never be null here because firstWhere either returns or throws
       // Schedule prompt safely after frame with mounted check
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -238,8 +240,7 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
       });
     });
 
-    final isTimerBarVisible =
-        timerState.isTimerActive && timerState.activeTaskId != null;
+  final isTimerBarVisible = timerState.isTimerActive && timerState.activeTaskId != null;
     final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
     final showSignOutButton =
         !isTimerBarVisible && !isKeyboardVisible && !_isCompletedExpanded;
