@@ -8,6 +8,7 @@ import '../../core/utils/app_dialogs.dart';
 import '../todo/models/todo.dart';
 import '../../core/constants/timer_defaults.dart';
 import 'providers/timer_provider.dart';
+import 'state_machine/timer_events.dart';
 import 'models/timer_state.dart';
 import 'widgets/pomodoro_action_buttons.dart';
 import 'widgets/pomodoro_setup_view.dart';
@@ -136,9 +137,9 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
       );
     } else {
       if (timerState.isRunning) {
-        notifier.pauseTask();
+        notifier.emitExternal(const PauseEvent());
       } else {
-        notifier.resumeTask();
+        notifier.emitExternal(const ResumeEvent());
       }
     }
   }
@@ -162,7 +163,7 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
     }
 
     final wasRunning = timerState.isRunning;
-    if (wasRunning) notifier.pauseTask();
+    if (wasRunning) notifier.emitExternal(const PauseEvent());
 
     final phaseDuration = timerState.currentMode == 'focus'
         ? (timerState.focusDurationSeconds ?? 0)
@@ -182,7 +183,7 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
       await notifier.stopAndSaveProgress(widget.todo.id);
       Navigator.of(context).pop();
     } else {
-      if (wasRunning) notifier.resumeTask();
+      if (wasRunning) notifier.emitExternal(const ResumeEvent());
     }
   }
 

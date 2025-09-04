@@ -23,7 +23,6 @@ import '../services/timer_background_scheduler.dart';
 import '../services/timer_overdue_service.dart';
 import '../services/phase_transition_service.dart';
 import '../services/foreground_ticker.dart';
-import '../services/notification_action_handler.dart';
 import '../../../core/constants/timer_defaults.dart';
 
 /// Business logic + orchestration layer for the Pomodoro timer feature.
@@ -43,7 +42,6 @@ class TimerNotifier extends Notifier<TimerState> {
   DateTime? _lastStartAttempt;
   // Interaction lock window to ignore accidental rapid second taps immediately
   // after starting a session (prevents instant auto‑pause & notification flip).
-  DateTime? _interactionLockedUntil;
   late final TimerPersistenceManager _persistenceManager;
   late SharedPreferences _prefs; // Hold SharedPreferences instance
   late String _apiBaseUrl; // Store API base URL from main app
@@ -56,15 +54,12 @@ class TimerNotifier extends Notifier<TimerState> {
   TimerOverdueService? _overdueService; // extracted
   PhaseTransitionService? _phaseService;
   ForegroundTicker? _foregroundTicker;
-  NotificationActionHandler? _actionHandler;
   // New architecture components (Phase B)
   TimerController? _controller; // created lazily after build
   SideEffectRunner? _runner; // centralized execution of reducer side effects
   // --- Quick Stabilization Additions (Option A) ---
-  Future<void> _lastCommand = Future.value();
-  // Notification throttle fields removed after centralizing in SideEffectRunner
-  // --- Option A Stabilization Flags ---
-  bool _sideEffectsManagedByReducer = true; // reducer path active
+  Future<void> _lastCommand =
+      Future.value(); // retained for potential queued ops
   // Legacy transient start notification throttle removed (handled via effects).
 
   @override
@@ -95,7 +90,7 @@ class TimerNotifier extends Notifier<TimerState> {
       _overdueService ??= TimerOverdueService(notifier: this, ref: ref);
       _phaseService ??= PhaseTransitionService(notifier: this, ref: ref);
       _foregroundTicker ??= ForegroundTicker();
-      _actionHandler ??= NotificationActionHandler(notifier: this, ref: ref);
+      // NotificationActionHandler removed: actions now dispatch events directly via handleNotificationAction.
     });
 
     ref.listen<AsyncValue<List<Todo>>>(todosProvider, (_, next) {
@@ -390,45 +385,15 @@ class TimerNotifier extends Notifier<TimerState> {
     _autoSaveService?.start();
     _foregroundTicker?.start(
       onTick: () {
-        // After polling has already occurred inside ForegroundTicker, emit the tick.
         _emit(const TickEvent());
       },
       onPhaseComplete: () => _handlePhaseCompletion(),
-      onOverdueCheck: () {
-        // Overdue detection moved to reducer; retained hook for future metrics.
-      },
+      onOverdueCheck: () {},
       stateProvider: () => state,
-      // Ensure polling happens BEFORE tick emission each second (even while paused)
-      onPollNotificationActions: _pollBackgroundNotificationAction,
     );
   }
 
-  // Polls SharedPreferences for a background notification action (set by background isolate)
-  // and dispatches the corresponding event exactly once, then clears the stored value.
-  Future<void> _pollBackgroundNotificationAction() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final String? action = prefs.getString('last_notification_action');
-      if (action == null) return;
-      // Clear immediately to avoid re-processing.
-      await prefs.remove('last_notification_action');
-      switch (action) {
-        case 'pause_timer':
-          if (state.isRunning) _emit(const NotificationPauseTappedEvent());
-          break;
-        case 'resume_timer':
-          if (!state.isRunning && state.isTimerActive) {
-            _emit(const NotificationResumeTappedEvent());
-          }
-          break;
-        case 'stop_timer':
-          _emit(NotificationStopTappedEvent(state.activeTaskId));
-          break;
-      }
-    } catch (_) {
-      // Silently ignore polling errors (avoid spam logging each tick).
-    }
-  }
+  // Removed _pollBackgroundNotificationAction: notification actions now call handleNotificationAction directly.
 
   void _handlePhaseCompletion() {
     _phaseService?.handlePhaseCompletion(state);
@@ -503,32 +468,6 @@ class TimerNotifier extends Notifier<TimerState> {
     return true;
   }
 
-  /// Deprecated: Prefer explicit [pauseTask] / [resumeTask] in UI.
-  @Deprecated(
-    'Use pauseTask() / resumeTask() explicitly to avoid race conditions',
-  )
-  void toggleRunning() {
-    // Guard: if no task active, ignore toggle.
-    if (state.activeTaskId == null) return;
-    // Guard: if we just started (elapsed < 1s), treat accidental second tap as noop.
-    final int phaseTotal = state.currentMode == 'focus'
-        ? (state.focusDurationSeconds ?? 0)
-        : (state.breakDurationSeconds ?? 0);
-    final int elapsed = phaseTotal - state.timeRemaining;
-    if (elapsed < 1 && state.isRunning) {
-      logger.w(
-        '[TimerNotifier] Ignoring toggleRunning early tap (elapsed=${elapsed}s)',
-      );
-      return;
-    }
-    // Prefer explicit pause/resume usage elsewhere; keep for backward compat.
-    if (state.isRunning) {
-      pauseTask();
-    } else {
-      resumeTask();
-    }
-  }
-
   /// Starts a new pomodoro session for a given task.
   ///
   /// This is the primary entry point for initiating a timer. It resets any
@@ -558,7 +497,6 @@ class TimerNotifier extends Notifier<TimerState> {
       return false; // Debounce rapid taps.
     }
     _lastStartAttempt = now;
-    _interactionLockedUntil = now.add(const Duration(milliseconds: 800));
     _emit(
       StartSessionEvent(
         taskId: taskId,
@@ -573,65 +511,7 @@ class TimerNotifier extends Notifier<TimerState> {
     return true;
   }
 
-  void pauseTask({bool force = false}) {
-    _enqueueCommand(() async {
-      if (!force &&
-          _interactionLockedUntil != null &&
-          DateTime.now().isBefore(_interactionLockedUntil!)) {
-        logger.w('[TimerNotifier] Pause ignored (interaction lock).');
-        return;
-      }
-      if (!state.isRunning) return; // idempotent
-      logger.i('⏸️ PAUSE requested. Current state: $state');
-      // Option A: Prefer reducer event only to avoid double mutation.
-      _emit(const PauseEvent());
-      // Legacy side effects suppressed if reducer manages them
-      if (!_sideEffectsManagedByReducer) {
-        stopTicker();
-        _triggerDeferredAutoSave();
-        // Cancellation handled by reducer side effects now.
-        // legacy notification call removed
-      }
-      logger.i('⏸️ PAUSE dispatched (event-driven). New state: $state');
-    });
-  }
-
-  void resumeTask() {
-    _enqueueCommand(() async {
-      if (state.isRunning) return;
-      logger.i('▶️ RESUME requested. Current state: $state');
-      _emit(const ResumeEvent());
-      if (!_sideEffectsManagedByReducer) {
-        startTicker();
-        _startAutoSaveTimer();
-        // scheduling handled by reducer effect
-        // legacy notification call removed
-      }
-      logger.i('▶️ RESUME dispatched (event-driven). New state: $state');
-    });
-  }
-
-  void _emit(TimerEvent event) {
-    _ensureController();
-    _controller!.add(event);
-    // Sync outer provider state to controller state (single source)
-    final TimerState previous = state;
-    state = _controller!.state;
-    // Keep legacy ticker & background scheduling in sync with reducer-driven state transitions
-    if (previous.isRunning && !state.isRunning) {
-      // Paused or stopped
-      stopTicker();
-    } else if (!previous.isRunning && state.isRunning) {
-      // Resumed
-      startTicker();
-    }
-    // If timer became inactive (stopped), ensure notifications/workmanager cleaned
-    // Workmanager cancellation handled by CancelWorkmanagerEffect.
-    // Update persistent notification for any state-affecting event
-    // legacy notification call removed
-  }
-
-  // Public wrapper for external services (e.g., notification actions) to dispatch events.
+  // Public wrapper for external services (UI, notifications) to dispatch events safely.
   void emitExternal(TimerEvent event) => _emit(event);
 
   void updateDurations({
@@ -651,6 +531,24 @@ class TimerNotifier extends Notifier<TimerState> {
           ? focusDuration
           : state.timeRemaining,
     );
+  }
+
+  void _emit(TimerEvent event) {
+    _ensureController();
+    _controller!.add(event);
+    // Sync outer provider state to controller state (single source)
+    final TimerState previous = state;
+    state = _controller!.state;
+    // Keep legacy ticker & background scheduling in sync with reducer-driven state transitions
+    if (previous.isRunning && !state.isRunning) {
+      // Paused or stopped
+      stopTicker();
+    } else if (!previous.isRunning && state.isRunning) {
+      // Resumed
+      startTicker();
+    }
+    // Ensure UI rebuild after controller-driven mutation.
+    ref.notifyListeners();
   }
 
   void resetForSetupWithTask({
@@ -798,13 +696,30 @@ class TimerNotifier extends Notifier<TimerState> {
   }
 
   /// Handle action button taps from the persistent notification.
+  /// This maps action identifiers directly to timer events ensuring immediate, race-free response.
   Future<void> handleNotificationAction(String actionId) async {
-    logger.i("⚙️ TimerNotifier handling notification action: '$actionId'");
-    await _actionHandler?.handle(actionId);
-    logger.d("✅ TimerNotifier finished handling action: '$actionId'");
+    logger.i("[TimerNotifier] handling notification action: $actionId");
+    switch (actionId) {
+      case 'pause_timer':
+        if (state.isRunning) {
+          _emit(const NotificationPauseTappedEvent());
+        }
+        break;
+      case 'resume_timer':
+        if (!state.isRunning && state.isTimerActive) {
+          _emit(const NotificationResumeTappedEvent());
+        }
+        break;
+      case 'stop_timer':
+        _emit(NotificationStopTappedEvent(state.activeTaskId));
+        break;
+      default:
+        logger.w('[TimerNotifier] Unknown notification action: $actionId');
+    }
   }
 
   void _enqueueCommand(Future<void> Function() action) {
+    // Queue retained for potential future serialized operations (auto-save / persistence throttling).
     _lastCommand = _lastCommand.whenComplete(action);
   }
 }

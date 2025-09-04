@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/todo.dart';
 import '../../pomodoro/providers/timer_provider.dart';
+import '../../pomodoro/state_machine/timer_events.dart';
 
 typedef PlayCallback = Future<void> Function(Todo todo);
 
@@ -258,14 +259,14 @@ class TaskCard extends ConsumerWidget {
           onPressed: () async {
             final notifier = ref.read(timerProvider.notifier);
             if (!isThisTaskActive) {
-              await onPlay(todo); // starts task (running=true)
+              await onPlay(todo); // starts task (enters setup or running state)
               return;
             }
-            // Active task: decide pause vs resume explicitly.
+            // Active task: emit pause/resume events directly (legacy pauseTask/resumeTask removed).
             if (isThisTaskRunning) {
-              notifier.pauseTask();
+              notifier.emitExternal(const PauseEvent());
             } else {
-              notifier.resumeTask();
+              notifier.emitExternal(const ResumeEvent());
             }
           },
           icon: Icon(

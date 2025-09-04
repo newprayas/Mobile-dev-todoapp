@@ -10,6 +10,7 @@ import '../../../core/utils/debug_logger.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../pomodoro/providers/timer_provider.dart';
+import '../../pomodoro/state_machine/timer_events.dart';
 import '../../pomodoro/models/timer_state.dart';
 import '../../pomodoro/widgets/mini_timer_bar.dart';
 import '../models/todo.dart';
@@ -55,7 +56,7 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
     final timerNotifier = ref.read(timerProvider.notifier);
     timerNotifier.markOverduePromptShown(todo.id);
     final wasRunning = ref.read(timerProvider).isRunning;
-    if (wasRunning) timerNotifier.pauseTask();
+    if (wasRunning) timerNotifier.emitExternal(const PauseEvent());
     final result = await AppDialogs.showOverdueDialog(
       context: context,
       taskName: todo.text,
@@ -81,7 +82,7 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
             overdueTime: overdueTime,
           ); // CORRECTED
     } else {
-      if (wasRunning) timerNotifier.resumeTask();
+      if (wasRunning) timerNotifier.emitExternal(const ResumeEvent());
     }
   }
 

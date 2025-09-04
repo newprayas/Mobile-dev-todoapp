@@ -6,6 +6,7 @@ import '../services/timer_persistence_manager.dart';
 import '../../../core/data/todo_repository.dart';
 import '../../../core/services/workmanager_timer_service.dart';
 import 'dart:async';
+import '../../../core/utils/helpers.dart';
 
 /// Executes side effects emitted by the timer reducer in a centralized, testable way.
 typedef Reader = T Function<T>(ProviderListenable<T> provider);
@@ -91,8 +92,8 @@ class SideEffectRunner {
     final bool running = state.isRunning;
     final String title = running ? '🎯 FOCUS TIME' : '⏸️ PAUSED';
     final String body = state.activeTaskName != null
-        ? '${state.activeTaskName} • ${_format(state.timeRemaining)}'
-        : _format(state.timeRemaining);
+        ? '${state.activeTaskName} • ${formatTime(state.timeRemaining)}'
+        : formatTime(state.timeRemaining);
     final List<String> actions = running
         ? const ['pause_timer', 'stop_timer']
         : const ['resume_timer', 'stop_timer'];
@@ -103,9 +104,5 @@ class SideEffectRunner {
     );
   }
 
-  String _format(int seconds) {
-    final int m = seconds ~/ 60;
-    final int s = seconds % 60;
-    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  }
+  // Local _format removed in favor of shared formatTime helper to ensure consistency.
 }

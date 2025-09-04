@@ -1,14 +1,12 @@
 import 'dart:async';
 import '../models/timer_state.dart';
-import '../../../core/constants/timer_defaults.dart';
 
 typedef TickCallback = void Function();
 typedef PhaseCompleteCallback = void Function();
 typedef OverdueCheckCallback = void Function();
-typedef PollNotificationActionsCallback = Future<void> Function();
 
 /// Foreground ticker responsible solely for per-second updates.
-/// Keeps Timer creation / disposal separate from business logic in the Notifier.
+/// NOTE: Kept 100% synchronous to avoid races introduced by async gaps in Timer.periodic.
 class ForegroundTicker {
   Timer? _timer;
   bool _isRunning = false;
@@ -19,35 +17,19 @@ class ForegroundTicker {
     required PhaseCompleteCallback onPhaseComplete,
     required OverdueCheckCallback onOverdueCheck,
     required TimerState Function() stateProvider,
-    PollNotificationActionsCallback? onPollNotificationActions,
   }) {
-    if (_isRunning) return; // Prevent duplicate timers (double decrement bug)
+    if (_isRunning) return; // Guard against duplicate timers (double decrement)
     stop();
     _isRunning = true;
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      // Poll background notification actions FIRST (must run even when paused)
-      // We intentionally do not await to avoid blocking tick scheduling.
-      if (onPollNotificationActions != null) {
-        try {
-          onPollNotificationActions();
-        } catch (_) {
-          // Swallow errors; polling failures must not stop ticker.
-        }
-      }
-
+    _timer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
       final TimerState state = stateProvider();
-      if (!state.isRunning)
-        return; // Paused; skip decrement logic but still polled above.
+      if (!state.isRunning) return; // Shallow guard clause
 
-      // Overdue check (side-effect free relative to countdown decrement)
       onOverdueCheck();
-
       if (state.timeRemaining <= 0) {
         onPhaseComplete();
         return;
       }
-
-      // Single tick callback per second after polling + overdue + phase logic.
       onTick();
     });
   }

@@ -7,6 +7,7 @@ import '../models/todo.dart';
 import './task_card.dart';
 import '../providers/todos_provider.dart';
 import '../../pomodoro/providers/timer_provider.dart';
+import '../../pomodoro/state_machine/timer_events.dart';
 import '../../pomodoro/models/timer_state.dart';
 import '../../pomodoro/pomodoro_router.dart';
 import '../../../core/widgets/progress_bar.dart';
@@ -107,8 +108,12 @@ class _TaskListState extends ConsumerState<TaskList> {
         }
       });
     }
-    final List<Todo> incompleteTodos = widget.todos.where((t) => !t.completed).toList();
-    final List<Todo> completedTodos = widget.todos.where((t) => t.completed).toList();
+    final List<Todo> incompleteTodos = widget.todos
+        .where((t) => !t.completed)
+        .toList();
+    final List<Todo> completedTodos = widget.todos
+        .where((t) => t.completed)
+        .toList();
 
     // Apply the active filter to the list of completed todos.
     final List<Todo> filteredCompletedTodos = completedTodos.where((todo) {
@@ -444,7 +449,7 @@ class _TaskListState extends ConsumerState<TaskList> {
     if (isAnyTimerActive && timerState.activeTaskId != null) {
       final notifier = ref.read(timerProvider.notifier);
       final wasRunning = timerState.isRunning;
-      if (wasRunning) notifier.pauseTask();
+      if (wasRunning) notifier.emitExternal(const PauseEvent());
 
       final todosAsync = ref.read(todosProvider);
       String? currentTaskName;
@@ -465,7 +470,7 @@ class _TaskListState extends ConsumerState<TaskList> {
       );
 
       if (shouldSwitch != true) {
-        if (wasRunning) notifier.resumeTask();
+        if (wasRunning) notifier.emitExternal(const ResumeEvent());
         return;
       }
       if (!mounted) return;
@@ -474,8 +479,8 @@ class _TaskListState extends ConsumerState<TaskList> {
 
     final plannedSeconds =
         (todo.durationHours * 3600) + (todo.durationMinutes * 60);
-  final int defaultFocus = TimerDefaults.focusSeconds;
-  final int defaultBreak = TimerDefaults.breakSeconds;
+    final int defaultFocus = TimerDefaults.focusSeconds;
+    final int defaultBreak = TimerDefaults.breakSeconds;
     final cycles = plannedSeconds > 0
         ? (plannedSeconds / defaultFocus).ceil().clamp(1, 1000)
         : 4;

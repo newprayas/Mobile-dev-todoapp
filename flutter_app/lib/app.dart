@@ -5,7 +5,6 @@ import 'dart:async'; // For Timer
 import 'core/theme/app_colors.dart';
 import 'core/widgets/auth_wrapper.dart';
 import 'features/pomodoro/providers/timer_provider.dart';
-import 'core/providers/notification_action_provider.dart';
 import 'core/bridge/notification_action_dispatcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/utils/debug_logger.dart';
@@ -27,9 +26,11 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
     // Register dispatcher so main.dart callback can deliver actions immediately.
     registerNotificationActionDispatcher((String actionId) {
-      logger.i("App Dispatcher: Delivering action='$actionId' to provider.");
-      ref.read(notificationActionProvider.notifier).state = actionId;
-      return true; // Indicate handled
+      logger.i(
+        "App Dispatcher: Delivering action='$actionId' DIRECTLY to TimerNotifier.",
+      );
+      ref.read(timerProvider.notifier).handleNotificationAction(actionId);
+      return true;
     });
     // Poll for background-isolate persisted actions (fallback path).
     _actionPoller = Timer.periodic(const Duration(seconds: 1), (_) async {
@@ -41,14 +42,14 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   Future<void> _flushPendingAction() async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? last = prefs.getString('last_notification_action');
-      if (last != null) {
-        debugPrint('APP_FLUSH: detected pending action=$last');
-        ref.read(notificationActionProvider.notifier).state = last;
+      final String? action = prefs.getString('last_notification_action');
+      if (action != null) {
+        debugPrint('APP_FLUSH: Detected and processing pending action=$action');
+        await ref.read(timerProvider.notifier).handleNotificationAction(action);
         await prefs.remove('last_notification_action');
       }
-    } catch (_) {
-      // Ignore; will retry on next poll or lifecycle event.
+    } catch (e) {
+      debugPrint('APP_FLUSH: Error flushing pending action: $e');
     }
   }
 
@@ -87,17 +88,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       });
     }
 
-    // Listen to action provider changes and route to TimerNotifier
-    ref.listen<String?>(notificationActionProvider, (prev, next) {
-      if (next != null) {
-        logger.d(
-          "App Listener: Provider received action='$next'. Forwarding to TimerNotifier.",
-        );
-        ref.read(timerProvider.notifier).handleNotificationAction(next);
-        // Clear to avoid replay
-        ref.read(notificationActionProvider.notifier).state = null;
-      }
-    });
+    // Legacy notificationActionProvider listener removed: actions now dispatched directly.
     return MaterialApp(
       title: 'Todo Flutter',
       theme: ThemeData.dark().copyWith(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/timer_defaults.dart';
 import '../providers/timer_provider.dart';
+import '../state_machine/timer_events.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/notification_service.dart';
 import '../../todo/models/todo.dart';
@@ -112,10 +113,11 @@ class MiniTimerBar extends ConsumerWidget {
               children: [
                 IconButton(
                   onPressed: () {
+                    // Dispatch pure events so reducer is sole source of truth.
                     if (timer.isRunning) {
-                      notifier.pauseTask();
+                      notifier.emitExternal(const PauseEvent());
                     } else {
-                      notifier.resumeTask();
+                      notifier.emitExternal(const ResumeEvent());
                     }
                   },
                   icon: Icon(
@@ -127,34 +129,31 @@ class MiniTimerBar extends ConsumerWidget {
                 ),
                 IconButton(
                   onPressed: () async {
-                    if (activeTodo == null) {
-                      notifier.clear();
+                    final int? taskId = timer.activeTaskId;
+                    if (taskId == null) {
+                      // No active task – nothing to stop.
                       return;
                     }
 
-                    final bool wasRunning = timer.isRunning;
-                    if (wasRunning) notifier.pauseTask();
+                    // If we have an active todo, confirm stop (legacy dialog); otherwise just stop.
+                    if (activeTodo != null) {
+                      final int totalFocusDuration =
+                          timer.focusDurationSeconds ??
+                          TimerDefaults.focusSeconds;
+                      final int timeRemaining = timer.timeRemaining;
+                      final int minutesWorked =
+                          ((totalFocusDuration - timeRemaining) / 60).round();
 
-                    final int totalFocusDuration =
-                        timer.focusDurationSeconds ??
-                        TimerDefaults.focusSeconds;
-                    final int timeRemaining = timer.timeRemaining;
-                    final int minutesWorked =
-                        ((totalFocusDuration - timeRemaining) / 60).round();
-
-                    final bool? shouldStop =
-                        await AppDialogs.showStopSessionDialog(
-                          context: context,
-                          taskName: activeTodo!.text,
-                          minutesWorked: minutesWorked,
-                        );
-
-                    if (shouldStop != true) {
-                      if (wasRunning) notifier.resumeTask();
-                      return;
+                      final bool? shouldStop =
+                          await AppDialogs.showStopSessionDialog(
+                            context: context,
+                            taskName: activeTodo!.text,
+                            minutesWorked: minutesWorked,
+                          );
+                      if (shouldStop != true) return;
                     }
 
-                    await notifier.stopAndSaveProgress(activeTodo!.id);
+                    notifier.emitExternal(StopAndSaveEvent(taskId));
                   },
                   icon: const Icon(
                     Icons.close_rounded,
