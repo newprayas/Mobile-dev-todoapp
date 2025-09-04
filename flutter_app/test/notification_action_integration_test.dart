@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logger/logger.dart';
 import 'package:focus_timer_app/features/pomodoro/models/timer_state.dart';
 import 'package:focus_timer_app/features/pomodoro/providers/timer_provider.dart';
 import 'package:focus_timer_app/core/providers/notification_action_provider.dart';
@@ -10,6 +11,8 @@ import 'package:focus_timer_app/core/services/notification_service.dart';
 // Minimal fake NotificationService (no-op)
 class _FakeNotificationService implements NotificationService {
   @override
+  final Logger logger = Logger();
+  @override
   Function(String? payload)? onNotificationTap;
   @override
   Future<void> init() async {}
@@ -18,11 +21,24 @@ class _FakeNotificationService implements NotificationService {
   @override
   Future<void> playSound(String soundFileName) async {}
   @override
-  Future<void> playSoundWithNotification({required String soundFileName, required String title, required String body}) async {}
+  Future<void> playSoundWithNotification({
+    required String soundFileName,
+    required String title,
+    required String body,
+  }) async {}
   @override
-  Future<void> showNotification({required String title, required String body, String? payload, String? soundFileName}) async {}
+  Future<void> showNotification({
+    required String title,
+    required String body,
+    String? payload,
+    String? soundFileName,
+  }) async {}
   @override
-  Future<void> showOrUpdatePersistent({required String title, required String body, required List<String> actionIds}) async {}
+  Future<void> showOrUpdatePersistent({
+    required String title,
+    required String body,
+    required List<String> actionIds,
+  }) async {}
   @override
   Future<void> debugDumpActiveNotifications() async {}
   @override
@@ -55,7 +71,12 @@ class _FakeTimerNotifier extends TimerNotifier {
     } else if (actionId == 'resume_timer') {
       state = state.copyWith(isRunning: true);
     } else if (actionId == 'stop_timer') {
-      state = state.copyWith(isTimerActive: false, activeTaskId: null, activeTaskName: null, isRunning: false);
+      state = state.copyWith(
+        isTimerActive: false,
+        activeTaskId: null,
+        activeTaskName: null,
+        isRunning: false,
+      );
     }
   }
 }
@@ -74,7 +95,10 @@ void main() {
           }
         });
         final timerState = ref.watch(timerProvider);
-        return Text(timerState.isRunning ? 'running' : 'paused', textDirection: TextDirection.ltr);
+        return Text(
+          timerState.isRunning ? 'running' : 'paused',
+          textDirection: TextDirection.ltr,
+        );
       },
     );
   }
@@ -84,7 +108,9 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            notificationServiceProvider.overrideWithValue(_FakeNotificationService()),
+            notificationServiceProvider.overrideWithValue(
+              _FakeNotificationService(),
+            ),
             timerProvider.overrideWith(_FakeTimerNotifier.new),
           ],
           child: _buildHarness(),
@@ -93,29 +119,44 @@ void main() {
 
       expect(find.text('running'), findsOneWidget);
       // Trigger pause
-      final container = ProviderScope.containerOf(tester.element(find.text('running')));
+      final container = ProviderScope.containerOf(
+        tester.element(find.text('running')),
+      );
       container.read(notificationActionProvider.notifier).state = 'pause_timer';
       await tester.pump();
-      expect(find.text('paused'), findsOneWidget, reason: 'Should reflect paused after pause action');
+      expect(
+        find.text('paused'),
+        findsOneWidget,
+        reason: 'Should reflect paused after pause action',
+      );
 
       // Trigger resume
-      container.read(notificationActionProvider.notifier).state = 'resume_timer';
+      container.read(notificationActionProvider.notifier).state =
+          'resume_timer';
       await tester.pump();
-      expect(find.text('running'), findsOneWidget, reason: 'Should reflect running after resume action');
+      expect(
+        find.text('running'),
+        findsOneWidget,
+        reason: 'Should reflect running after resume action',
+      );
     });
 
     testWidgets('stop_timer clears active timer flag', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            notificationServiceProvider.overrideWithValue(_FakeNotificationService()),
+            notificationServiceProvider.overrideWithValue(
+              _FakeNotificationService(),
+            ),
             timerProvider.overrideWith(_FakeTimerNotifier.new),
           ],
           child: _buildHarness(),
         ),
       );
 
-      final container = ProviderScope.containerOf(tester.element(find.text('running')));
+      final container = ProviderScope.containerOf(
+        tester.element(find.text('running')),
+      );
       container.read(notificationActionProvider.notifier).state = 'stop_timer';
       await tester.pump();
       final state = container.read(timerProvider);

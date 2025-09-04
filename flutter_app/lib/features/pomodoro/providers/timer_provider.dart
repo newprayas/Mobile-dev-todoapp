@@ -70,7 +70,14 @@ class TimerNotifier extends Notifier<TimerState> {
           'http://127.0.0.1:5000';
       _isDebugMode = _prefs.getBool(AppConstants.prefIsDebugMode) ?? kDebugMode;
 
-      await _restoreTimerState(); // Restore state during build
+      // Attempt restore only if no session started in the interim.
+      if (!state.isTimerActive && state.activeTaskId == null) {
+        await _restoreTimerState(); // Restore state during build
+      } else {
+        logger.w(
+          '[TimerNotifier] Skipping initial restore due to existing active session.',
+        );
+      }
       _autoSaveService ??= TimerAutoSaveService(this, ref);
       _backgroundScheduler ??= TimerBackgroundScheduler(_persistenceManager);
       _overdueService ??= TimerOverdueService(notifier: this, ref: ref);
@@ -141,6 +148,17 @@ class TimerNotifier extends Notifier<TimerState> {
       logger.i(
         '[TimerNotifier] Restoring timer state from preferences: $savedState',
       );
+
+      // Guard: if a new session was already started before async restore completed,
+      // don't overwrite the live in-memory session (prevents immediate auto-pause symptom).
+      if (state.isTimerActive ||
+          state.isRunning ||
+          state.activeTaskId != null) {
+        logger.w(
+          '[TimerNotifier] Skipping restore because a session already started (state=$state)',
+        );
+        return;
+      }
 
       // Adjust timeRemaining if it was running in the background
       if (savedState.wasInBackground &&
@@ -378,6 +396,12 @@ class TimerNotifier extends Notifier<TimerState> {
     );
 
     if (newState != state) {
+      // Log isRunning transitions explicitly to trace unexpected pauses/resumes.
+      if (newState.isRunning != state.isRunning) {
+        logger.i(
+          '[TimerNotifier] isRunning changed: ${state.isRunning} -> ${newState.isRunning}',
+        );
+      }
       state = newState;
       _saveTimerStateToPrefs(); // Save state whenever it changes
 
@@ -411,6 +435,9 @@ class TimerNotifier extends Notifier<TimerState> {
     );
   }
 
+  /// Exposes a snapshot of current state for external handlers (read-only copy)
+  TimerState get debugCurrentState => state;
+
   void markOverduePromptShown(int taskId) {
     final newPromptShown = Set<int>.from(state.overduePromptShown)..add(taskId);
     update(overduePromptShown: newPromptShown);
@@ -438,20 +465,21 @@ class TimerNotifier extends Notifier<TimerState> {
     _autoSaveService?.start();
     _foregroundTicker?.start(
       onTick: () {
+        // Focus accumulation only in focus mode with active task
         if (state.currentMode == 'focus' && state.activeTaskId != null) {
           final int taskId = state.activeTaskId!;
           final int currentFocused = state.focusedTimeCache[taskId] ?? 0;
-          final newCache = Map<int, int>.from(state.focusedTimeCache);
-          newCache[taskId] = currentFocused + 1;
+          final Map<int, int> newCache = Map<int, int>.from(
+            state.focusedTimeCache,
+          )..[taskId] = currentFocused + 1;
           update(focusedTimeCache: newCache);
         }
+        // Decrement exactly once per second
         if (state.timeRemaining > 0) {
           update(timeRemaining: state.timeRemaining - 1);
         }
       },
-      onPhaseComplete: () {
-        _handlePhaseCompletion();
-      },
+      onPhaseComplete: () => _handlePhaseCompletion(),
       onOverdueCheck: () {
         final int focused = state.focusedTimeCache[state.activeTaskId] ?? 0;
         final int? planned = state.plannedDurationSeconds;
@@ -460,13 +488,12 @@ class TimerNotifier extends Notifier<TimerState> {
             state.currentMode == 'focus' &&
             state.activeTaskId != null &&
             planned != null &&
-            planned > 0) {
-          if (focused >= planned &&
-              state.overdueCrossedTaskId != state.activeTaskId) {
-            _processingOverdue = true;
-            _markOverdueAndFreeze(state.activeTaskId!);
-            _processingOverdue = false;
-          }
+            planned > 0 &&
+            focused >= planned &&
+            state.overdueCrossedTaskId != state.activeTaskId) {
+          _processingOverdue = true;
+          _markOverdueAndFreeze(state.activeTaskId!);
+          _processingOverdue = false;
         }
       },
       stateProvider: () => state,
@@ -598,24 +625,40 @@ class TimerNotifier extends Notifier<TimerState> {
   }
 
   void toggleRunning() {
-    final nextRunning = !state.isRunning;
-    update(isRunning: nextRunning);
-    if (nextRunning) {
-      startTicker();
-      if (state.activeTaskId != null && state.activeTaskName != null) {
-        _scheduleWorkmanagerTask(
-          state.activeTaskId!,
-          state.activeTaskName!,
-          state.timeRemaining,
-        );
-      }
+    // Guard: if no task active, ignore toggle.
+    if (state.activeTaskId == null) return;
+    // Guard: if we just started (elapsed < 1s), treat accidental second tap as noop.
+    final int phaseTotal = state.currentMode == 'focus'
+        ? (state.focusDurationSeconds ?? 0)
+        : (state.breakDurationSeconds ?? 0);
+    final int elapsed = phaseTotal - state.timeRemaining;
+    if (elapsed < 1 && state.isRunning) {
+      logger.w(
+        '[TimerNotifier] Ignoring toggleRunning early tap (elapsed=${elapsed}s)',
+      );
+      return;
+    }
+    if (state.isRunning) {
+      pauseTask();
     } else {
-      stopTicker();
-      _cancelWorkmanagerTask();
-      _saveTimerStateToPrefs();
+      resumeTask();
     }
   }
 
+  /// Starts a new pomodoro session for a given task.
+  ///
+  /// This is the primary entry point for initiating a timer. It resets any
+  /// existing session, plays a start sound, and schedules background persistence.
+  /// Returns `true` if the session started successfully, `false` otherwise.
+  ///
+  /// - [taskId]: The unique identifier for the task.
+  /// - [taskName]: The display name of the task.
+  /// - [focusDuration]: The duration of a single focus session in seconds.
+  /// - [breakDuration]: The duration of a single break session in seconds.
+  /// - [plannedDuration]: The total planned work time for the task in seconds.
+  /// - [totalCycles]: The number of focus/break cycles to complete.
+  /// - [isPermanentlyOverdue]: If `true`, the timer runs in a "count-up" mode
+  ///   after the initial focus duration is complete.
   bool startTask({
     required int taskId,
     required String taskName,

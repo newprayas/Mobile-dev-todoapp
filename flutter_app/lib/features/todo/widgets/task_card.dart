@@ -95,8 +95,8 @@ class TaskCard extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
-  // Replaced deprecated withOpacity with withValues for modern color API.
-  color: AppColors.cardBg.withValues(alpha: 0.5),
+        // Replaced deprecated withOpacity with withValues for modern color API.
+        color: AppColors.cardBg.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -255,13 +255,17 @@ class TaskCard extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
-          onPressed: () {
-            if (isThisTaskActive) {
-              // If this task is already active, just toggle the timer.
-              ref.read(timerProvider.notifier).toggleRunning();
+          onPressed: () async {
+            final notifier = ref.read(timerProvider.notifier);
+            if (!isThisTaskActive) {
+              await onPlay(todo); // starts task (running=true)
+              return;
+            }
+            // Active task: decide pause vs resume explicitly.
+            if (isThisTaskRunning) {
+              notifier.pauseTask();
             } else {
-              // Otherwise, initiate the full play flow.
-              onPlay(todo);
+              notifier.resumeTask();
             }
           },
           icon: Icon(

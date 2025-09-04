@@ -246,11 +246,6 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
 
     final isTimerBarVisible =
         timerState.isTimerActive && timerState.activeTaskId != null;
-    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
-    final showSignOutButton =
-        !isTimerBarVisible && !isKeyboardVisible && !_isCompletedExpanded;
-    final showCreditTag =
-        !isTimerBarVisible && !isKeyboardVisible && !_isCompletedExpanded;
 
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
@@ -360,64 +355,76 @@ class _TodoListScreenState extends ConsumerState<TodoListScreen> {
                   onComplete: (id) => _handleTaskCompletion(id),
                 ),
               ),
-            if (showCreditTag)
-              Positioned(
-                bottom: 12,
-                left: 16,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  child: RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'Made with ',
-                          style: TextStyle(
-                            color: AppColors.mediumGray.withValues(alpha: 0.6),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                        TextSpan(
-                          text: '❤️',
-                          style: TextStyle(
-                            color: Colors.red,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        TextSpan(
-                          text: ' by Prayas',
-                          style: TextStyle(
-                            color: AppColors.mediumGray.withValues(alpha: 0.6),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            if (showSignOutButton)
-              Positioned(
-                bottom: 16,
-                right: 24,
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.logout,
-                    color: AppColors.mediumGray,
-                    size: 28,
-                  ),
-                  tooltip: 'Sign Out',
-                  onPressed: _handleSignOut,
-                ),
-              ),
+            _buildFooter(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildFooter() {
+    final timerState = ref.watch(timerProvider);
+    final isTimerBarVisible =
+        timerState.isTimerActive && timerState.activeTaskId != null;
+    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+
+    if (isTimerBarVisible || isKeyboardVisible || _isCompletedExpanded) {
+      return const SizedBox.shrink();
+    }
+
+    return Stack(
+      children: [
+        Positioned(
+          bottom: 12,
+          left: 16,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'Made with ',
+                    style: TextStyle(
+                      color: AppColors.mediumGray.withValues(alpha: 0.6),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                  const TextSpan(
+                    text: '❤️',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  TextSpan(
+                    text: ' by Prayas',
+                    style: TextStyle(
+                      color: AppColors.mediumGray.withValues(alpha: 0.6),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: 16,
+          right: 24,
+          child: IconButton(
+            icon: const Icon(
+              Icons.logout,
+              color: AppColors.mediumGray,
+              size: 28,
+            ),
+            tooltip: 'Sign Out',
+            onPressed: _handleSignOut,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -10,7 +10,8 @@ typedef OverdueCheckCallback = void Function();
 /// Keeps Timer creation / disposal separate from business logic in the Notifier.
 class ForegroundTicker {
   Timer? _timer;
-  bool get isActive => _timer != null;
+  bool _isRunning = false;
+  bool get isActive => _timer != null && _isRunning;
 
   void start({
     required TickCallback onTick,
@@ -18,30 +19,29 @@ class ForegroundTicker {
     required OverdueCheckCallback onOverdueCheck,
     required TimerState Function() stateProvider,
   }) {
+    if (_isRunning) return; // Prevent duplicate timers (double decrement bug)
     stop();
+    _isRunning = true;
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       final TimerState state = stateProvider();
-      if (!state.isRunning) return; // Guard clause
+      if (!state.isRunning) return; // Paused; do nothing.
 
-      // Overdue check first (non-destructive)
+      // Overdue check (side-effect free relative to countdown decrement)
       onOverdueCheck();
 
-      // Focused time accumulation (only in focus mode & active task)
-      if (state.currentMode == 'focus' && state.activeTaskId != null) {
-        onTick();
+      if (state.timeRemaining <= 0) {
+        onPhaseComplete();
+        return;
       }
 
-      if (state.timeRemaining > 0) {
-        // We let the notifier decrement timeRemaining directly (to persist)
-        onTick();
-      } else {
-        onPhaseComplete();
-      }
+      // Single tick callback per second (Notifier handles focus accumulation & decrement)
+      onTick();
     });
   }
 
   void stop() {
     _timer?.cancel();
     _timer = null;
+    _isRunning = false;
   }
 }

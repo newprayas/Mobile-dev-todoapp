@@ -1,5 +1,6 @@
 import '../../todo/models/todo.dart';
 import '../models/timer_state.dart';
+import '../../../core/services/notifications/notification_constants.dart';
 
 /// Represents the data needed to render/update the persistent timer notification.
 class PersistentTimerNotificationModel {
@@ -15,12 +16,6 @@ class PersistentTimerNotificationModel {
     required this.ongoing,
   });
 
-  static const String actionPause = 'pause_timer';
-  static const String actionResume = 'resume_timer';
-  static const String actionStop = 'stop_timer';
-  static const String actionMarkComplete = 'mark_complete';
-  static const String actionContinueWorking = 'continue_working';
-
   /// Maps the current timer state + active todo into notification data.
   /// This pure function is intentionally isolated so it can be unit tested
   /// without depending on the platform notification plugin.
@@ -35,7 +30,7 @@ class PersistentTimerNotificationModel {
       return PersistentTimerNotificationModel(
         title: '✅ SESSIONS COMPLETE',
         body: "You have finished all planned sessions for '$taskName'.",
-        actionIds: const [actionMarkComplete, actionContinueWorking],
+        actionIds: [kActionMarkComplete, kActionContinueWorking],
         ongoing: true,
       );
     }
@@ -45,7 +40,7 @@ class PersistentTimerNotificationModel {
       return PersistentTimerNotificationModel(
         title: 'TIMER IS COMPLETE',
         body: "Planned time for '$taskName' is up.",
-        actionIds: const [actionMarkComplete, actionContinueWorking],
+        actionIds: [kActionMarkComplete, kActionContinueWorking],
         ongoing: true,
       );
     }
@@ -55,15 +50,18 @@ class PersistentTimerNotificationModel {
     // Scenario: Permanently overdue active focus session (count-up visual)
     if (state.isPermanentlyOverdue && isFocus && state.isRunning) {
       final int focusDuration = state.focusDurationSeconds ?? 0;
-    final int rawElapsed = focusDuration - state.timeRemaining;
-    final int elapsed = rawElapsed < 0
-      ? 0
-      : (rawElapsed > 86400 ? 86400 : rawElapsed); // clamp manually
+      final int rawElapsed = focusDuration - state.timeRemaining;
+      final int elapsed = rawElapsed < 0
+          ? 0
+          : (rawElapsed > 86400 ? 86400 : rawElapsed); // clamp manually
       final String elapsedStr = _format(elapsed);
       return PersistentTimerNotificationModel(
         title: '🔴 FOCUS TIME',
         body: '$taskName • $elapsedStr',
-        actionIds: [state.isRunning ? actionPause : actionResume, actionStop],
+        actionIds: [
+          state.isRunning ? kActionPause : kActionResume,
+          kActionStop,
+        ],
         ongoing: true,
       );
     }
@@ -75,8 +73,8 @@ class PersistentTimerNotificationModel {
       title: title,
       body: '$taskName • $remaining',
       actionIds: state.isRunning
-          ? [actionPause, actionStop]
-          : [actionResume, actionStop],
+          ? [kActionPause, kActionStop]
+          : [kActionResume, kActionStop],
       ongoing: true,
     );
   }
