@@ -6,6 +6,9 @@ import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../state_machine/timer_controller.dart';
+import '../state_machine/timer_events.dart';
+import '../state_machine/timer_side_effects.dart';
 import '../../../core/services/timer_session_controller.dart';
 import '../../../core/providers/notification_provider.dart';
 import '../../../core/utils/app_constants.dart'; // Import AppConstants
@@ -38,9 +41,11 @@ class TimerNotifier extends Notifier<TimerState> {
   Timer? _autoSaveTimer;
 
   int _lastAutoSavedSeconds = 0;
-  bool _processingOverdue = false;
   TimerSessionController? _sessionController;
   DateTime? _lastStartAttempt;
+  // Interaction lock window to ignore accidental rapid second taps immediately
+  // after starting a session (prevents instant auto‑pause & notification flip).
+  DateTime? _interactionLockedUntil;
   late final TimerPersistenceManager _persistenceManager;
   late SharedPreferences _prefs; // Hold SharedPreferences instance
   late String _apiBaseUrl; // Store API base URL from main app
@@ -54,6 +59,12 @@ class TimerNotifier extends Notifier<TimerState> {
   PhaseTransitionService? _phaseService;
   ForegroundTicker? _foregroundTicker;
   NotificationActionHandler? _actionHandler;
+  // New architecture components (Phase B)
+  TimerController? _controller; // created lazily after build
+  // --- Quick Stabilization Additions (Option A) ---
+  Future<void> _lastCommand = Future.value();
+  DateTime _lastNotificationUpdate = DateTime.fromMillisecondsSinceEpoch(0);
+  static const Duration _notificationMinInterval = Duration(milliseconds: 500);
 
   @override
   TimerState build() {
@@ -134,6 +145,104 @@ class TimerNotifier extends Notifier<TimerState> {
     });
 
     return const TimerState();
+  }
+
+  // --- Phase B: controller bootstrap (lazy) ---
+  void _ensureController() {
+    if (_controller != null) return;
+    _controller = TimerController(ref: ref, initial: state);
+    _controller!.sideEffects.listen(_handleSideEffect);
+  }
+
+  // Maps side effect instances (emitted by reducer) to existing imperative services.
+  void _handleSideEffect(TimerSideEffect eff) {
+    if (eff is PersistStateEffect || eff is PersistStateSideEffect) {
+      // Persist current state snapshot
+      _persistenceManager.saveTimerState(state);
+      return;
+    }
+    if (eff is ShowNotificationEffect) {
+      _maybeUpdateNotification();
+      return;
+    }
+    if (eff is CancelNotificationEffect ||
+        eff is CancelAllNotificationsSideEffect) {
+      ref.read(notificationServiceProvider).cancelPersistentTimerNotification();
+      return;
+    }
+    if (eff is ScheduleWorkmanagerEffect) {
+      _scheduleWorkmanagerTask(eff.taskId, eff.taskName, eff.remainingSeconds);
+      return;
+    }
+    if (eff is CancelWorkmanagerEffect) {
+      _cancelWorkmanagerTask();
+      return;
+    }
+    if (eff is PlaySoundEffect) {
+      try {
+        final notificationService = ref.read(notificationServiceProvider);
+        if (eff.title != null) {
+          notificationService.playSoundWithNotification(
+            soundFileName: eff.asset,
+            title: eff.title!,
+            body: eff.body ?? '',
+          );
+        } else {
+          notificationService.playSound(eff.asset);
+        }
+      } catch (_) {}
+      return;
+    }
+    if (eff is SaveFocusToRepoEffect) {
+      try {
+        final repo = ref.read(todoRepositoryProvider);
+        if (state.activeTaskId != null) {
+          final live = state.focusedTimeCache[state.activeTaskId!] ?? 0;
+          repo.updateFocusTime(state.activeTaskId!, live);
+        }
+      } catch (_) {}
+      return;
+    }
+    if (eff is PhaseCompleteSideEffect) {
+      // Play phase completion sound & notification.
+      try {
+        final notificationService = ref.read(notificationServiceProvider);
+        final String phaseLabel = eff.completedPhase == 'focus'
+            ? 'Focus Session'
+            : 'Break';
+        if (eff.sessionFinished) {
+          notificationService.playSoundWithNotification(
+            soundFileName: SoundAsset.sessionComplete.fileName,
+            title: 'Session Complete!',
+            body: 'Great job finishing all cycles.',
+          );
+        } else {
+          notificationService.playSoundWithNotification(
+            soundFileName: eff.completedPhase == 'focus'
+                ? SoundAsset.focusStart.fileName
+                : SoundAsset.breakStart.fileName,
+            title: '$phaseLabel Complete',
+            body: eff.completedPhase == 'focus'
+                ? 'Time for a break.'
+                : 'Back to focus cycle ${state.currentCycle}.',
+          );
+        }
+      } catch (_) {}
+      return;
+    }
+    if (eff is OverdueReachedSideEffect) {
+      try {
+        final notificationService = ref.read(notificationServiceProvider);
+        notificationService.playSoundWithNotification(
+          soundFileName: SoundAsset.sessionComplete.fileName,
+          title: 'Planned Time Complete!',
+          body:
+              'Time for "${eff.taskName ?? state.activeTaskName ?? 'Task'}" is up. Continue or complete?',
+        );
+      } catch (_) {}
+      return;
+    }
+    // Placeholder effect (phase completion) not yet migrated; ignore for now.
   }
 
   /// Public helper for services to persist current state safely.
@@ -396,24 +505,27 @@ class TimerNotifier extends Notifier<TimerState> {
     );
 
     if (newState != state) {
-      // Log isRunning transitions explicitly to trace unexpected pauses/resumes.
       if (newState.isRunning != state.isRunning) {
         logger.i(
           '[TimerNotifier] isRunning changed: ${state.isRunning} -> ${newState.isRunning}',
         );
       }
-      state = newState;
-      _saveTimerStateToPrefs(); // Save state whenever it changes
-
-      // Update persistent notification if timer is active
-      if (state.isTimerActive && state.activeTaskId != null) {
-        _showPersistentNotification();
-      } else {
-        ref
-            .read(notificationServiceProvider)
-            .cancelPersistentTimerNotification();
-      }
+      state =
+          newState; // persistence/notifications now driven by reducer side effects
     }
+  }
+
+  void _maybeUpdateNotification() {
+    if (!state.isTimerActive || state.activeTaskId == null) {
+      ref.read(notificationServiceProvider).cancelPersistentTimerNotification();
+      return;
+    }
+    final now = DateTime.now();
+    if (now.difference(_lastNotificationUpdate) < _notificationMinInterval) {
+      return; // throttle
+    }
+    _lastNotificationUpdate = now;
+    _showPersistentNotification();
   }
 
   // Helper to show/update the persistent notification
@@ -465,39 +577,43 @@ class TimerNotifier extends Notifier<TimerState> {
     _autoSaveService?.start();
     _foregroundTicker?.start(
       onTick: () {
-        // Focus accumulation only in focus mode with active task
-        if (state.currentMode == 'focus' && state.activeTaskId != null) {
-          final int taskId = state.activeTaskId!;
-          final int currentFocused = state.focusedTimeCache[taskId] ?? 0;
-          final Map<int, int> newCache = Map<int, int>.from(
-            state.focusedTimeCache,
-          )..[taskId] = currentFocused + 1;
-          update(focusedTimeCache: newCache);
-        }
-        // Decrement exactly once per second
-        if (state.timeRemaining > 0) {
-          update(timeRemaining: state.timeRemaining - 1);
-        }
+        // New architecture: delegate tick logic to reducer via event.
+        _emit(const TickEvent());
+        _pollBackgroundNotificationAction();
       },
       onPhaseComplete: () => _handlePhaseCompletion(),
       onOverdueCheck: () {
-        final int focused = state.focusedTimeCache[state.activeTaskId] ?? 0;
-        final int? planned = state.plannedDurationSeconds;
-        if (!state.isPermanentlyOverdue &&
-            !_processingOverdue &&
-            state.currentMode == 'focus' &&
-            state.activeTaskId != null &&
-            planned != null &&
-            planned > 0 &&
-            focused >= planned &&
-            state.overdueCrossedTaskId != state.activeTaskId) {
-          _processingOverdue = true;
-          _markOverdueAndFreeze(state.activeTaskId!);
-          _processingOverdue = false;
-        }
+        // Overdue detection moved to reducer; retained hook for future metrics.
       },
       stateProvider: () => state,
     );
+  }
+
+  // Polls SharedPreferences for a background notification action (set by background isolate)
+  // and dispatches the corresponding event exactly once, then clears the stored value.
+  Future<void> _pollBackgroundNotificationAction() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? action = prefs.getString('last_notification_action');
+      if (action == null) return;
+      // Clear immediately to avoid re-processing.
+      await prefs.remove('last_notification_action');
+      switch (action) {
+        case 'pause_timer':
+          if (state.isRunning) _emit(const NotificationPauseTappedEvent());
+          break;
+        case 'resume_timer':
+          if (!state.isRunning && state.isTimerActive) {
+            _emit(const NotificationResumeTappedEvent());
+          }
+          break;
+        case 'stop_timer':
+          _emit(NotificationStopTappedEvent(state.activeTaskId));
+          break;
+      }
+    } catch (_) {
+      // Silently ignore polling errors (avoid spam logging each tick).
+    }
   }
 
   void _handlePhaseCompletion() {
@@ -527,35 +643,6 @@ class TimerNotifier extends Notifier<TimerState> {
     _autoSaveService?.stop();
     _cancelWorkmanagerTask();
     _saveTimerStateToPrefs();
-  }
-
-  void _markOverdueAndFreeze(int taskId) {
-    _sessionController?.handleEvent(TimerSessionEvent.overdueReached);
-
-    try {
-      final notificationService = ref.read(notificationServiceProvider);
-      final todos = ref.read(todosProvider).value ?? [];
-      try {
-        final task = todos.firstWhere((t) => t.id == taskId);
-        // Play sound with notification for better background operation
-        notificationService.playSoundWithNotification(
-          soundFileName: SoundAsset.sessionComplete.fileName,
-          title: 'Planned Time Complete!',
-          body:
-              'Time for "${task.text}" is up. Decide whether to continue or complete.',
-        );
-      } catch (e) {
-        // Task not found, skip notification
-      }
-    } catch (e) {
-      logger.e('[TimerNotifier] SOUND/NOTIFICATION ERROR: $e');
-    }
-
-    _ticker?.cancel();
-    _ticker = null;
-    // Delegate to service
-    _overdueService?.markOverdueAndFreeze(taskId);
-    _cancelWorkmanagerTask();
   }
 
   void stop() {
@@ -606,24 +693,15 @@ class TimerNotifier extends Notifier<TimerState> {
   }
 
   Future<bool> stopAndSaveProgress(int todoId) async {
-    if (state.activeTaskId == null) {
-      clear();
-      return true;
-    }
-
-    try {
-      final currentFocusedTime = state.focusedTimeCache[todoId] ?? 0;
-      final todoRepository = ref.read(todoRepositoryProvider);
-      await todoRepository.updateFocusTime(todoId, currentFocusedTime);
-      clearPreserveProgress();
-      return true;
-    } catch (e) {
-      logger.e('[TimerNotifier] Error saving progress: $e');
-      clearPreserveProgress();
-      return false;
-    }
+    // Dispatch StopAndSaveEvent; reducer + side effects handle persistence & cleanup.
+    _emit(StopAndSaveEvent(todoId));
+    return true;
   }
 
+  /// Deprecated: Prefer explicit [pauseTask] / [resumeTask] in UI.
+  @Deprecated(
+    'Use pauseTask() / resumeTask() explicitly to avoid race conditions',
+  )
   void toggleRunning() {
     // Guard: if no task active, ignore toggle.
     if (state.activeTaskId == null) return;
@@ -638,6 +716,7 @@ class TimerNotifier extends Notifier<TimerState> {
       );
       return;
     }
+    // Prefer explicit pause/resume usage elsewhere; keep for backward compat.
     if (state.isRunning) {
       pauseTask();
     } else {
@@ -719,33 +798,59 @@ class TimerNotifier extends Notifier<TimerState> {
       backgroundStartTime: null,
       pausedTimeTotal: 0,
     );
+    // Lock user interactions (pause/resume) briefly to avoid immediate unintended pause.
+    _interactionLockedUntil = DateTime.now().add(
+      const Duration(milliseconds: 800),
+    );
     startTicker();
     _scheduleWorkmanagerTask(taskId, taskName, focusDuration);
-    _showPersistentNotification(); // Show persistent notification
+    _maybeUpdateNotification();
+    // Feed state machine (Phase B) so new architecture mirrors legacy changes.
+    _emit(
+      StartSessionEvent(
+        taskId: taskId,
+        taskName: taskName,
+        focusDuration: focusDuration,
+        breakDuration: breakDuration,
+        plannedDuration: plannedDuration,
+        totalCycles: totalCycles,
+        isPermanentlyOverdue: isPermanentlyOverdue,
+      ),
+    );
     return true;
   }
 
-  void pauseTask() {
-    logger.i('⏸️ PAUSE requested. Current state: $state');
-    update(
-      isRunning: false,
-      // Record elapsed time if the timer was active in a phase
-      pausedTimeTotal:
-          state.pausedTimeTotal +
-          (state.currentMode == 'focus'
-              ? (state.focusDurationSeconds ?? 0)
-              : (state.breakDurationSeconds ?? 0)) -
-          state.timeRemaining,
-    );
-    stopTicker();
-    _triggerDeferredAutoSave();
-    _cancelWorkmanagerTask();
-    _showPersistentNotification();
-    logger.i('⏸️ PAUSE complete. New state: $state');
+  void pauseTask({bool force = false}) {
+    _enqueueCommand(() async {
+      if (!force &&
+          _interactionLockedUntil != null &&
+          DateTime.now().isBefore(_interactionLockedUntil!)) {
+        logger.w('[TimerNotifier] Pause ignored (interaction lock).');
+        return;
+      }
+      if (!state.isRunning) return; // idempotent
+      logger.i('⏸️ PAUSE requested. Current state: $state');
+      update(
+        isRunning: false,
+        pausedTimeTotal:
+            state.pausedTimeTotal +
+            (state.currentMode == 'focus'
+                ? (state.focusDurationSeconds ?? 0)
+                : (state.breakDurationSeconds ?? 0)) -
+            state.timeRemaining,
+      );
+      _emit(const PauseEvent());
+      stopTicker();
+      _triggerDeferredAutoSave();
+      await _cancelWorkmanagerTask();
+      _maybeUpdateNotification();
+      logger.i('⏸️ PAUSE complete. New state: $state');
+    });
   }
 
   void resumeTask() {
-    if (!state.isRunning) {
+    _enqueueCommand(() async {
+      if (state.isRunning) return;
       logger.i('▶️ RESUME requested. Current state: $state');
       update(isRunning: true);
       startTicker();
@@ -757,10 +862,35 @@ class TimerNotifier extends Notifier<TimerState> {
           state.timeRemaining,
         );
       }
-      _showPersistentNotification(); // Update notification on resume
+      _maybeUpdateNotification();
       logger.i('▶️ RESUME complete. New state: $state');
-    }
+    });
   }
+
+  void _emit(TimerEvent event) {
+    _ensureController();
+    _controller!.add(event);
+    // Sync outer provider state to controller state (single source)
+    final TimerState previous = state;
+    state = _controller!.state;
+    // Keep legacy ticker & background scheduling in sync with reducer-driven state transitions
+    if (previous.isRunning && !state.isRunning) {
+      // Paused or stopped
+      stopTicker();
+    } else if (!previous.isRunning && state.isRunning) {
+      // Resumed
+      startTicker();
+    }
+    // If timer became inactive (stopped), ensure notifications/workmanager cleaned
+    if (previous.isTimerActive && !state.isTimerActive) {
+      _cancelWorkmanagerTask();
+    }
+    // Update persistent notification for any state-affecting event
+    _maybeUpdateNotification();
+  }
+
+  // Public wrapper for external services (e.g., notification actions) to dispatch events.
+  void emitExternal(TimerEvent event) => _emit(event);
 
   void updateDurations({
     int? focusDuration,
@@ -851,7 +981,7 @@ class TimerNotifier extends Notifier<TimerState> {
         state.timeRemaining,
       );
     }
-    _showPersistentNotification(); // Update notification on skip
+    _maybeUpdateNotification();
   }
 
   void clearAllSessionsCompleteFlag() {
@@ -938,6 +1068,10 @@ class TimerNotifier extends Notifier<TimerState> {
     logger.i("⚙️ TimerNotifier handling notification action: '$actionId'");
     await _actionHandler?.handle(actionId);
     logger.d("✅ TimerNotifier finished handling action: '$actionId'");
+  }
+
+  void _enqueueCommand(Future<void> Function() action) {
+    _lastCommand = _lastCommand.whenComplete(action);
   }
 }
 

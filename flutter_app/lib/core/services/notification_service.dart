@@ -31,6 +31,9 @@ abstract class INotificationService {
   });
 }
 
+@pragma(
+  'vm:entry-point',
+) // Required for access from background isolates / native code
 class NotificationService implements INotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -170,9 +173,10 @@ class NotificationService implements INotificationService {
       android: androidPlatformChannelSpecifics,
     );
 
+    // Ensure notification ID fits in signed 32-bit int (plugin requirement).
+    final int safeId = DateTime.now().millisecondsSinceEpoch & 0x7FFFFFFF;
     await _plugin.show(
-      DateTime.now()
-          .millisecondsSinceEpoch, // Unique ID for transient notifications
+      safeId,
       title,
       body,
       platformChannelSpecifics,

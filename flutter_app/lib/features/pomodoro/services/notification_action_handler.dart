@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/timer_provider.dart';
+import '../state_machine/timer_events.dart';
 import '../../todo/providers/todos_provider.dart';
 import '../models/timer_state.dart';
 
@@ -14,25 +15,27 @@ class NotificationActionHandler {
     final TimerState snapshot = notifier.debugCurrentState;
     switch (actionId) {
       case 'pause_timer':
-        if (snapshot.isRunning) notifier.pauseTask();
+        if (snapshot.isRunning)
+          notifier.emitExternal(const NotificationPauseTappedEvent());
         break;
       case 'resume_timer':
-        if (!snapshot.isRunning && snapshot.isTimerActive)
-          notifier.resumeTask();
+        if (!snapshot.isRunning && snapshot.isTimerActive) {
+          notifier.emitExternal(const NotificationResumeTappedEvent());
+        }
         break;
       case 'stop_timer':
-        if (snapshot.activeTaskId != null) {
-          await notifier.stopAndSaveProgress(snapshot.activeTaskId!);
-        } else {
-          notifier.clear();
-        }
+        notifier.emitExternal(
+          NotificationStopTappedEvent(snapshot.activeTaskId),
+        );
         break;
       case 'mark_complete':
         if (snapshot.activeTaskId != null) {
           await ref
               .read(todosProvider.notifier)
               .toggleTodo(snapshot.activeTaskId!);
-          await notifier.stopAndSaveProgress(snapshot.activeTaskId!);
+          notifier.emitExternal(
+            NotificationStopTappedEvent(snapshot.activeTaskId),
+          );
         }
         break;
       case 'continue_working':

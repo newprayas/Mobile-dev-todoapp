@@ -111,7 +111,13 @@ class MiniTimerBar extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  onPressed: notifier.toggleRunning,
+                  onPressed: () {
+                    if (timer.isRunning) {
+                      notifier.pauseTask();
+                    } else {
+                      notifier.resumeTask();
+                    }
+                  },
                   icon: Icon(
                     timer.isRunning
                         ? Icons.pause_rounded
@@ -130,16 +136,18 @@ class MiniTimerBar extends ConsumerWidget {
                     if (wasRunning) notifier.pauseTask();
 
                     final int totalFocusDuration =
-                        timer.focusDurationSeconds ?? TimerDefaults.focusSeconds;
+                        timer.focusDurationSeconds ??
+                        TimerDefaults.focusSeconds;
                     final int timeRemaining = timer.timeRemaining;
                     final int minutesWorked =
                         ((totalFocusDuration - timeRemaining) / 60).round();
 
-                    final bool? shouldStop = await AppDialogs.showStopSessionDialog(
-                      context: context,
-                      taskName: activeTodo!.text,
-                      minutesWorked: minutesWorked,
-                    );
+                    final bool? shouldStop =
+                        await AppDialogs.showStopSessionDialog(
+                          context: context,
+                          taskName: activeTodo!.text,
+                          minutesWorked: minutesWorked,
+                        );
 
                     if (shouldStop != true) {
                       if (wasRunning) notifier.resumeTask();

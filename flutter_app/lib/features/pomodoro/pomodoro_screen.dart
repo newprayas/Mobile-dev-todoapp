@@ -46,10 +46,16 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
     super.initState();
     final timerState = ref.read(timerProvider);
     _focusController = TextEditingController(
-  text: ((timerState.focusDurationSeconds ?? TimerDefaults.focusSeconds) ~/ 60).toString(),
+      text:
+          ((timerState.focusDurationSeconds ?? TimerDefaults.focusSeconds) ~/
+                  60)
+              .toString(),
     );
     _breakController = TextEditingController(
-  text: ((timerState.breakDurationSeconds ?? TimerDefaults.breakSeconds) ~/ 60).toString(),
+      text:
+          ((timerState.breakDurationSeconds ?? TimerDefaults.breakSeconds) ~/
+                  60)
+              .toString(),
     );
     _cyclesController = TextEditingController(
       text: timerState.totalCycles.toString(),
@@ -129,7 +135,11 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
         isPermanentlyOverdue: isPermanentOverdueMode,
       );
     } else {
-      notifier.toggleRunning();
+      if (timerState.isRunning) {
+        notifier.pauseTask();
+      } else {
+        notifier.resumeTask();
+      }
     }
   }
 
@@ -253,11 +263,11 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
 
   @override
   Widget build(BuildContext context) {
-  ref.listen<TimerState>(timerProvider, (previous, next) {
+    ref.listen<TimerState>(timerProvider, (previous, next) {
       if (next.allSessionsComplete &&
           !(previous?.allSessionsComplete ?? false)) {
-    if (!mounted) return;
-    _showAllSessionsCompleteDialog(context, next.totalCycles);
+        if (!mounted) return;
+        _showAllSessionsCompleteDialog(context, next.totalCycles);
       }
 
       // ADD THIS BLOCK
@@ -289,7 +299,9 @@ class _PomodoroScreenState extends ConsumerState<PomodoroScreen> {
               TextButton(
                 onPressed: () {
                   navigator.pop();
-                  ref.read(timerProvider.notifier).clearCycleOverflowBlockedFlag();
+                  ref
+                      .read(timerProvider.notifier)
+                      .clearCycleOverflowBlockedFlag();
                 },
                 child: const Text('Dismiss'),
               ),
