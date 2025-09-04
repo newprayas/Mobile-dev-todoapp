@@ -30,9 +30,20 @@ class TimerReducer {
         backgroundStartTime: null,
         pausedTimeTotal: 0,
       );
-      return TimerReducerResult(newState, const [
-        ShowNotificationEffect(),
-        PersistStateSideEffect(),
+      return TimerReducerResult(newState, [
+        const ShowNotificationEffect(),
+        const PersistStateSideEffect(),
+        ScheduleWorkmanagerEffect(
+          event.taskId,
+          event.taskName,
+          event.focusDuration,
+        ),
+        // Transient start notification with sound (moved from provider).
+        PlaySoundEffect(
+          'focus_timer_start.wav',
+          title: 'Focus Session Started!',
+          body: 'Focus time for "${event.taskName}". You\'ve got this!',
+        ),
       ]);
     }
     if (event is TickEvent) {
@@ -84,7 +95,8 @@ class TimerReducer {
             timeRemaining: nextRemaining,
             focusedTimeCache: focused,
           ),
-          const [],
+          // Update persistent notification every tick so displayed time stays fresh.
+          const [ShowNotificationEffect()],
         );
       }
 
@@ -134,6 +146,7 @@ class TimerReducer {
           isTimerActive: false,
           currentMode: wasFocus ? 'focus' : 'break',
         );
+        effects.add(const CancelWorkmanagerEffect());
       } else {
         nextState = current.copyWith(
           currentCycle: nextCycle,
@@ -174,9 +187,15 @@ class TimerReducer {
       if (current.isRunning || !current.isTimerActive)
         return TimerReducerResult(current, const []);
       final next = current.copyWith(isRunning: true);
-      return TimerReducerResult(next, const [
-        ShowNotificationEffect(),
-        PersistStateSideEffect(),
+      return TimerReducerResult(next, [
+        const ShowNotificationEffect(),
+        const PersistStateSideEffect(),
+        if (current.activeTaskId != null && current.activeTaskName != null)
+          ScheduleWorkmanagerEffect(
+            current.activeTaskId!,
+            current.activeTaskName!,
+            current.timeRemaining,
+          ),
       ]);
     }
     if (event is SkipPhaseEvent) {
